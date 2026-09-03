@@ -1,0 +1,178 @@
+# data-model.yaml
+# Strukturierte Ableitung aus docs/research/*.md — ersetzt die Volltexte NICHT,
+# sondern macht die Kernparameter maschinenlesbar für backend/engine/*.
+
+user_profile:
+  age: int                     # z.B. 49
+  height_cm: float             # z.B. 173
+  # Gewicht/Körperfett/Muskelmasse NICHT hier — kommen aus checkins (zeitlich veränderlich)
+
+checkins:
+  frequency: weekly
+  source: garmin_scale
+  fields:
+    - weight_kg
+    - bodyfat_pct
+    - muscle_kg
+  derived:
+    ffm_kg: "weight_kg * (1 - bodyfat_pct / 100)"   # fettfreie Masse
+
+ftp_tests:
+  frequency: "alle 6-8 Wochen"
+  method: "Zwift Ramp Test"
+  formula: "ftp_watts = 0.75 * best_1min_power"
+  correction_note: "Ramp-Test überschätzt bei anaerob starken Fahrern tendenziell -> ggf. -3-5% manuell korrigieren"
+
+# ---------------------------------------------------------------------------
+# RAD-ZONEN (Coggan 7-Zonen-Modell, % von FTP)
+# Quelle: docs/research/trainingsplan_ausdauer.md
+# ---------------------------------------------------------------------------
+cycling_zones:
+  basis: ftp_watts
+  zones:
+    Z1_aktive_erholung:      { pct_ftp_max: 55 }
+    Z2_grundlagenausdauer:   { pct_ftp_min: 55, pct_ftp_max: 75 }
+    Z3_tempo:                { pct_ftp_min: 76, pct_ftp_max: 87 }
+    sweet_spot:               { pct_ftp_min: 88, pct_ftp_max: 94 }
+    Z4_schwelle:              { pct_ftp_min: 95, pct_ftp_max: 105 }
+    Z5_vo2max:                { pct_ftp_min: 106, pct_ftp_max: 120 }
+    Z6_Z7_anaerob:            { pct_ftp_min: 120 }
+
+cycling_phases:
+  - id: phase0_wiedereinstieg
+    duration_weeks: [1, 2]
+    volume_hours_week: 5
+    focus: "Re-Adaptation, überwiegend Z2"
+  - id: base
+    duration_weeks: [1, 8]
+    volume_hours_week: [5, 7]
+    intensity_split: { easy_pct: 80 }
+    key_sessions: ["sweet_spot_progression", "low_cadence_strength_intervals"]
+  - id: build1
+    duration_weeks: [9, 16]
+    volume_hours_week: [6, 8]
+    intensity_split: { easy_pct: 75 }
+    key_sessions: ["schwelle_intervalle", "over_unders"]
+  - id: build2
+    duration_weeks: [17, 20]
+    key_sessions: ["vo2max", "back_to_back_simulation"]
+    kraft_frequency_per_week: 1   # reduziert von 2
+  - id: peak_taper
+    duration_weeks: [21, 28]
+    key_sessions: ["pass_spezifisch", "back_to_back_wochenenden"]
+    taper: { volume_reduction_pct: [40, 60], intensity: "halten" }
+  - id: passsaison
+    duration_months: 3
+    maintenance: "1 Erhaltungsintervall/Woche, Kraft 1x"
+
+# ---------------------------------------------------------------------------
+# KRAFT-ENGINE
+# Quelle: docs/research/kraftplan.md
+# ---------------------------------------------------------------------------
+strength_phases:
+  - id: phase1_anatomische_anpassung
+    duration_weeks: [1, 8]
+    reps: [15, 25]
+    sets: [2, 3]
+    rest_seconds: [60, 90]
+    equipment: "nur Körpergewicht"
+    focus: ["McGill Big 3", "Glute-Aktivierung", "Liegestütz-Progression", "Inverted Rows", "Mobility"]
+  - id: phase2_kraft_hypertrophie
+    duration_weeks: [9, 16]
+    reps: [8, 12]
+    sets: 3
+    rest_seconds: [60, 90]
+    tempo_eccentric_seconds: [2, 3]
+    equipment: "Körpergewicht + Widerstandsbänder ab hier"
+    focus: ["Hollow Body", "Side Plank gestreckt", "Bulgarian Split Squat", "Single-Leg Deadlift"]
+  - id: phase3_kraftausdauer_erhalt
+    duration_weeks: [17, 24]
+    reps: [10, 15]
+    rest_seconds: [45, 60]
+    focus: ["Copenhagen Plank", "anti-rotatorische Band-Holds", "Erhalt bei reduziertem Volumen"]
+    reduction_rule: "bei intensiverer Rad-Saison auf 1-2 gering-ermüdende Einheiten reduzieren"
+
+strength_constraints:
+  sessions_per_week: 2          # reduziert auf 1 ab cycling_phase build2
+  session_duration_minutes: [50, 55]
+  min_hours_gap_to_hard_cycling_intervals: 6
+  excluded_exercises: ["hochvolumige schwere Kniebeugen bis Versagen"]
+
+# ---------------------------------------------------------------------------
+# ERNÄHRUNGS-ENGINE
+# Quelle: docs/research/ernaehrungsplan.md
+# ---------------------------------------------------------------------------
+nutrition:
+  bmr_formula: "10 * weight_kg + 6.25 * height_cm - 5 * age + 5"   # Mifflin-St Jeor
+
+  maintenance_formula:
+    non_exercise_factor: 1.45          # auf BMR
+    cycling_kcal_per_hour:             # MET-basiert (Ainsworth Compendium), @ 74kg Referenz
+      leicht_rekom: 503                # 16-19 km/h
+      moderat_base: 592                # 19-22 km/h
+      zuegig_tempo: 740                # 22-26 km/h
+      rennen_intervalle: 888           # 26-30+ km/h
+      sehr_hart: 1169                  # >32 km/h
+      note: "kcal/h skaliert mit aktuellem Körpergewicht, MET * kg"
+    strength_kcal_per_session: 300
+
+  deficit:
+    active_phases: ["base", "build1"]
+    inactive_phases: ["build2", "peak_taper", "passsaison"]
+    kcal_per_day: [300, 400]
+    max_weight_loss_pct_per_week: 0.7   # Warnschwelle -> Defizit verkleinern
+
+  macros:
+    protein:
+      basis: "FFM bevorzugt (robuster über Gewichtsverlust-Phasen)"
+      g_per_kg_bodyweight: [2.0, 2.2]
+      g_per_kg_ffm: [2.3, 2.9]
+      meal_distribution: "3 Hauptmahlzeiten x ~50-55g"
+    fat:
+      g_per_kg_bodyweight: [0.9, 1.0]
+      min_pct_kcal: 20
+    carbs:
+      periodized_by_daytype:
+        ruhetag:        { g_per_kg: 3, fat_g: 75 }
+        moderater_tag:  { g_per_kg: 5, fat_g: 70 }
+        langer_harter_tag: { g_per_kg: [6, 8], fat_g: 60 }
+
+  intra_workout_fueling:
+    - { duration_min_max: [0, 75],     carbs_g_per_hour: 0 }
+    - { duration_min_max: [75, 150],   carbs_g_per_hour: [30, 60] }
+    - { duration_min_max: [150, null], carbs_g_per_hour: [60, 90], ratio: "2:1 Glukose:Fruktose" }
+
+  constraints:
+    no_fish_seafood: true
+    raw_cold_vegetables_preferred: true
+    lunch: "kalt oder nur mikrowellengeeignet"
+    no_intermittent_fasting: true
+
+  recalibration_rule: "Makros neu berechnen alle ~4kg Gewichtsverlust oder bei jedem Check-in mit signifikanter FFM-Änderung"
+
+# ---------------------------------------------------------------------------
+# KOPPLUNGSREGELN ZWISCHEN ENGINES
+# ---------------------------------------------------------------------------
+sync_rules:
+  phase_alignment:
+    cycling_base: strength_phase1
+    cycling_build1: strength_phase2
+    cycling_build2: strength_phase3
+    cycling_peak_taper: strength_phase3
+  strength_session_gap_hours_to_hard_cycling: 6
+  weekly_pattern_example:
+    mo: { strength: "session_1", cycling: "ruhe_oder_z1" }
+    di: { cycling: "schluessel_1_intervalle" }
+    mi: { cycling: "z2_grundlage" }
+    do: { strength: "session_2", cycling: "z2_grundlage_oder_rekom" }
+    fr: { cycling: "ruhetag" }
+    sa: { cycling: "schluessel_2_lange_ausfahrt" }
+    so: { cycling: "lange_z2_oder_rekom" }
+
+# ---------------------------------------------------------------------------
+# CHECK-IN & TRIGGER-REGELN
+# ---------------------------------------------------------------------------
+checkin_triggers:
+  weight_loss_too_fast: { condition: ">0.7%/week", action: "Defizit verkleinern" }
+  ftp_stagnation: { condition: "2 Retests in Folge ohne Fortschritt", action: "Volumen/Recovery prüfen" }
+  recovery_warning: { condition: "Ruhe-HF/HRV kippt mehrtägig ODER RPE steigt bei gleicher Watt ODER Schlaf leidet", action: "Erholungswoche/Deload sofort" }
