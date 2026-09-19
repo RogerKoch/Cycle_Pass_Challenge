@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alpenpässe Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Alpenpässe – Dashboard</h1>
+
+  <section id="profile">
+    <h2>Profil</h2>
+    <div id="profile-view"></div>
+    <form id="profile-form">
+      <label>Alter <input name="age" type="number" min="1" required></label>
+      <label>Grösse (cm) <input name="height_cm" type="number" step="0.1" required></label>
+      <label>Programmstart <input name="program_start_date" type="date" required></label>
+      <button type="submit">Speichern</button>
+    </form>
+    <p class="msg" id="profile-msg"></p>
+  </section>
+
+  <section id="checkin">
+    <h2>Check-in</h2>
+    <form id="checkin-form">
+      <label>Gewicht (kg) <input name="weight_kg" type="number" step="0.1" required></label>
+      <label>Körperfett (%) <input name="bodyfat_pct" type="number" step="0.1" required></label>
+      <label>Muskelmasse (kg) <input name="muscle_kg" type="number" step="0.1" required></label>
+      <button type="submit">Erfassen</button>
+    </form>
+    <p class="msg" id="checkin-msg"></p>
+    <table id="checkin-table"></table>
+  </section>
+
+  <section id="ftp">
+    <h2>FTP-Test</h2>
+    <div id="ftp-view"></div>
+    <form id="ftp-form">
+      <label>Beste 1-Min-Leistung (W) <input name="best_1min_power_watts" type="number" step="1" required></label>
+      <label>Manuelle Korrektur (%) <input name="manual_correction_pct" type="number" step="0.5" placeholder="z.B. -3"></label>
+      <button type="submit">Erfassen</button>
+    </form>
+    <p class="msg" id="ftp-msg"></p>
+  </section>
+
+  <section id="today">
+    <h2>Heute</h2>
+    <form id="today-form">
+      <label>Radstunden <input name="cycling_hours" type="number" step="0.25" min="0" value="1" required></label>
+      <label>Rad-Intensität
+        <select name="cycling_intensity">
+          <option value="leicht_rekom">Leicht/Rekom (503 kcal/h)</option>
+          <option value="moderat_base" selected>Moderat/Base (592)</option>
+          <option value="zuegig_tempo">Zügig/Tempo (740)</option>
+          <option value="rennen_intervalle">Rennen/Intervalle (888)</option>
+          <option value="sehr_hart">Sehr hart (1169)</option>
+        </select>
+      </label>
+      <label>Krafteinheiten <input name="strength_sessions" type="number" min="0" step="1" value="0" required></label>
+      <label>Tagestyp
+        <select name="day_type">
+          <option value="ruhetag">Ruhetag</option>
+          <option value="moderater_tag" selected>Moderater Tag</option>
+          <option value="langer_harter_tag">Langer/harter Tag</option>
+        </select>
+      </label>
+      <button type="submit">Berechnen</button>
+    </form>
+    <p class="msg" id="today-msg"></p>
+    <div id="today-result"></div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

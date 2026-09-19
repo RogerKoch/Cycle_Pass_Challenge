@@ -2,12 +2,14 @@
 
 import logging
 
-from flask import Flask
+from flask import Flask, send_from_directory
 
-from backend.config import Config
+from backend.config import REPO_ROOT, Config
 from backend.extensions import db
 
 logger = logging.getLogger(__name__)
+
+FRONTEND_DIR = REPO_ROOT / "frontend" / "dashboard"
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -20,8 +22,13 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     Returns:
         Konfigurierte Flask-App mit registrierten Extensions und Blueprints.
     """
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
     app.config.from_object(config_class)
+
+    @app.get("/")
+    def index():
+        """Liefert das Dashboard."""
+        return send_from_directory(FRONTEND_DIR, "index.html")
 
     db.init_app(app)
 
