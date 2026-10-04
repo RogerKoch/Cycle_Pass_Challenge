@@ -8,7 +8,8 @@ async function api(method, path, body) {
     options.headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(body);
   }
-  const response = await fetch(path, options);
+  // relativ aufloesen, damit die App auch unter einem Pfad-Praefix (z.B. /cpc/) laeuft
+  const response = await fetch(path.replace(/^\//, ""), options);
   const data = await response.json().catch(() => ({}));
   return { ok: response.ok, status: response.status, data };
 }

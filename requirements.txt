@@ -2,4 +2,5 @@ Flask
 Flask-SQLAlchemy
 openpyxl
 requests
+waitress
 pytest

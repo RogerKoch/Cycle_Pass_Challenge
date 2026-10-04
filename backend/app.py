@@ -4,7 +4,7 @@ import logging
 
 from flask import Flask, send_from_directory
 
-from backend.config import REPO_ROOT, Config
+from backend.config import INSTANCE_DIR, REPO_ROOT, Config
 from backend.extensions import db
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,18 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     Returns:
         Konfigurierte Flask-App mit registrierten Extensions und Blueprints.
     """
-    app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
+    app = Flask(
+        __name__,
+        static_folder=str(FRONTEND_DIR),
+        static_url_path="",
+        instance_path=str(INSTANCE_DIR),
+        instance_relative_config=True,
+    )
     app.config.from_object(config_class)
+    if not app.config.get("TESTING"):
+        app.config.from_pyfile("config.py", silent=True)
+    if app.config.get("PASSWORD_HASH") and not app.config.get("SECRET_KEY"):
+        raise RuntimeError("PASSWORD_HASH gesetzt, aber SECRET_KEY fehlt (instance/config.py)")
 
     @app.get("/")
     def index():
@@ -57,7 +67,10 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(food_log_bp)
     app.register_blueprint(meal_templates_bp)
 
+    from backend.auth import register_auth
     from backend.integrations.blv_import import import_blv_command
+
+    register_auth(app)
 
     app.cli.add_command(import_blv_command)
 

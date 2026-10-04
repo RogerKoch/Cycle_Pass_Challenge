@@ -33,6 +33,21 @@ Nährwerte: Schweizer Nährwertdatenbank, Bundesamt für Lebensmittelsicherheit 
 C:\dev\virtualenvs\cycle_pass_challenge\Scripts\python -m pytest backend/tests
 ```
 
+## Betrieb auf dem Server
+
+Läuft unter `https://161.97.157.97/cpc/` hinter Caddy. Setup und Runbook liegen im Repo `server-infra`.
+Produktions-Einstieg ist `serve.py` (waitress, `127.0.0.1:8101`). Ohne Login-Konfiguration startet er nicht.
+
+`instance/config.py` (nicht versioniert):
+
+```python
+SECRET_KEY = "..."      # python -c "import secrets; print(secrets.token_hex(32))"
+PASSWORD_HASH = "..."   # flask --app main.py hash-password
+```
+
+Lokal ohne `instance/config.py` gibt es keinen Login. Um den Login lokal über HTTP zu testen, zusätzlich
+`SESSION_COOKIE_SECURE = False` setzen.
+
 ## Dashboard
 
 | Abschnitt | Zweck |
