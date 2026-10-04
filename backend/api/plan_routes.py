@@ -6,11 +6,14 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
+from backend.api.baseline_routes import resolve_baseline
+from backend.engine.baseline import calculate_energy_availability
 from backend.engine.cycling_zones import compute_cycling_zones
 from backend.engine.nutrition_calc import CyclingIntensity, DayType, calculate_daily_kcal_target, calculate_macro_targets
 from backend.engine.training_phase import get_current_phase
 from backend.models.checkins import Checkin
 from backend.models.ftp_tests import FtpTest
+from backend.models.intake import IntakeDay
 from backend.models.user_profile import UserProfile
 
 logger = logging.getLogger(__name__)
@@ -50,6 +53,10 @@ def get_today_plan():
     phase = get_current_phase(profile.program_start_date, today)
     zones = compute_cycling_zones(ftp_test.ftp_watts if ftp_test else None)
 
+    baseline = resolve_baseline(profile, checkin)
+    rmr, ffm = baseline["rmr_kcal"][0], baseline["ffm_kg"][0]
+    targets_source = "measured" if "measured" in (rmr.source, ffm.source) else "estimated"
+
     try:
         nutrition = calculate_daily_kcal_target(
             weight_kg=checkin.weight_kg,
@@ -59,13 +66,27 @@ def get_today_plan():
             cycling_hours=cycling_hours,
             cycling_intensity=cycling_intensity,
             strength_sessions=strength_sessions,
+            rmr_kcal=rmr.value,
         )
     except ValueError as exc:
         return jsonify({"error": f"ungueltige Trainingsparameter: {exc}"}), 400
 
     macros = calculate_macro_targets(
-        weight_kg=checkin.weight_kg, ffm_kg=checkin.ffm_kg, day_type=day_type, target_kcal=nutrition.target_kcal
+        weight_kg=checkin.weight_kg, ffm_kg=ffm.value, day_type=day_type, target_kcal=nutrition.target_kcal
     )
+
+    intake_today = IntakeDay.query.filter_by(intake_date=today).first()
+    intake = None
+    if intake_today is not None:
+        intake = {
+            "kcal": intake_today.kcal,
+            "protein_g": intake_today.protein_g,
+            "carbs_g": intake_today.carbs_g,
+            "fat_g": intake_today.fat_g,
+            "energy_availability": calculate_energy_availability(
+                intake_today.kcal, nutrition.cycling_kcal + nutrition.strength_kcal, ffm.value
+            ),
+        }
 
     return jsonify(
         {
@@ -84,5 +105,7 @@ def get_today_plan():
             },
             "nutrition": asdict(nutrition),
             "macros": asdict(macros),
+            "targets_source": targets_source,
+            "intake": intake,
         }
     ), 200

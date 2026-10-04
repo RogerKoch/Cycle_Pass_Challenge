@@ -132,3 +132,18 @@ def test_macro_protein_targets_ffm_based_range():
 def test_macro_fat_stays_at_or_above_0_9_g_per_kg():
     macros = calculate_macro_targets(weight_kg=74.0, ffm_kg=57.0, day_type=DayType.MODERATER_TAG, target_kcal=2480.0)
     assert macros.fat_g >= 74.0 * 0.9
+
+
+def test_rmr_kcal_replaces_mifflin_st_jeor_bmr():
+    target = calculate_daily_kcal_target(
+        weight_kg=REFERENCE_WEIGHT_KG,
+        height_cm=REFERENCE_HEIGHT_CM,
+        age=REFERENCE_AGE,
+        phase_id="base",
+        cycling_hours=0.0,
+        cycling_intensity=CyclingIntensity.MODERAT_BASE,
+        strength_sessions=0,
+        rmr_kcal=1800.0,
+    )
+    assert target.bmr_kcal == 1800.0
+    assert target.non_exercise_kcal == pytest.approx(1800.0 * 1.45)

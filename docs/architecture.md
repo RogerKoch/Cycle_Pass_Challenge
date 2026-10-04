@@ -80,7 +80,29 @@ alpenpaesse-app/
 4. **Tagestyp steuert Makros:** Ruhetag/moderat/hart bestimmt KH-Menge und
    Intra-Workout-Fueling gemäss `data-model.yaml`.
 
+## Messwert-Fallback-Pattern (estimated → measured)
+
+Baseline-Werte (RMR, FFM, Körperfett, VT1/VT2, FatMax, MFO, Ernährungsziele) werden mit
+`source: estimated | measured` und `updated_at` gespeichert. Bis zum Diagnostik-Termin
+gelten Schätzwerte (Mifflin-St Jeor, Garmin-KFA, Ernährungsplan, %HFmax), danach
+überschreiben Messwerte sie. Gespeichert werden nur Messwerte; Schätzwerte und abgeleitete
+Felder (`rmr_ratio`, `target_weight_kg`, `energy_availability`) werden bei jedem Lesen neu
+berechnet. Details und Formeln: `docs/data-model.yaml` → `baseline_values`.
+
+## Ernährungs-Intake (Ist-Werte)
+
+Die tatsächliche Zufuhr wird in einer Tracker-App erfasst und per **Job auf der VDI** (Pull)
+in die Datenbank übertragen: Job → `PUT /api/intake/<datum>` (Tagessummen, idempotent, beliebig
+oft wiederholbar). Die API bleibt auf `127.0.0.1`, solange der Job auf derselben VDI läuft;
+läuft er woanders, braucht es vorher einen API-Key. Mit den Ist-Werten berechnet
+`/api/plan/today` Soll/Ist und die Energy Availability für den aktuellen Tag.
+
 ## Offene Punkte (aus Recherche)
+
+- Tracker-App für den Intake-Import noch nicht gewählt (muss API oder Export bieten);
+  der Import-Job ist noch nicht gebaut
+- Baseline-Fallback: %HFmax-Schätzformel für VT1/VT2 (Prozentwerte, HFmax-Quelle) zurückgestellt
+- Energy-Availability-Historie braucht ein Trainings-Log (Garmin-Import)
 
 - FTP-Baseline erst nach Zwift-Ramp-Test (Anfang Oktober) verfügbar → Zonen bis dahin
   nicht berechenbar, UI muss das abfangen (Platzhalter/Hinweis anzeigen)

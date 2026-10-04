@@ -1,3 +1,6 @@
+import pytest
+
+
 PLAN_QUERY = "?cycling_hours=1&cycling_intensity=moderat_base&strength_sessions=1&day_type=moderater_tag"
 
 
@@ -54,3 +57,29 @@ def test_today_plan_disables_deficit_far_in_the_past_start_date(client):
     body = response.get_json()
     assert body["phase"]["phase_id"] == "passsaison"
     assert body["nutrition"]["deficit_kcal"] == 0.0
+
+
+def test_measured_rmr_changes_kcal_target_and_marks_source(client):
+    _setup_profile_and_checkin(client)
+    estimated = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
+    client.put("/api/baseline/rmr_kcal", json={"value": 1800})
+    measured = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
+    assert estimated["targets_source"] == "estimated"
+    assert measured["targets_source"] == "measured"
+    assert measured["nutrition"]["bmr_kcal"] == 1800
+    assert measured["nutrition"]["maintenance_kcal"] > estimated["nutrition"]["maintenance_kcal"]
+
+
+def test_energy_availability_only_present_with_intake_today(client):
+    from datetime import date
+
+    _setup_profile_and_checkin(client)
+    assert client.get(f"/api/plan/today{PLAN_QUERY}").get_json()["intake"] is None
+    client.put(
+        f"/api/intake/{date.today().isoformat()}",
+        json={"kcal": 2500, "protein_g": 150, "carbs_g": 300, "fat_g": 70},
+    )
+    body = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
+    training_kcal = body["nutrition"]["cycling_kcal"] + body["nutrition"]["strength_kcal"]
+    ffm = 74 * 0.77
+    assert body["intake"]["energy_availability"] == pytest.approx((2500 - training_kcal) / ffm)

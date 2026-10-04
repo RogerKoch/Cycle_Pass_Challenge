@@ -151,6 +151,52 @@ nutrition:
   recalibration_rule: "Makros neu berechnen alle ~4kg Gewichtsverlust oder bei jedem Check-in mit signifikanter FFM-Änderung"
 
 # ---------------------------------------------------------------------------
+# BASELINE-WERTE: FALLBACK-PATTERN (estimated -> measured)
+# Quelle: zusätzliche Vorgaben des Users (nicht Teil von docs/research/*.md).
+# Messwerte kommen aus dem Diagnostik-Termin (RMR, Körperzusammensetzung, Laktat/Spiro);
+# bis dahin gelten Schätzwerte.
+# ---------------------------------------------------------------------------
+baseline_values:
+  # Jedes Feld trägt zusätzlich: source: "estimated" | "measured" und updated_at.
+  # measured-Felder sind NULL bis der Diagnostik-Termin erfolgt ist.
+  fields:
+    body_composition: [rmr_kcal, ffm_kg, bodyfat_pct, skinfold_sum_mm, phase_angle_deg]
+    performance:      [vt1_hr, vt1_watts, vt2_hr, vt2_watts, fatmax_watts, fatmax_hr, mfo_g_min]
+    targets:          [target_kcal, target_protein_g, target_carbs_g, target_fat_g]
+
+  fallback_rule: "value = measured_value if measured_value is not None else estimated_value"
+
+  # Umsetzung: nur Messwerte werden gespeichert (baseline_measurements). Schätzwerte werden bei
+  # jedem Lesen live berechnet und veralten so nie; die Antwort liefert value/source/updated_at.
+  estimated_from:
+    rmr_kcal: "Mifflin-St Jeor: 10*kg + 6.25*cm - 5*age + 5"
+    ffm_kg: "weight_kg * (1 - garmin_bodyfat_pct / 100)"     # = checkins.derived.ffm_kg
+    bodyfat_pct: "letzter Check-in (Garmin-Waage)"
+    target_bodyfat_pct: "16 (ergibt 68 kg bei ca. 57 kg FFM), überschreibbar"
+    targets: "target_kcal/protein/carbs/fat = Engine-Berechnung (nutrition_calc) aus den Tagesparametern, nicht fixe Planwerte"
+    vt1_hr_vt2_hr: "keine Schätzung implementiert; pauschale %HFmax-Formel bis Ramp-Test ist zurückgestellt (Prozentwerte/HFmax-Quelle offen)"
+
+  # Ziele (target_*) sind nicht direkt überschreibbar: sie werden immer aus dem aufgelösten
+  # RMR/FFM berechnet; source = measured, sobald RMR oder FFM gemessen sind.
+
+  # Immer neu berechnet, nie gespeichert, nie manuell editierbar:
+  derived:
+    rmr_ratio: "rmr_kcal / (500 + 22 * ffm_kg)"
+    target_weight_kg: "ffm_kg / (1 - target_bodyfat_pct / 100)"
+    energy_availability: "(kcal_intake - training_kcal) / ffm_kg"   # Intake aus intake_days, training_kcal = Rad + Kraft des Tages
+
+  trigger: "Entfällt als Code: derived-Felder werden bei jedem Lesen aus den aufgelösten Werten berechnet, ein neuer measured-Wert wirkt dadurch sofort."
+
+# ---------------------------------------------------------------------------
+# NAHRUNGSZUFUHR (Ist-Werte)
+# ---------------------------------------------------------------------------
+intake:
+  granularity: "Tagessummen (kcal, protein_g, carbs_g, fat_g); Einzeleinträge nur, falls die Tracker-App sie liefert"
+  storage: "intake_days, ein Datensatz je Datum, idempotenter Upsert (PUT /api/intake/<datum>)"
+  source: "Tracker-App -> Job auf der VDI (Pull) -> PUT /api/intake/<datum>; App noch offen, muss API oder Export bieten"
+  energy_availability_scope: "nur für heute (Ist-Zufuhr heute vs. Trainingskcal laut Tagesparametern); Historie braucht ein Trainings-Log (Garmin-Import)"
+
+# ---------------------------------------------------------------------------
 # KOPPLUNGSREGELN ZWISCHEN ENGINES
 # ---------------------------------------------------------------------------
 sync_rules:

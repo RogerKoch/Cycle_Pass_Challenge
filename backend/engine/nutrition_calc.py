@@ -164,6 +164,7 @@ def calculate_daily_kcal_target(
     cycling_hours: float,
     cycling_intensity: CyclingIntensity,
     strength_sessions: int,
+    rmr_kcal: float | None = None,
 ) -> NutritionTarget:
     """Berechnet das vollstaendige taegliche kcal-Ziel aus den Tagesparametern.
 
@@ -175,11 +176,12 @@ def calculate_daily_kcal_target(
         cycling_hours: geplante/geloggte Radzeit fuer den Tag.
         cycling_intensity: Intensitaet der Radeinheit.
         strength_sessions: Anzahl Krafteinheiten am Tag.
+        rmr_kcal: gemessener/aufgeloester Ruheumsatz; ersetzt den Mifflin-St-Jeor-BMR, falls gesetzt.
 
     Returns:
         NutritionTarget mit voller Komponenten-Aufschluesselung.
     """
-    bmr = calculate_bmr(weight_kg, height_cm, age)
+    bmr = rmr_kcal if rmr_kcal is not None else calculate_bmr(weight_kg, height_cm, age)
     non_exercise = calculate_non_exercise_kcal(bmr)
     cycling = calculate_cycling_kcal(cycling_hours, cycling_intensity, weight_kg)
     strength = calculate_strength_kcal(strength_sessions)
