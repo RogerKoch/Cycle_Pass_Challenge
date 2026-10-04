@@ -10,6 +10,7 @@ from backend.extensions import db
 logger = logging.getLogger(__name__)
 
 FRONTEND_DIR = REPO_ROOT / "frontend" / "dashboard"
+NUTRITION_DIR = REPO_ROOT / "frontend" / "ernaehrung"
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -30,11 +31,20 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         """Liefert das Dashboard."""
         return send_from_directory(FRONTEND_DIR, "index.html")
 
+    @app.get("/ernaehrung/")
+    @app.get("/ernaehrung/<path:filename>")
+    def nutrition(filename: str = "index.html"):
+        """Liefert die mobile Ernaehrungs-Seite (PWA)."""
+        return send_from_directory(NUTRITION_DIR, filename)
+
     db.init_app(app)
 
     from backend.api.baseline_routes import baseline_bp
     from backend.api.checkin_routes import checkins_bp
+    from backend.api.food_log_routes import food_log_bp
+    from backend.api.food_routes import foods_bp
     from backend.api.intake_routes import intake_bp
+    from backend.api.meal_template_routes import meal_templates_bp
     from backend.api.plan_routes import plan_bp
     from backend.api.profile_routes import profile_bp
 
@@ -43,6 +53,13 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(baseline_bp)
     app.register_blueprint(intake_bp)
     app.register_blueprint(plan_bp)
+    app.register_blueprint(foods_bp)
+    app.register_blueprint(food_log_bp)
+    app.register_blueprint(meal_templates_bp)
+
+    from backend.integrations.blv_import import import_blv_command
+
+    app.cli.add_command(import_blv_command)
 
     if not app.config.get("TESTING"):
         with app.app_context():
