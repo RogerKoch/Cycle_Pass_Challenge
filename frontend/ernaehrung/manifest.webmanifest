@@ -1,0 +1,13 @@
+{
+  "name": "Cycle Pass – Ernährung",
+  "short_name": "Ernährung",
+  "start_url": "/ernaehrung/",
+  "scope": "/ernaehrung/",
+  "display": "standalone",
+  "background_color": "#f4f5f2",
+  "theme_color": "#2e7d32",
+  "lang": "de",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

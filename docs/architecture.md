@@ -52,6 +52,8 @@ alpenpaesse-app/
 │   │   ├── strength_phases.py       # Phasenparameter Kraft
 │   │   └── sync_rules.py            # Kopplungsregeln (Phasen-Sync, 6h-Abstand, Defizit-Fenster)
 │   ├── integrations/
+│   │   ├── blv_import.py            # BLV-Nährwertdatenbank → foods (CLI import-blv)
+│   │   ├── open_food_facts.py       # Barcode-Lookup
 │   │   ├── garmin_csv_import.py     # MVP: manueller CSV-Import
 │   │   └── garmin_api.py            # Platzhalter für spätere API/Aggregator-Anbindung
 │   └── api/                         # Flask-Endpunkte (REST)
@@ -91,16 +93,24 @@ berechnet. Details und Formeln: `docs/data-model.yaml` → `baseline_values`.
 
 ## Ernährungs-Intake (Ist-Werte)
 
-Die tatsächliche Zufuhr wird in einer Tracker-App erfasst und per **Job auf der VDI** (Pull)
-in die Datenbank übertragen: Job → `PUT /api/intake/<datum>` (Tagessummen, idempotent, beliebig
-oft wiederholbar). Die API bleibt auf `127.0.0.1`, solange der Job auf derselben VDI läuft;
-läuft er woanders, braucht es vorher einen API-Key. Mit den Ist-Werten berechnet
-`/api/plan/today` Soll/Ist und die Energy Availability für den aktuellen Tag.
+Die Zufuhr wird **in der App selbst** erfasst: mobile Seite `/ernaehrung/` (PWA, nur Manifest,
+kein Service Worker), keine externe Tracker-App.
+
+| Baustein | Umsetzung |
+|---|---|
+| Lebensmittel | Schweizer Nährwertdatenbank (BLV, `data/Schweizer_Nahrwertdatenbank.xlsx`, ~1.250 Einträge), Import per `flask --app main.py import-blv <pfad>` (idempotent, eigene Portionen bleiben) |
+| Suche | `LIKE` auf normalisierter Spalte `search_name` (Kleinschreibung, ohne Umlaut-Punkte/Akzente); Rang: ganzes Wort am Anfang → Präfix → Wortanfang → Teiltreffer, dann Nutzungshäufigkeit |
+| Barcode (optional) | Scan im Browser (`@zxing/browser`, CDN) oder Ziffern eintippen → Backend fragt Open Food Facts ab und speichert den Treffer als `source = off`. Kamera nur über HTTPS/localhost |
+| Einträge | `food_log_entries` mit Nährwert-**Snapshot**; Schnelleinträge ohne Lebensmittel; Mahlzeit-Vorlagen; eigene Portion je Lebensmittel |
+| Tagessumme | Jede Änderung am Log berechnet `intake_days` des Datums neu (leerer Tag → Datensatz gelöscht). Log-Einträge überschreiben damit einen per `PUT /api/intake` gesetzten Wert. |
+
+Mit den Ist-Werten berechnet `/api/plan/today` Soll/Ist und die Energy Availability für den
+aktuellen Tag; die mobile Seite fragt die vier Tagesparameter dafür in einem Mini-Formular ab.
 
 ## Offene Punkte (aus Recherche)
 
-- Tracker-App für den Intake-Import noch nicht gewählt (muss API oder Export bieten);
-  der Import-Job ist noch nicht gebaut
+- Öffentlicher Zugriff auf die VDI: HTTPS + Login fehlen noch (Voraussetzung für Handy-Nutzung
+  von unterwegs und für den Kamera-Scan)
 - Baseline-Fallback: %HFmax-Schätzformel für VT1/VT2 (Prozentwerte, HFmax-Quelle) zurückgestellt
 - Energy-Availability-Historie braucht ein Trainings-Log (Garmin-Import)
 
