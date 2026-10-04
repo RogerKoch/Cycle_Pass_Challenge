@@ -44,6 +44,31 @@
     <p class="msg" id="ftp-msg"></p>
   </section>
 
+  <section id="baseline">
+    <h2>Messwerte (Diagnostik)</h2>
+    <p class="hint">Bis zur Messung gelten Schätzwerte aus den Berechnungen.</p>
+    <div id="baseline-view"></div>
+    <form id="baseline-form">
+      <label>Feld <select name="field" id="baseline-field"></select></label>
+      <label>Messwert <input name="value" type="number" step="any" min="0" required></label>
+      <button type="submit">Messwert speichern</button>
+    </form>
+    <p class="msg" id="baseline-msg"></p>
+  </section>
+
+  <section id="intake">
+    <h2>Ist-Zufuhr heute</h2>
+    <div id="intake-view"></div>
+    <form id="intake-form">
+      <label>kcal <input name="kcal" type="number" step="1" min="0" required></label>
+      <label>Protein (g) <input name="protein_g" type="number" step="1" min="0" required></label>
+      <label>Kohlenhydrate (g) <input name="carbs_g" type="number" step="1" min="0" required></label>
+      <label>Fett (g) <input name="fat_g" type="number" step="1" min="0" required></label>
+      <button type="submit">Speichern</button>
+    </form>
+    <p class="msg" id="intake-msg"></p>
+  </section>
+
   <section id="today">
     <h2>Heute</h2>
     <form id="today-form">

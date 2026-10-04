@@ -32,12 +32,16 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     db.init_app(app)
 
+    from backend.api.baseline_routes import baseline_bp
     from backend.api.checkin_routes import checkins_bp
+    from backend.api.intake_routes import intake_bp
     from backend.api.plan_routes import plan_bp
     from backend.api.profile_routes import profile_bp
 
     app.register_blueprint(profile_bp)
     app.register_blueprint(checkins_bp)
+    app.register_blueprint(baseline_bp)
+    app.register_blueprint(intake_bp)
     app.register_blueprint(plan_bp)
 
     if not app.config.get("TESTING"):

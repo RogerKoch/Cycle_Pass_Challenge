@@ -63,7 +63,7 @@ async function saveProfile(event) {
   const method = form.dataset.exists ? "PUT" : "POST";
   const { ok, data } = await api(method, "/api/profile", formToObject(form));
   setMsg("profile-msg", ok ? "" : data.error);
-  if (ok) await loadProfile();
+  if (ok) await Promise.all([loadProfile(), loadBaseline()]);
 }
 
 async function loadCheckins() {
@@ -80,7 +80,7 @@ async function saveCheckin(event) {
   event.preventDefault();
   const { ok, data } = await api("POST", "/api/checkins", formToObject(event.target));
   setMsg("checkin-msg", ok ? "" : data.error);
-  if (ok) await loadCheckins();
+  if (ok) await Promise.all([loadCheckins(), loadBaseline()]);
 }
 
 async function loadFtp() {
@@ -95,6 +95,60 @@ async function saveFtp(event) {
   const { ok, data } = await api("POST", "/api/checkins/ftp-tests", formToObject(event.target));
   setMsg("ftp-msg", ok ? "" : data.error);
   if (ok) await loadFtp();
+}
+
+const SOURCE_LABEL = { measured: "gemessen", estimated: "geschätzt" };
+
+function localToday() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+async function loadBaseline() {
+  const { ok, data } = await api("GET", "/api/baseline");
+  const view = $("baseline-view");
+  if (!ok) {
+    view.textContent = data.error || "Messwerte nicht verfügbar.";
+    return;
+  }
+  const select = $("baseline-field");
+  if (!select.options.length) {
+    for (const name of Object.keys(data.fields)) select.add(new Option(name, name));
+  }
+  const rows = Object.entries(data.fields).map(([name, f]) => [
+    name,
+    f.value === null ? "–" : fmt(f.value, 1),
+    f.source ? SOURCE_LABEL[f.source] : "–",
+  ]);
+  rows.push(["rmr_ratio (abgeleitet)", fmt(data.derived.rmr_ratio, 2), "berechnet"]);
+  rows.push(["target_weight_kg (abgeleitet)", fmt(data.derived.target_weight_kg, 1), "berechnet"]);
+  view.replaceChildren(makeTable(["Feld", "Wert", "Quelle"], rows));
+}
+
+async function saveBaseline(event) {
+  event.preventDefault();
+  const form = event.target;
+  const { ok, data } = await api("PUT", `/api/baseline/${form.elements.field.value}`, {
+    value: Number(form.elements.value.value),
+  });
+  setMsg("baseline-msg", ok ? "" : data.error);
+  if (ok) await loadBaseline();
+}
+
+async function loadIntake() {
+  const { ok, data } = await api("GET", `/api/intake/${localToday()}`);
+  $("intake-view").textContent = ok
+    ? `${fmt(data.kcal)} kcal, P ${fmt(data.protein_g)} g, KH ${fmt(data.carbs_g)} g, F ${fmt(data.fat_g)} g`
+    : "Heute noch nichts erfasst.";
+}
+
+async function saveIntake(event) {
+  event.preventDefault();
+  const body = Object.fromEntries(Object.entries(formToObject(event.target)).map(([k, v]) => [k, Number(v)]));
+  const { ok, data } = await api("PUT", `/api/intake/${localToday()}`, body);
+  setMsg("intake-msg", ok ? "" : data.error);
+  if (ok) await loadIntake();
 }
 
 function renderToday(plan) {
@@ -118,11 +172,21 @@ function renderToday(plan) {
   ]));
 
   const m = plan.macros;
-  box.appendChild(makeTable(["Makro", "g"], [
-    ["Protein", fmt(m.protein_g)],
-    ["Fett", fmt(m.fat_g)],
-    ["Kohlenhydrate", fmt(m.carbs_g)],
+  const src = document.createElement("p");
+  src.textContent = `Ziele basieren auf ${SOURCE_LABEL[plan.targets_source]}en Werten (RMR/FFM).`;
+  box.appendChild(src);
+  const intake = plan.intake;
+  box.appendChild(makeTable(intake ? ["Makro", "Soll", "Ist"] : ["Makro", "Soll"], [
+    ["kcal", fmt(n.target_kcal), ...(intake ? [fmt(intake.kcal)] : [])],
+    ["Protein g", fmt(m.protein_g), ...(intake ? [fmt(intake.protein_g)] : [])],
+    ["Fett g", fmt(m.fat_g), ...(intake ? [fmt(intake.fat_g)] : [])],
+    ["Kohlenhydrate g", fmt(m.carbs_g), ...(intake ? [fmt(intake.carbs_g)] : [])],
   ]));
+  if (intake) {
+    const ea = document.createElement("p");
+    ea.textContent = `Energy Availability: ${fmt(intake.energy_availability, 1)} kcal/kg FFM`;
+    box.appendChild(ea);
+  }
 
   if (!plan.zones.available) {
     const hint = document.createElement("p");
@@ -152,7 +216,11 @@ $("profile-form").addEventListener("submit", saveProfile);
 $("checkin-form").addEventListener("submit", saveCheckin);
 $("ftp-form").addEventListener("submit", saveFtp);
 $("today-form").addEventListener("submit", calculateToday);
+$("baseline-form").addEventListener("submit", saveBaseline);
+$("intake-form").addEventListener("submit", saveIntake);
 
 loadProfile();
 loadCheckins();
 loadFtp();
+loadBaseline();
+loadIntake();

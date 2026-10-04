@@ -30,7 +30,9 @@ C:\dev\virtualenvs\cycle_pass_challenge\Scripts\python -m pytest backend/tests
 | Profil | Alter, Grösse, Programmstart (steuert die Trainingsphase) |
 | Check-in | Gewicht, Körperfett, Muskelmasse (FFM wird berechnet) |
 | FTP-Test | Beste 1-Min-Leistung → FTP = 75 %, optionale manuelle Korrektur |
-| Heute | Tagesparameter → Phase, Rad-Zonen, kcal-Ziel, Makros |
+| Messwerte | Diagnostik-Werte (RMR, FFM, KFA, VT1/VT2 …); bis dahin gelten Schätzwerte |
+| Ist-Zufuhr heute | Tagessumme kcal/Makros manuell erfassen (sonst per Import-Job) |
+| Heute | Tagesparameter → Phase, Rad-Zonen, kcal-Ziel, Makros, Soll/Ist, Energy Availability |
 
 Ohne FTP-Test zeigt "Heute" statt der Zonen einen Hinweis.
 
@@ -43,6 +45,11 @@ Ohne FTP-Test zeigt "Heute" statt der Zonen einen Hinweis.
 | GET | `/api/checkins/latest` | Neuester Check-in |
 | POST | `/api/checkins/ftp-tests` | FTP-Test erfassen (`best_1min_power_watts`, optional `test_date`, `manual_correction_pct`) |
 | GET | `/api/checkins/ftp-tests/latest` | Neuester FTP-Test |
+| GET | `/api/baseline` | Alle Baseline-Felder (Wert, Quelle `estimated`/`measured`, Zeitpunkt) + abgeleitete Werte |
+| PUT | `/api/baseline/<feld>` | Messwert setzen (`{"value": 1800}`), überschreibt die Schätzung |
+| PUT | `/api/intake/<YYYY-MM-DD>` | Tagessumme setzen/überschreiben (`kcal`, `protein_g`, `carbs_g`, `fat_g`), idempotent |
+| GET | `/api/intake/<YYYY-MM-DD>` | Tagessumme lesen (404 falls keine) |
+| GET | `/api/intake?from=&to=` | Tagessummen im Zeitraum |
 | GET | `/api/plan/today` | Query: `cycling_hours`, `cycling_intensity`, `strength_sessions`, `day_type` |
 
 Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` · `rennen_intervalle` · `sehr_hart`;
@@ -57,7 +64,11 @@ Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` 
 | Defizit | 350 kcal nur in Phase `base` und `build1`, sonst 0 |
 | Phasen | ab Programmstart: phase0 2 Wo → base 8 → build1 8 → build2 5 → peak_taper 5 → passsaison (Längen sind Annahmen, siehe `backend/engine/training_phase.py`) |
 | Makros | Protein 2.6 g/kg FFM, Fett 0.95 g/kg, KH 3 / 5 / 7 g/kg je Tagestyp |
+| Messwert-Fallback | Messwert vor Schätzwert (`value`, `source`, `updated_at`). Nur Messwerte werden gespeichert, Schätzwerte und abgeleitete Felder (`rmr_ratio`, `target_weight_kg`) werden bei jedem Lesen berechnet. Gemessener RMR ersetzt den Mifflin-St-Jeor-BMR. |
+| Ziel-KFA | Schätzung 16 % (≈ 68 kg bei 57 kg FFM), per `PUT /api/baseline/target_bodyfat_pct` überschreibbar |
+| Energy Availability | (Ist-Zufuhr heute − Trainingskcal) ÷ FFM, nur für heute |
+| Intake-Import | Tracker-App → Job auf der VDI → `PUT /api/intake/<datum>` (Job noch nicht gebaut, App offen) |
 
 ## Stand
 
-Vorhanden: Rad-Zonen, Ernährung, Phasenlogik, Dashboard. Fehlt: Kraft-Engine, Pass-Übersicht, Garmin-Import.
+Vorhanden: Rad-Zonen, Ernährung, Phasenlogik, Messwert-Fallback, Intake-API, Dashboard. Fehlt: Kraft-Engine, Pass-Übersicht, Garmin-Import.
