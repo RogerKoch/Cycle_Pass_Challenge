@@ -40,6 +40,8 @@ alpenpaesse-app/
 │       ├── kraftplan.md
 │       └── trainingsplan_ausdauer.md
 │
+├── serve.py                        ← Produktions-Einstieg (waitress, ProxyFix)
+├── instance/config.py              ← Secrets, nicht versioniert
 ├── backend/
 │   ├── models/                      # SQLAlchemy/DB-Modelle
 │   │   ├── user_profile.py
@@ -107,10 +109,22 @@ kein Service Worker), keine externe Tracker-App.
 Mit den Ist-Werten berechnet `/api/plan/today` Soll/Ist und die Energy Availability für den
 aktuellen Tag; die mobile Seite fragt die vier Tagesparameter dafür in einem Mini-Formular ab.
 
+## Betrieb auf dem Server
+
+Server 161.97.157.97 (Windows), mehrere Projekte unter einer IP. Setup und Runbook liegen im
+separaten Repo `server-infra`.
+
+| Baustein | Umsetzung |
+|---|---|
+| Reverse Proxy | Caddy (Windows-Dienst), Let's-Encrypt-IP-Zertifikat (Profil `shortlived`) |
+| Adressierung | `https://161.97.157.97/cpc/`. Caddy entfernt den Pfad und sendet `X-Forwarded-Prefix`; `serve.py` setzt `ProxyFix(x_prefix=1)`. Das Frontend nutzt nur relative URLs. Später auf Subdomains umstellbar, ohne den Code zu ändern. |
+| App-Server | `serve.py` → waitress auf `127.0.0.1:8101` (Port über `CPC_PORT`), WinSW-Dienst |
+| Login | `backend/auth.py`: ein Passwort (`PASSWORD_HASH`), permanente Session (365 Tage), Cookie `cpc_session` (Secure, HttpOnly, SameSite=Lax). API ohne Session → 401, Seiten → `/login`. Manifest und Icon sind öffentlich. Ohne `PASSWORD_HASH` (lokale Entwicklung) ist kein Login nötig. |
+| Secrets | `instance/config.py` (nicht versioniert): `SECRET_KEY`, `PASSWORD_HASH`; Hash per `flask --app main.py hash-password` |
+
 ## Offene Punkte (aus Recherche)
 
-- Öffentlicher Zugriff auf die VDI: HTTPS + Login fehlen noch (Voraussetzung für Handy-Nutzung
-  von unterwegs und für den Kamera-Scan)
+- Mehrere User mit eigenen Daten (heute Einzel-Login): bräuchte `user_id` in allen Tabellen
 - Baseline-Fallback: %HFmax-Schätzformel für VT1/VT2 (Prozentwerte, HFmax-Quelle) zurückgestellt
 - Energy-Availability-Historie braucht ein Trainings-Log (Garmin-Import)
 
@@ -126,4 +140,5 @@ aktuellen Tag; die mobile Seite fragt die vier Tagesparameter dafür in einem Mi
 - Backend: Python, Flask
 - DB: SQLite
 - Frontend: HTML (+ ggf. leichtes JS, kein schweres Framework nötig für v1)
+- Betrieb: waitress hinter Caddy (siehe „Betrieb auf dem Server“)
 - Datenimport: manueller CSV-Export aus Garmin Connect (MVP)

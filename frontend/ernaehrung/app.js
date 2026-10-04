@@ -28,7 +28,8 @@ async function api(method, path, body) {
     options.headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(body);
   }
-  const response = await fetch(path, options);
+  // relativ zur App-Wurzel aufloesen (Seite liegt unter <praefix>/ernaehrung/)
+  const response = await fetch(`..${path}`, options);
   const data = await response.json().catch(() => ({}));
   return { ok: response.ok, status: response.status, data };
 }

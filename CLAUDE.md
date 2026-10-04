@@ -49,7 +49,9 @@ sondern ein **lebendes System**, das sich mit den Check-ins fortlaufend rekalibr
   Self-Serve-API für Privatpersonen; `backend/integrations/garmin_csv_import.py` ist
   der MVP-Weg, `garmin_api.py` bleibt Platzhalter für später (Aggregator/eigene
   Business-Zulassung).
-- **Einzelperson, kein Multi-User-System.** Kein Auth/Login-System nötig für v1.
+- **Einzelperson, kein Multi-User-System.** Weil die App öffentlich erreichbar ist, gibt es einen
+  Einzel-Login (ein Passwort, Session-Cookie). Mehrere User mit eigenen Daten wären ein eigenes Feature
+  (`user_id` in allen Tabellen).
 
 ## Bekannte Datenkorrektur (wichtig!)
 
