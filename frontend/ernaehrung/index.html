@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2e7d32">
+  <title>Ernährung</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="prev-day" class="icon-btn" aria-label="Vorheriger Tag">‹</button>
+    <button id="date-label" class="date-label" aria-label="Zu heute springen"></button>
+    <button id="next-day" class="icon-btn" aria-label="Nächster Tag">›</button>
+  </header>
+
+  <main>
+    <section class="card" id="summary">
+      <div id="totals"></div>
+      <details id="target-details" hidden>
+        <summary>Soll-Parameter heute</summary>
+        <form id="target-form" class="grid">
+          <label>Rad (h)<input name="cycling_hours" type="number" step="0.25" min="0" inputmode="decimal" required></label>
+          <label>Intensität
+            <select name="cycling_intensity">
+              <option value="leicht_rekom">leicht/Rekom</option>
+              <option value="moderat_base">moderat/Base</option>
+              <option value="zuegig_tempo">zügig/Tempo</option>
+              <option value="rennen_intervalle">Intervalle</option>
+            </select>
+          </label>
+          <label>Kraft-Einheiten<input name="strength_sessions" type="number" min="0" step="1" inputmode="numeric" required></label>
+          <label>Tagestyp
+            <select name="day_type">
+              <option value="ruhetag">Ruhetag</option>
+              <option value="moderater_tag">moderat</option>
+              <option value="langer_harter_tag">lang/hart</option>
+            </select>
+          </label>
+          <button type="submit" class="primary">Soll berechnen</button>
+        </form>
+      </details>
+      <p class="msg" id="summary-msg"></p>
+    </section>
+
+    <div id="meals"></div>
+    <p class="footer"><a href="/">Dashboard</a> · Nährwerte: Schweizer Nährwertdatenbank (BLV), Open Food Facts</p>
+  </main>
+
+  <!-- Suche -->
+  <dialog id="search-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2 id="search-title">Hinzufügen</h2>
+    </div>
+    <input id="search-input" type="search" placeholder="Lebensmittel suchen…" autocomplete="off" enterkeyhint="search">
+    <div class="row">
+      <button id="open-scan">Barcode</button>
+      <button id="open-quick">Schnelleintrag</button>
+      <button id="open-custom">Eigenes</button>
+    </div>
+    <p class="hint" id="search-hint"></p>
+    <ul id="search-results" class="list"></ul>
+  </dialog>
+
+  <!-- Menge -->
+  <dialog id="amount-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2 id="amount-title"></h2>
+    </div>
+    <p class="hint" id="amount-per100"></p>
+    <div id="portion-row" class="row">
+      <label class="grow">Anzahl<input id="amount-count" type="number" min="0" step="0.5" inputmode="decimal"></label>
+      <span id="portion-label" class="unit"></span>
+    </div>
+    <label>Gramm<input id="amount-grams" type="number" min="0" step="1" inputmode="decimal"></label>
+    <p class="preview" id="amount-preview"></p>
+    <details id="portion-details">
+      <summary>Portion festlegen</summary>
+      <div class="row">
+        <label class="grow">Bezeichnung<input id="portion-name" placeholder="z.B. Ei, Scheibe"></label>
+        <label class="grow">Gramm<input id="portion-grams" type="number" min="1" inputmode="decimal"></label>
+      </div>
+      <button id="portion-save">Portion speichern</button>
+    </details>
+    <div class="row actions">
+      <button id="amount-delete" class="danger">Löschen</button>
+      <button id="amount-save" class="primary grow">Hinzufügen</button>
+    </div>
+    <p class="msg" id="amount-msg"></p>
+  </dialog>
+
+  <!-- Schnelleintrag -->
+  <dialog id="quick-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2>Schnelleintrag</h2>
+    </div>
+    <form id="quick-form" class="grid">
+      <label class="full">Bezeichnung<input name="label" placeholder="z.B. Restaurant Mittag"></label>
+      <label>kcal<input name="kcal" type="number" min="0" inputmode="decimal" required></label>
+      <label>Protein (g)<input name="protein_g" type="number" min="0" inputmode="decimal" value="0" required></label>
+      <label>KH (g)<input name="carbs_g" type="number" min="0" inputmode="decimal" value="0" required></label>
+      <label>Fett (g)<input name="fat_g" type="number" min="0" inputmode="decimal" value="0" required></label>
+      <button type="submit" class="primary full">Erfassen</button>
+    </form>
+    <p class="msg" id="quick-msg"></p>
+  </dialog>
+
+  <!-- Eigenes Lebensmittel -->
+  <dialog id="custom-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2>Eigenes Lebensmittel</h2>
+    </div>
+    <form id="custom-form" class="grid">
+      <label class="full">Name<input name="name" required></label>
+      <p class="hint full">Werte pro 100 g (von der Packung)</p>
+      <label>kcal<input name="kcal_100g" type="number" min="0" step="any" inputmode="decimal" required></label>
+      <label>Protein (g)<input name="protein_100g" type="number" min="0" step="any" inputmode="decimal" required></label>
+      <label>KH (g)<input name="carbs_100g" type="number" min="0" step="any" inputmode="decimal" required></label>
+      <label>Fett (g)<input name="fat_100g" type="number" min="0" step="any" inputmode="decimal" required></label>
+      <label>Portion (optional)<input name="portion_label" placeholder="z.B. Riegel"></label>
+      <label>Portion (g)<input name="portion_g" type="number" min="1" step="any" inputmode="decimal"></label>
+      <input name="barcode" type="hidden">
+      <button type="submit" class="primary full">Speichern</button>
+    </form>
+    <p class="msg" id="custom-msg"></p>
+  </dialog>
+
+  <!-- Vorlagen -->
+  <dialog id="template-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2 id="template-title">Vorlagen</h2>
+    </div>
+    <ul id="template-list" class="list"></ul>
+    <form id="template-form" class="row">
+      <input name="name" class="grow" placeholder="Mahlzeit als Vorlage speichern…" required>
+      <button type="submit">Speichern</button>
+    </form>
+    <p class="msg" id="template-msg"></p>
+  </dialog>
+
+  <!-- Barcode -->
+  <dialog id="scan-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2>Barcode</h2>
+    </div>
+    <video id="scan-video" playsinline muted></video>
+    <form id="ean-form" class="row">
+      <input name="ean" class="grow" inputmode="numeric" pattern="\d{8,14}" placeholder="oder Ziffern eingeben" required>
+      <button type="submit">Suchen</button>
+    </form>
+    <p class="msg" id="scan-msg"></p>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
