@@ -91,9 +91,14 @@ def test_logout_ends_session(auth_client):
     assert auth_client.get("/api/foods").status_code == 401
 
 
+@pytest.mark.parametrize("page", ["ernaehrung", "training"])
 @pytest.mark.parametrize("filename", ["manifest.webmanifest", "icon.svg"])
-def test_manifest_and_icon_are_public(auth_client, filename):
-    assert auth_client.get(f"/ernaehrung/{filename}").status_code == 200
+def test_manifest_and_icon_are_public(auth_client, page, filename):
+    assert auth_client.get(f"/{page}/{filename}").status_code == 200
+
+
+def test_training_page_requires_login(auth_client):
+    assert auth_client.get("/training/").status_code == 302
 
 
 def test_password_hash_without_secret_key_fails_fast():
