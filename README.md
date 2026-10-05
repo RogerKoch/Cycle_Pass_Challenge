@@ -19,6 +19,7 @@ C:\dev\virtualenvs\cycle_pass_challenge\Scripts\python main.py
 
 Dashboard: http://127.0.0.1:5000 (SQLite-DB `alpenpaesse.db` entsteht beim ersten Start).
 Ernährungs-Tagebuch (mobil): http://127.0.0.1:5000/ernaehrung/
+Tagesplan Training (mobil): http://127.0.0.1:5000/training/
 
 Lebensmittel-Datenbank einmalig (und nach neuer BLV-Version) importieren:
 
@@ -85,7 +86,13 @@ Ohne FTP-Test zeigt "Heute" statt der Zonen einen Hinweis.
 | GET / POST | `/api/meal-templates` | Vorlagen listen / anlegen (`items` oder `from_date` + `meal`) |
 | DELETE | `/api/meal-templates/<id>` | Vorlage löschen |
 | POST | `/api/meal-templates/<id>/apply` | `{date, meal?}` → Einträge anlegen |
-| GET | `/api/plan/today` | Query: `cycling_hours`, `cycling_intensity`, `strength_sessions`, `day_type` |
+| GET | `/api/plan/today` | Ohne Query: aus dem Trainingskalender (inkl. `training`, `meals`, `fueling`, `timing_hints`). Mit Query (alle Pflicht): `cycling_hours`, `cycling_intensity`, `strength_sessions`, `day_type` |
+| GET | `/api/calendar/week/<YYYY-MM-DD>` | Woche Mo–So, fehlende Tage werden aus der Standardwoche erzeugt |
+| GET | `/api/calendar/day/<YYYY-MM-DD>` | Tag aufgelöst: Rad (Abschnitte, Watt), Kraft, Mobility, Hinweise, `slot_options`, `reschedule_options` |
+| POST | `/api/calendar/swap` | `{date_a, date_b}` gleiche Woche, ab heute; Regelverstoss → 409 |
+| PUT | `/api/calendar/day/<YYYY-MM-DD>/plan` | `cycling_slot`, `planned_minutes` (nur Ausdauerfahrten), `strength_session`; Regelverstoss → 409 |
+| PATCH | `/api/calendar/day/<YYYY-MM-DD>` | `status` planned/done/modified/skipped, `note`, `actual_minutes`, `actual_intensity`, `actual_strength_done` |
+| POST | `/api/calendar/week/<YYYY-MM-DD>/reset` | Heutige/künftige, nicht erledigte Tage auf Standard zurücksetzen |
 
 Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` · `rennen_intervalle` · `sehr_hart`;
 `day_type` = `ruhetag` · `moderater_tag` · `langer_harter_tag`.
@@ -106,4 +113,4 @@ Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` 
 
 ## Stand
 
-Vorhanden: Rad-Zonen, Ernährung, Phasenlogik, Messwert-Fallback, Intake-API, Ernährungs-Tagebuch (mobil), Dashboard. Fehlt: Kraft-Engine, Pass-Übersicht, Garmin-Import.
+Vorhanden: Rad-Zonen, Ernährung, Phasenlogik, Messwert-Fallback, Intake-API, Ernährungs-Tagebuch (mobil), Dashboard, Trainingskalender mit Rad-/Kraft-Einheiten und Tagesplan (mobil). Fehlt: Check-in-Trigger, Garmin-/intervals.icu-Import, Pass-Übersicht.

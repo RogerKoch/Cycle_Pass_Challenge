@@ -215,3 +215,138 @@ def calculate_macro_targets(weight_kg: float, ffm_kg: float, day_type: DayType, 
     fat_g = weight_kg * FAT_G_PER_KG_BODYWEIGHT
     carbs_g = weight_kg * _CARBS_G_PER_KG_BY_DAYTYPE[day_type]
     return MacroTargets(protein_g=protein_g, fat_g=fat_g, carbs_g=carbs_g)
+
+
+# ---------------------------------------------------------------------------
+# Tagestyp, Mahlzeitenverteilung und Fueling aus der geplanten Einheit
+# Quelle: docs/research/ernaehrungsplan.md §1 (Tagestypen), §3 (Mahlzeitenstruktur), §4 (Intra-Fueling)
+# ---------------------------------------------------------------------------
+
+# Intensitaeten, die als "Intervalle"/hart gelten (Tagestyp lang/hart, Fueling 60–90 g/h)
+HARD_INTENSITIES: frozenset[CyclingIntensity] = frozenset(
+    {CyclingIntensity.ZUEGIG_TEMPO, CyclingIntensity.RENNEN_INTERVALLE, CyclingIntensity.SEHR_HART}
+)
+LONG_RIDE_MINUTES = 120  # "Langer/harter Tag: >=2 h Rad o. Intervalle"
+
+SNACK_1_KCAL = 200.0  # Mittelwert 150–250
+SNACK_2_KCAL = 250.0  # Mittelwert 200–300
+# (slot, Bezeichnung, Anteil an kcal ohne Snacks bzw. None fuer Snack, Protein-Gewicht, Hinweis)
+_MEAL_SLOTS: list[tuple[str, str, float | None, float, str]] = [
+    ("fruehstueck", "Frühstück", 25.0, 45.0, "Grundversorgung"),
+    ("snack_1", "Snack 1", None, 0.0, "Pre-Workout 30–60 min vorher (schnelle KH, wenig Fett/Ballaststoffe) oder Vormittags-Puffer"),
+    ("mittag", "Mittagessen", 30.0, 47.5, "kalt oder mikrowellengeeignet"),
+    ("snack_2", "Snack 2", None, 22.5, "Post-Workout direkt nach dem Training: KH + 20–25 g Protein"),
+    ("abend", "Abendessen", 30.0, 50.0, "Recovery, Casein-Anteil"),
+]
+
+
+@dataclass
+class MealSlot:
+    """Richtwert fuer eine Mahlzeit."""
+
+    slot: str
+    label: str
+    kcal: float
+    protein_g: float
+    hint: str
+
+
+@dataclass
+class Fueling:
+    """Intra-Workout-Kohlenhydrate fuer die Radeinheit."""
+
+    carbs_g_per_hour_min: float
+    carbs_g_per_hour_max: float
+    carbs_g_total_min: float
+    carbs_g_total_max: float
+    note: str
+
+
+def derive_day_type(cycling_minutes: float, intensity: CyclingIntensity | None, strength_sessions: int) -> DayType:
+    """Tagestyp nach ernaehrungsplan.md §1: Ruhetag / moderat (Kraft o. ~1 h Rad) / lang-hart (>=2 h o. Intervalle).
+
+    Args:
+        cycling_minutes: Radzeit des Tages.
+        intensity: Intensitaet der Radeinheit (None ohne Rad).
+        strength_sessions: Anzahl Krafteinheiten.
+
+    Returns:
+        Der DayType fuer die Kohlenhydrat-Periodisierung.
+    """
+    if cycling_minutes > 0 and (cycling_minutes >= LONG_RIDE_MINUTES or intensity in HARD_INTENSITIES):
+        return DayType.LANGER_HARTER_TAG
+    if cycling_minutes > 0 or strength_sessions > 0:
+        return DayType.MODERATER_TAG
+    return DayType.RUHETAG
+
+
+def distribute_meals(target_kcal: float, protein_g: float) -> list[MealSlot]:
+    """Verteilt kcal und Protein auf 3 Hauptmahlzeiten + 2 Snacks (ernaehrungsplan.md §3).
+
+    Snacks erhalten feste Mittelwerte, der Rest geht im Verhaeltnis 25:30:30 an die
+    Hauptmahlzeiten. Protein folgt den Richtwerten (40–50 / 45–50 / 20–25 / ~50 g),
+    skaliert auf das Tagesziel.
+
+    Args:
+        target_kcal: Tagesziel kcal.
+        protein_g: Tagesziel Protein.
+
+    Returns:
+        Fuenf MealSlots; Summe kcal = target_kcal, Summe Protein = protein_g.
+    """
+    main_kcal = max(target_kcal - SNACK_1_KCAL - SNACK_2_KCAL, 0.0)
+    main_share_total = sum(share for _, _, share, _, _ in _MEAL_SLOTS if share is not None)
+    protein_weight_total = sum(weight for _, _, _, weight, _ in _MEAL_SLOTS)
+    snack_kcal = {"snack_1": SNACK_1_KCAL, "snack_2": SNACK_2_KCAL}
+    return [
+        MealSlot(
+            slot=slot,
+            label=label,
+            kcal=main_kcal * share / main_share_total if share is not None else snack_kcal[slot],
+            protein_g=protein_g * weight / protein_weight_total,
+            hint=hint,
+        )
+        for slot, label, share, weight, hint in _MEAL_SLOTS
+    ]
+
+
+def intra_fueling(cycling_minutes: float, intensity: CyclingIntensity | None) -> Fueling | None:
+    """Kohlenhydrate waehrend der Fahrt nach ernaehrungsplan.md §4.
+
+    Args:
+        cycling_minutes: Dauer der Radeinheit.
+        intensity: Intensitaet (intensive Intervalle -> obere Stufe).
+
+    Returns:
+        Fueling, oder None ohne Radeinheit.
+    """
+    if cycling_minutes <= 0:
+        return None
+    hours = cycling_minutes / 60
+    if cycling_minutes < 75:
+        low, high, note = 0.0, 0.0, "Keine KH nötig, Wasser reicht."
+    elif cycling_minutes > 150 or intensity in HARD_INTENSITIES:
+        low, high, note = 60.0, 90.0, "2:1 Glukose:Fruktose (Gel/Getränk), ab Beginn ~alle 20 min."
+    else:
+        low, high, note = 30.0, 60.0, "Ab Beginn regelmässig, nicht erst bei Hunger."
+    return Fueling(low, high, low * hours, high * hours, note)
+
+
+def nutrition_timing_hints(has_ride: bool, has_strength: bool, weight_kg: float) -> list[str]:
+    """Timing-Hinweise rund ums Training (ernaehrungsplan.md §3).
+
+    Args:
+        has_ride: Radeinheit geplant.
+        has_strength: Krafteinheit geplant.
+        weight_kg: aktuelles Gewicht (fuer KH nach dem Training).
+
+    Returns:
+        Hinweistexte, leer an Ruhetagen.
+    """
+    hints = []
+    if has_ride:
+        hints.append("Training vormittags: Snack 1 als Pre-Workout. Nachmittags/abends: Snack 2 direkt danach.")
+        hints.append(f"Nach dem Rad: {weight_kg * 1.0:.0f}–{weight_kg * 1.2:.0f} g KH in den ersten Stunden.")
+    if has_strength:
+        hints.append("Nach der Krafteinheit: 20–25 g Protein innerhalb ~2 h.")
+    return hints

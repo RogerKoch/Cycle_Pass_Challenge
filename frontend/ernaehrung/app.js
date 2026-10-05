@@ -10,7 +10,6 @@ const MEALS = [
   ["training", "Training"],
 ];
 const MEAL_NAMES = Object.fromEntries(MEALS);
-const TARGET_KEY = "ernaehrung.targetParams";
 const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.1/umd/zxing-browser.min.js";
 
 const state = {
@@ -86,7 +85,6 @@ function render() {
     weekday: "short", day: "numeric", month: "short",
   });
   $("date-label").textContent = isToday() ? `Heute, ${label}` : label;
-  $("target-details").hidden = !isToday();
   renderTotals();
   renderMeals();
 }
@@ -155,24 +153,9 @@ function renderMeals() {
 
 // ---------------------------------------------------------------- Soll (nur heute)
 
-function loadTargetParams() {
-  try {
-    return JSON.parse(localStorage.getItem(TARGET_KEY)) || null;
-  } catch {
-    return null;
-  }
-}
-
-function saveTargetParams(params) {
-  try {
-    localStorage.setItem(TARGET_KEY, JSON.stringify(params));
-  } catch {
-    // ohne Speicher muessen die Parameter jedes Mal neu eingegeben werden
-  }
-}
-
-async function loadTarget(params) {
-  const { ok, data } = await api("GET", `/api/plan/today?${new URLSearchParams(params)}`);
+async function loadTarget() {
+  // Soll aus dem Trainingskalender (geplante bzw. zurueckgemeldete Einheit)
+  const { ok, data } = await api("GET", "/api/plan/today");
   if (!ok) {
     state.target = null;
     $("summary-msg").textContent = `Soll nicht verfügbar: ${data.error}`;
@@ -180,26 +163,6 @@ async function loadTarget(params) {
   }
   $("summary-msg").textContent = "";
   state.target = { kcal: data.nutrition.target_kcal, ...data.macros };
-}
-
-async function submitTarget(event) {
-  event.preventDefault();
-  const params = Object.fromEntries(new FormData(event.target));
-  saveTargetParams(params);
-  await loadTarget(params);
-  $("target-details").open = false;
-  if (state.day) renderTotals();
-}
-
-function initTarget() {
-  const params = loadTargetParams();
-  const form = $("target-form");
-  if (!params) {
-    $("target-details").open = true;
-    return Promise.resolve();
-  }
-  for (const [key, value] of Object.entries(params)) if (form.elements[key]) form.elements[key].value = value;
-  return loadTarget(params);
 }
 
 // ---------------------------------------------------------------- Suche
@@ -502,7 +465,6 @@ function bindEvents() {
   $("prev-day").addEventListener("click", () => { state.date = shiftDate(state.date, -1); loadDay(); });
   $("next-day").addEventListener("click", () => { state.date = shiftDate(state.date, 1); loadDay(); });
   $("date-label").addEventListener("click", () => { state.date = localIso(new Date()); loadDay(); });
-  $("target-form").addEventListener("submit", submitTarget);
 
   $("search-input").addEventListener("input", (event) => {
     clearTimeout(searchTimer);
@@ -547,4 +509,4 @@ function setGramsFromInput() {
 }
 
 bindEvents();
-initTarget().then(loadDay);
+loadTarget().then(loadDay);

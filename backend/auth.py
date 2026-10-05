@@ -13,7 +13,8 @@ auth_bp = Blueprint("auth", __name__)
 
 FAILED_LOGIN_DELAY_S = 1.0
 # iOS/Android laden Manifest und Icon ohne Cookie
-PUBLIC_NUTRITION_FILES: frozenset[str] = frozenset({"manifest.webmanifest", "icon.svg"})
+PUBLIC_PWA_FILES: frozenset[str] = frozenset({"manifest.webmanifest", "icon.svg"})
+PWA_ENDPOINTS: frozenset[str] = frozenset({"nutrition", "training"})
 
 LOGIN_PAGE = """<!doctype html>
 <html lang="de">
@@ -74,7 +75,7 @@ def require_login():
         return None
     if request.endpoint == "auth.login":
         return None
-    if request.endpoint == "nutrition" and (request.view_args or {}).get("filename") in PUBLIC_NUTRITION_FILES:
+    if request.endpoint in PWA_ENDPOINTS and (request.view_args or {}).get("filename") in PUBLIC_PWA_FILES:
         return None
     if request.path.startswith("/api/"):
         return jsonify({"error": "nicht angemeldet"}), 401

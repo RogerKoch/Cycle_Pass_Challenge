@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 FRONTEND_DIR = REPO_ROOT / "frontend" / "dashboard"
 NUTRITION_DIR = REPO_ROOT / "frontend" / "ernaehrung"
+TRAINING_DIR = REPO_ROOT / "frontend" / "training"
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -47,9 +48,16 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         """Liefert die mobile Ernaehrungs-Seite (PWA)."""
         return send_from_directory(NUTRITION_DIR, filename)
 
+    @app.get("/training/")
+    @app.get("/training/<path:filename>")
+    def training(filename: str = "index.html"):
+        """Liefert die mobile Trainings-Seite (PWA)."""
+        return send_from_directory(TRAINING_DIR, filename)
+
     db.init_app(app)
 
     from backend.api.baseline_routes import baseline_bp
+    from backend.api.calendar_routes import calendar_bp
     from backend.api.checkin_routes import checkins_bp
     from backend.api.food_log_routes import food_log_bp
     from backend.api.food_routes import foods_bp
@@ -66,6 +74,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(foods_bp)
     app.register_blueprint(food_log_bp)
     app.register_blueprint(meal_templates_bp)
+    app.register_blueprint(calendar_bp)
 
     from backend.auth import register_auth
     from backend.integrations.blv_import import import_blv_command

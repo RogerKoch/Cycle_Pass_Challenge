@@ -20,34 +20,11 @@
   <main>
     <section class="card" id="summary">
       <div id="totals"></div>
-      <details id="target-details" hidden>
-        <summary>Soll-Parameter heute</summary>
-        <form id="target-form" class="grid">
-          <label>Rad (h)<input name="cycling_hours" type="number" step="0.25" min="0" inputmode="decimal" required></label>
-          <label>Intensität
-            <select name="cycling_intensity">
-              <option value="leicht_rekom">leicht/Rekom</option>
-              <option value="moderat_base">moderat/Base</option>
-              <option value="zuegig_tempo">zügig/Tempo</option>
-              <option value="rennen_intervalle">Intervalle</option>
-            </select>
-          </label>
-          <label>Kraft-Einheiten<input name="strength_sessions" type="number" min="0" step="1" inputmode="numeric" required></label>
-          <label>Tagestyp
-            <select name="day_type">
-              <option value="ruhetag">Ruhetag</option>
-              <option value="moderater_tag">moderat</option>
-              <option value="langer_harter_tag">lang/hart</option>
-            </select>
-          </label>
-          <button type="submit" class="primary">Soll berechnen</button>
-        </form>
-      </details>
       <p class="msg" id="summary-msg"></p>
     </section>
 
     <div id="meals"></div>
-    <p class="footer"><a href="../">Dashboard</a> · Nährwerte: Schweizer Nährwertdatenbank (BLV), Open Food Facts</p>
+    <p class="footer"><a href="../training/">Training</a> · <a href="../">Dashboard</a> · Nährwerte: Schweizer Nährwertdatenbank (BLV), Open Food Facts</p>
   </main>
 
   <!-- Suche -->

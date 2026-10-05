@@ -11,12 +11,13 @@ integriert.
 
 | Komponente | Zweck | Status |
 |---|---|---|
-| **Trainings-Engine** | Rad-Zonen (Coggan) aus FTP, phasenabhängige Intervall-Vorgaben | Recherche fertig |
-| **Kraft-Engine** | Phasenabhängige Sätze/Reps/Übungsauswahl | Recherche fertig |
-| **Ernährungs-Engine** | kcal/Makros aus Gewicht, Körperfett %, Trainingslast | Recherche fertig |
-| **Check-in-Modul** | Wöchentliche/periodische Erfassung, Trigger-Regeln für Re-Kalibrierung | zu bauen |
+| **Trainings-Engine** | Rad-Zonen (Coggan) aus FTP, phasenabhängige Intervall-Vorgaben | gebaut (`cycling_sessions.py`) |
+| **Kraft-Engine** | Phasenabhängige Sätze/Reps/Übungsauswahl | gebaut (`strength_sessions.py`) |
+| **Ernährungs-Engine** | kcal/Makros aus Gewicht, Körperfett %, Trainingslast | gebaut |
+| **Trainingskalender** | Standardwoche je Phase, Tauschen/Anpassen/Absagen, Kopplungsregeln | gebaut (`week_plan.py`, `/training/`) |
+| **Check-in-Modul** | Wöchentliche/periodische Erfassung, Trigger-Regeln für Re-Kalibrierung | Erfassung gebaut, Trigger zu bauen |
 | **Pass-Datenbank** | 199 Pässe, Cluster, Logistik-Planung | Excel vorhanden |
-| **Frontend/Dashboard** | Anzeige aller abgeleiteten Pläne + Pass-Übersicht | zu bauen |
+| **Frontend/Dashboard** | Anzeige aller abgeleiteten Pläne + Pass-Übersicht | Dashboard, `/training/`, `/ernaehrung/` gebaut; Pass-Übersicht zu bauen |
 
 Alle Komponenten teilen sich **eine SQLite-Datenbank**.
 
@@ -47,12 +48,14 @@ alpenpaesse-app/
 │   │   ├── user_profile.py
 │   │   ├── checkins.py
 │   │   ├── ftp_tests.py
-│   │   └── training_calendar.py
+│   │   └── training_days.py         # Trainingskalender, 1 Zeile pro Tag
 │   ├── engine/                      # reine Berechnungslogik, ungekoppelt von Flask
 │   │   ├── cycling_zones.py         # Coggan-Zonen aus FTP
 │   │   ├── nutrition_calc.py        # BMR, kcal-Ziel, Makros
-│   │   ├── strength_phases.py       # Phasenparameter Kraft
-│   │   └── sync_rules.py            # Kopplungsregeln (Phasen-Sync, 6h-Abstand, Defizit-Fenster)
+│   │   ├── training_phase.py        # Phase aus Programmstart + Datum
+│   │   ├── cycling_sessions.py      # Rad-Einheiten je Phase/Slot/Woche, Watt aus FTP
+│   │   ├── strength_sessions.py     # Übungsbibliothek, Einheiten A/B je Kraftphase, Mobility
+│   │   └── week_plan.py             # Standardwoche, Kopplungsregeln, Ersatztage
 │   ├── integrations/
 │   │   ├── blv_import.py            # BLV-Nährwertdatenbank → foods (CLI import-blv)
 │   │   ├── open_food_facts.py       # Barcode-Lookup
@@ -61,10 +64,13 @@ alpenpaesse-app/
 │   └── api/                         # Flask-Endpunkte (REST)
 │       ├── profile_routes.py
 │       ├── checkin_routes.py
+│       ├── calendar_routes.py       # Woche/Tag, Tauschen, Anpassen, Rückmeldung
 │       └── plan_routes.py
 │
 ├── frontend/
-│   ├── dashboard/                   # Trainings-/Ernährungs-/Kraft-Ansicht
+│   ├── dashboard/                   # Profil, Check-in, FTP, Messwerte
+│   ├── training/                    # mobil: Tagesplan (Rad/Kraft/Mobility/Ernährung) + Woche
+│   ├── ernaehrung/                  # mobil: Ernährungs-Tagebuch
 │   └── passuebersicht/              # Pass-Datenbank durchsuchbar/filterbar
 │
 ├── data/
@@ -75,14 +81,29 @@ alpenpaesse-app/
 
 ## Kopplungsregeln zwischen den Engines
 
-1. **Phasen-Synchronisation:** `training_calendar.phase_rad` und `phase_kraft` laufen
-   auf denselben 6–8-Wochen-Blöcken (Base ↔ Phase 1, Build1 ↔ Phase 2, Build2/Peak ↔ Phase 3).
-2. **Zeitliche Trennung:** Kraft-Session nur zulässig, wenn ≥6h Abstand zu einem
-   Rad-Intervalltag (`sync_rules.py` prüft das beim Anlegen des Trainingskalenders).
-3. **Kalorisches Defizit:** nur aktiv in Base/Build1 (`nutrition_calc.py` liest
-   `phase_rad` und schaltet Defizit ab Build2 auf 0).
-4. **Tagestyp steuert Makros:** Ruhetag/moderat/hart bestimmt KH-Menge und
-   Intra-Workout-Fueling gemäss `data-model.yaml`.
+1. **Phasen-Synchronisation:** Die Kraftphase folgt der Rad-Phase des Tages
+   (Phase 0/Base ↔ Phase 1, Build1 ↔ Phase 2, Build2/Peak/Passsaison ↔ Phase 3,
+   `strength_sessions.strength_phase_for`). Ab Build 2 nur 1 Krafteinheit (Mo, A/B im Wochenwechsel).
+2. **Wochenregeln** (`week_plan.validate_week`, geprüft bei Tausch und Anpassung):
+   blockierend sind zwei Schlüsseleinheiten an aufeinanderfolgenden Tagen (≥48 h) und eine Woche
+   ohne kompletten Ruhetag (abgesagter Tag zählt als Ruhetag). Kraft am Tag einer Schlüsseleinheit
+   ist nur ein Hinweis (≥6 h Abstand, Rad zuerst).
+3. **Kalorisches Defizit:** nur aktiv in Base/Build1 (`nutrition_calc.py` schaltet es ab Build2 auf 0).
+4. **Tagestyp steuert Makros:** Ruhetag / moderat (Kraft o. ~1 h Rad) / lang-hart (≥2 h o. Intervalle),
+   abgeleitet aus der geplanten bzw. zurückgemeldeten Einheit (`derive_day_type`), bestimmt KH-Menge
+   und Intra-Workout-Fueling.
+
+## Trainingskalender
+
+| Baustein | Umsetzung |
+|---|---|
+| Speicherung | `training_days`: Slot (`rekom`, `schluessel_1`, `z2_grundlage`, `z2_oder_rekom`, `schluessel_2`, `lang` oder leer), Krafteinheit A/B, Dauer-Override, Status, Ist-Werte, Notiz. Intervalle, Watt und Übungen werden beim Lesen aus Phase und Woche aufgelöst |
+| Erzeugung | Lazy beim ersten Abruf einer Woche aus der Standardwoche (Mo Kraft A + Rekom · Di Schlüssel 1 · Mi Z2 · Do Kraft B + Rekom · Fr Ruhe · Sa Schlüssel 2 · So lang). Vor dem Programmstart leer |
+| Progression | je Phase/Woche nach *Trainingsplan Ausdauer* §3; Build 1 jede 3. Woche Erholungswoche (−40 % Volumen); Peak: 3 Spezifik- + 2 Taper-Wochen |
+| Tauschen | ganze Tage (Rad + Kraft) innerhalb einer Woche, ab heute; der Status bleibt beim Datum. So wird eine abgesagte Schlüsseleinheit auf einen Ersatztag verschoben |
+| Anpassen | geplanter Tag: andere Einheit der Phase, Dauer nur bei Ausdauerfahrten (Grundlagen-Abschnitte skalieren, Blöcke bleiben), Kraft an/aus/A↔B |
+| Rückmeldung | `done` / `modified` (Ist-Minuten, Intensität, Kraft ja/nein) nur heute/vergangen; `skipped` auch im Voraus mit Grund |
+| Ernährung | `/api/plan/today` ohne Parameter rechnet mit dem Kalendertag (Ist vor geplant, abgesagt = 0) und liefert Mahlzeitenverteilung (3 + 2 Snacks), Fueling und Timing-Hinweise |
 
 ## Messwert-Fallback-Pattern (estimated → measured)
 
@@ -123,6 +144,12 @@ separaten Repo `server-infra`.
 | Secrets | `instance/config.py` (nicht versioniert): `SECRET_KEY`, `PASSWORD_HASH`; Hash per `flask --app main.py hash-password` |
 
 ## Offene Punkte (aus Recherche)
+
+- Kraft-Platzierung: Die Kraft-Recherche empfiehlt Kraft am harten Radtag (danach bzw. ≥6 h später),
+  die Ausdauer-Recherche und `data-model.yaml` Mo/Do an lockeren Tagen. Umgesetzt ist Mo/Do.
+- Progressionsschritte innerhalb der Phasen (z. B. Sweet Spot 3×10 → 3×12 → 2×20) und die Zuordnung
+  der Kraftübungen aus Phase 2/3 zu Einheit A/B sind Annahmen; die Recherche nennt nur Start/Ziel
+- Rad-kcal weiter über MET-Stufen; mit FTP wären kJ aus den Watt-Vorgaben genauer
 
 - Mehrere User mit eigenen Daten (heute Einzel-Login): bräuchte `user_id` in allen Tabellen
 - Baseline-Fallback: %HFmax-Schätzformel für VT1/VT2 (Prozentwerte, HFmax-Quelle) zurückgestellt

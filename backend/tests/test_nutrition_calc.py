@@ -10,6 +10,10 @@ from backend.engine.nutrition_calc import (
     calculate_macro_targets,
     calculate_non_exercise_kcal,
     calculate_strength_kcal,
+    derive_day_type,
+    distribute_meals,
+    intra_fueling,
+    nutrition_timing_hints,
 )
 
 REFERENCE_WEIGHT_KG = 74.0
@@ -147,3 +151,49 @@ def test_rmr_kcal_replaces_mifflin_st_jeor_bmr():
     )
     assert target.bmr_kcal == 1800.0
     assert target.non_exercise_kcal == pytest.approx(1800.0 * 1.45)
+
+
+def test_day_type_rest_without_any_training():
+    assert derive_day_type(0, None, 0) == DayType.RUHETAG
+
+
+def test_day_type_moderate_for_strength_or_short_easy_ride():
+    assert derive_day_type(0, None, 1) == DayType.MODERATER_TAG
+    assert derive_day_type(60, CyclingIntensity.MODERAT_BASE, 0) == DayType.MODERATER_TAG
+
+
+def test_day_type_long_hard_for_two_hours_or_intervals():
+    assert derive_day_type(120, CyclingIntensity.MODERAT_BASE, 0) == DayType.LANGER_HARTER_TAG
+    assert derive_day_type(60, CyclingIntensity.RENNEN_INTERVALLE, 0) == DayType.LANGER_HARTER_TAG
+
+
+def test_meals_sum_to_daily_targets():
+    meals = distribute_meals(2480, 160)
+    assert [m.slot for m in meals] == ["fruehstueck", "snack_1", "mittag", "snack_2", "abend"]
+    assert sum(m.kcal for m in meals) == pytest.approx(2480)
+    assert sum(m.protein_g for m in meals) == pytest.approx(160)
+    assert meals[2].kcal == pytest.approx(meals[4].kcal)
+
+
+def test_no_fueling_below_75_minutes():
+    assert intra_fueling(60, CyclingIntensity.RENNEN_INTERVALLE).carbs_g_per_hour_max == 0
+
+
+def test_moderate_fueling_up_to_two_and_a_half_hours():
+    fueling = intra_fueling(120, CyclingIntensity.MODERAT_BASE)
+    assert (fueling.carbs_g_per_hour_min, fueling.carbs_g_per_hour_max) == (30, 60)
+    assert fueling.carbs_g_total_max == pytest.approx(120)
+
+
+def test_high_fueling_for_long_rides_or_intense_intervals():
+    assert intra_fueling(180, CyclingIntensity.MODERAT_BASE).carbs_g_per_hour_max == 90
+    assert intra_fueling(90, CyclingIntensity.RENNEN_INTERVALLE).carbs_g_per_hour_min == 60
+
+
+def test_no_fueling_without_ride():
+    assert intra_fueling(0, None) is None
+
+
+def test_timing_hints_empty_on_rest_day_and_include_protein_after_strength():
+    assert nutrition_timing_hints(False, False, 74) == []
+    assert any("Protein" in h for h in nutrition_timing_hints(False, True, 74))
