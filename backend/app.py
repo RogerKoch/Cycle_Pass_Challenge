@@ -65,6 +65,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     from backend.api.meal_template_routes import meal_templates_bp
     from backend.api.plan_routes import plan_bp
     from backend.api.profile_routes import profile_bp
+    from backend.api.intervals_routes import intervals_bp
     from backend.api.review_routes import review_bp
 
     app.register_blueprint(profile_bp)
@@ -77,6 +78,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(meal_templates_bp)
     app.register_blueprint(calendar_bp)
     app.register_blueprint(review_bp)
+    app.register_blueprint(intervals_bp)
 
     from backend.auth import register_auth
     from backend.integrations.blv_import import import_blv_command

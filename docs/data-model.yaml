@@ -194,7 +194,7 @@ intake:
   granularity: "Einzeleinträge je Mahlzeit (fruehstueck/mittag/abend/snack/training) mit Nährwert-Snapshot; Schnelleinträge nur mit Summen"
   storage: "food_log_entries (Einträge), foods (BLV/OFF/eigene, pro 100 g, optionale Portion), meal_templates; intake_days = Tagessumme, wird bei jeder Log-Änderung neu berechnet"
   source: "Eigene Erfassung in der App (/ernaehrung/). Lebensmittel: Schweizer Nährwertdatenbank (BLV) + optional Barcode via Open Food Facts. PUT /api/intake/<datum> bleibt für manuelle Tagessummen, wird aber von Log-Einträgen überschrieben"
-  energy_availability_scope: "nur für heute (Ist-Zufuhr heute vs. Trainingskcal laut Tagesparametern); Historie braucht ein Trainings-Log (Garmin-Import)"
+  energy_availability_scope: "heute im Tagesplan, Historie (Ø 7 Tage) im Check-in-Review; Trainings-kcal aus intervals.icu-Import (kJ), sonst Kalender"
 
 # ---------------------------------------------------------------------------
 # KOPPLUNGSREGELN ZWISCHEN ENGINES

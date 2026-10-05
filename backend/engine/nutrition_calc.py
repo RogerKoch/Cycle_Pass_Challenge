@@ -166,6 +166,7 @@ def calculate_daily_kcal_target(
     strength_sessions: int,
     rmr_kcal: float | None = None,
     deficit_kcal: float | None = None,
+    cycling_kcal: float | None = None,
 ) -> NutritionTarget:
     """Berechnet das vollstaendige taegliche kcal-Ziel aus den Tagesparametern.
 
@@ -179,13 +180,17 @@ def calculate_daily_kcal_target(
         strength_sessions: Anzahl Krafteinheiten am Tag.
         rmr_kcal: gemessener/aufgeloester Ruheumsatz; ersetzt den Mifflin-St-Jeor-BMR, falls gesetzt.
         deficit_kcal: Defizit nach Review-Anpassungen (engine.plan_adjustments); None = Phasen-Default.
+        cycling_kcal: gemessener Rad-Verbrauch (kJ bzw. Garmin, engine.imported_training); None = MET-Schaetzung.
 
     Returns:
         NutritionTarget mit voller Komponenten-Aufschluesselung.
     """
     bmr = rmr_kcal if rmr_kcal is not None else calculate_bmr(weight_kg, height_cm, age)
     non_exercise = calculate_non_exercise_kcal(bmr)
-    cycling = calculate_cycling_kcal(cycling_hours, cycling_intensity, weight_kg)
+    if cycling_kcal is not None:
+        cycling = cycling_kcal
+    else:
+        cycling = calculate_cycling_kcal(cycling_hours, cycling_intensity, weight_kg)
     strength = calculate_strength_kcal(strength_sessions)
     maintenance = non_exercise + cycling + strength
     deficit = calculate_deficit_kcal(phase_id) if deficit_kcal is None else deficit_kcal

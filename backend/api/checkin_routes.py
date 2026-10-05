@@ -9,6 +9,7 @@ from backend.engine.cycling_zones import calculate_ftp_from_ramp_test
 from backend.extensions import db
 from backend.models.checkins import Checkin
 from backend.models.ftp_tests import FtpTest
+from backend.models.intervals import IcuWellness
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,10 @@ def create_checkin():
 def list_checkins():
     """Listet alle Check-ins, neueste zuerst."""
     checkins = Checkin.query.order_by(Checkin.checkin_date.desc(), Checkin.created_at.desc()).all()
-    return jsonify([_serialize_checkin(c) for c in checkins]), 200
+    imported = {w.checkin_id for w in IcuWellness.query.filter(IcuWellness.checkin_id.isnot(None)).all()}
+    return jsonify([
+        {**_serialize_checkin(c), "source": "intervals" if c.id in imported else "manual"} for c in checkins
+    ]), 200
 
 
 @checkins_bp.get("/latest")

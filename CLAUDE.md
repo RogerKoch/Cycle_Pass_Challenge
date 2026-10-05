@@ -45,10 +45,10 @@ sondern ein **lebendes System**, das sich mit den Check-ins fortlaufend rekalibr
   `data-model.yaml` gilt der Volltext in `docs/research/` als massgeblich.
 - **Aktuellste Artefakt-Version zählt**, aber prüfe auch nachträgliche Korrekturen im
   Chat-Fliesstext nach dem letzten Artefakt (siehe Hinweis unten zu kcal-Korrektur).
-- **API vor manuellem Import, wo möglich.** Aktuell (Stand 2026) hat Garmin keine
-  Self-Serve-API für Privatpersonen; `backend/integrations/garmin_csv_import.py` ist
-  der MVP-Weg, `garmin_api.py` bleibt Platzhalter für später (Aggregator/eigene
-  Business-Zulassung).
+- **API vor manuellem Import, wo möglich.** Garmin hat (Stand 2026) keine Self-Serve-API für
+  Privatpersonen; die Garmin-Daten kommen über die intervals.icu-API
+  (`backend/integrations/intervals_icu.py`, Key in `instance/config.py`). Manuelle Erfassung
+  bleibt als Fallback.
 - **Einzelperson, kein Multi-User-System.** Weil die App öffentlich erreichbar ist, gibt es einen
   Einzel-Login (ein Passwort, Session-Cookie). Mehrere User mit eigenen Daten wären ein eigenes Feature
   (`user_id` in allen Tabellen).

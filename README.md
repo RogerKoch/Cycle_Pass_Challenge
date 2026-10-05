@@ -44,6 +44,7 @@ Produktions-Einstieg ist `serve.py` (waitress, `127.0.0.1:8101`). Ohne Login-Kon
 ```python
 SECRET_KEY = "..."      # python -c "import secrets; print(secrets.token_hex(32))"
 PASSWORD_HASH = "..."   # flask --app main.py hash-password
+INTERVALS_ICU_API_KEY = "..."  # optional: intervals.icu → Settings → Developer Settings → API Key
 ```
 
 Lokal ohne `instance/config.py` gibt es keinen Login. Um den Login lokal über HTTP zu testen, zusätzlich
@@ -97,6 +98,8 @@ Ohne FTP-Test zeigt "Heute" statt der Zonen einen Hinweis.
 | GET | `/api/review` | Kennzahlen, offene Befunde (Trigger) mit vorgeschlagener Aktion, Anpassungen |
 | POST | `/api/review/decisions` | `{key, decision: accepted\|dismissed}`; `accepted` legt die Anpassung ab heute an |
 | GET / DELETE | `/api/adjustments[/<id>]` | Anpassungen listen / zurücknehmen |
+| GET | `/api/intervals/status` | intervals.icu konfiguriert?, letzter Sync/Fehler, Anzahl Datensätze (Key wird nie ausgegeben) |
+| POST | `/api/intervals/sync` | Letzte 14 Tage importieren; `?if_stale=1` nur wenn letzter Sync > 30 min |
 
 Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` · `rennen_intervalle` · `sehr_hart`;
 `day_type` = `ruhetag` · `moderater_tag` · `langer_harter_tag`.
@@ -117,4 +120,4 @@ Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` 
 
 ## Stand
 
-Vorhanden: Rad-Zonen, Ernährung, Phasenlogik, Messwert-Fallback, Intake-API, Ernährungs-Tagebuch (mobil), Dashboard, Trainingskalender mit Rad-/Kraft-Einheiten und Tagesplan (mobil). Check-in-Review mit Trigger-Regeln und Plan-Anpassungen. Fehlt: Garmin-/intervals.icu-Import, Pass-Übersicht.
+Vorhanden: Rad-Zonen, Ernährung, Phasenlogik, Messwert-Fallback, Intake-API, Ernährungs-Tagebuch (mobil), Dashboard, Trainingskalender mit Rad-/Kraft-Einheiten und Tagesplan (mobil). Check-in-Review mit Trigger-Regeln und Plan-Anpassungen. Garmin-Daten via intervals.icu (Aktivitäten als Ist, Auto-Check-ins, Ruhe-HF/HRV-Trigger). Fehlt: Pass-Übersicht.

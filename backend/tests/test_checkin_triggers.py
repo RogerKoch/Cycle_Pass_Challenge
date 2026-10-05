@@ -192,3 +192,34 @@ def test_due_reminders_when_checkin_or_questionnaire_older_than_a_week():
 def test_findings_are_sorted_by_severity():
     findings = evaluate(_inputs(checkins=[], signals=[_signal(sleep=3, back=2)]))
     assert [f.severity for f in findings] == sorted([f.severity for f in findings], key=["alert", "warn", "info"].index)
+
+
+# --- Wellness (intervals.icu) --------------------------------------------
+
+
+def _wellness(baseline_hr=48.0, recent_hr=48.0, baseline_hrv=60.0, recent_hrv=60.0, baseline_days=28):
+    from backend.engine.checkin_triggers import WellnessPoint
+
+    points = [WellnessPoint(TODAY - timedelta(days=3 + i), baseline_hr, baseline_hrv) for i in range(baseline_days)]
+    points += [WellnessPoint(TODAY - timedelta(days=i), recent_hr, recent_hrv) for i in range(3)]
+    return points
+
+
+def test_resting_hr_up_five_over_three_days_triggers_recovery_week():
+    finding = _find(evaluate(_inputs(wellness=_wellness(recent_hr=53))), "recovery_warning_wellness")
+    assert finding.action.kind == "deload"
+    assert "recovery_warning_wellness" not in _ids(evaluate(_inputs(wellness=_wellness(recent_hr=52.9))))
+
+
+def test_hrv_down_ten_percent_triggers_recovery_week():
+    assert "recovery_warning_wellness" in _ids(evaluate(_inputs(wellness=_wellness(recent_hrv=54))))
+    assert "recovery_warning_wellness" not in _ids(evaluate(_inputs(wellness=_wellness(recent_hrv=55))))
+
+
+def test_wellness_trigger_needs_two_weeks_of_baseline():
+    assert "recovery_warning_wellness" not in _ids(evaluate(_inputs(wellness=_wellness(recent_hr=60, baseline_days=13))))
+
+
+def test_wellness_finding_key_is_stable_within_a_week():
+    first = _find(evaluate(_inputs(wellness=_wellness(recent_hr=55))), "recovery_warning_wellness")
+    assert first.key.endswith((TODAY - timedelta(days=TODAY.weekday())).isoformat())
