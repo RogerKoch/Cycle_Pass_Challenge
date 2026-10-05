@@ -216,7 +216,7 @@ function strengthCard(strength) {
 function mobilityCard(mobility) {
   return el("section", { class: "card" },
     el("details", {},
-      el("summary", {}, "🧘 Mobility (5–10 min, nach dem Fahren)"),
+      el("summary", {}, "🧘 Mobility (5–10 min, zum Abschluss)"),
       el("ul", { class: "exercises" }, ...mobility.map((e) => el("li", {},
         el("span", { class: "dose" }, `${e.sets} × ${e.reps}`), e.name,
         e.note ? el("span", { class: "sub" }, e.note) : null,
