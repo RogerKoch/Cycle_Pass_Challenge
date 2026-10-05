@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 95 520 140" role="img" aria-label="Glute Bridge: Start und Endposition">
+<defs><style>
+.b{stroke:#1d211c;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.far{stroke:#a3a9a0}
+.hd{fill:#1d211c}
+.fl{stroke:#c9cdc5;stroke-width:3}
+.dv{stroke:#e1e4de;stroke-width:1.5;stroke-dasharray:4 5}
+.ac{stroke:#2e7d32;stroke-width:3;stroke-dasharray:6 5;fill:none}
+.acf{fill:#2e7d32;opacity:.35}
+.acb{stroke:#2e7d32;stroke-width:5;stroke-linecap:round}
+.ar{stroke:#c77700;stroke-width:3;fill:none;stroke-linecap:round}
+.arh{fill:#c77700}
+.bench{fill:#e1e4de;stroke:#a3a9a0;stroke-width:2}
+text{font-family:system-ui,sans-serif;font-size:13px;fill:#646b62}
+.lb{font-weight:600;fill:#1d211c}
+@media (prefers-color-scheme:dark){
+.b{stroke:#e8ebe6}.far{stroke:#6f766c}.hd{fill:#e8ebe6}.fl{stroke:#4a4f48}.dv{stroke:#2f332e}
+.ac,.acb{stroke:#7bc67e}.acf{fill:#7bc67e}.ar{stroke:#f0a640}.arh{fill:#f0a640}
+.bench{fill:#2f332e;stroke:#6f766c}text{fill:#9aa197}.lb{fill:#e8ebe6}}
+</style>
+<marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="arh" d="M0 0L10 5L0 10z"/></marker></defs>
+<line class="fl" x1="8" y1="200" x2="252" y2="200"/><line class="fl" x1="268" y1="200" x2="512" y2="200"/><line class="dv" x1="260" y1="105" x2="260" y2="215"/>
+<text class="lb" x="12" y="115">Start</text><text class="lb" x="272" y="115">Ende</text>
+<!-- Start: Rueckenlage, Knie gebeugt -->
+<circle class="hd" cx="60" cy="188" r="11"/>
+<polyline class="b" points="82,193 150,193 185,155 205,195 222,196"/>
+<line class="b" x1="82" y1="193" x2="130" y2="195"/>
+<ellipse class="acf" cx="150" cy="190" rx="14" ry="10"/>
+<line class="ar" x1="138" y1="180" x2="138" y2="140" marker-end="url(#ah)"/>
+<text x="130" y="225" text-anchor="middle">Füsse hüftbreit, Arme am Boden</text>
+<g transform="translate(260 0)">
+<!-- Ende: Huefte gestreckt -->
+<line class="ac" x1="80" y1="178" x2="200" y2="134"/>
+<circle class="hd" cx="60" cy="188" r="11"/>
+<polyline class="b" points="82,193 145.8,169.4 194.6,151.4 205,195 222,196"/>
+<line class="b" x1="82" y1="193" x2="130" y2="195"/>
+<ellipse class="acf" cx="146" cy="170" rx="14" ry="10"/>
+<text x="130" y="225" text-anchor="middle">Gesäss anspannen · Schulter–Hüfte–Knie</text>
+</g>
+</svg>

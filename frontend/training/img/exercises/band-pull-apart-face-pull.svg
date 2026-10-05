@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 82 520 153" role="img" aria-label="Band Pull-Apart und Face Pull, Ansicht von oben">
+<defs><style>
+.b{stroke:#1d211c;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.far{stroke:#a3a9a0}
+.hd{fill:#1d211c}
+.fl{stroke:#c9cdc5;stroke-width:3}
+.dv{stroke:#e1e4de;stroke-width:1.5;stroke-dasharray:4 5}
+.ac{stroke:#2e7d32;stroke-width:3;stroke-dasharray:6 5;fill:none}
+.acf{fill:#2e7d32;opacity:.35}
+.acb{stroke:#2e7d32;stroke-width:5;stroke-linecap:round}
+.ar{stroke:#c77700;stroke-width:3;fill:none;stroke-linecap:round}
+.arh{fill:#c77700}
+.bench{fill:#e1e4de;stroke:#a3a9a0;stroke-width:2}
+text{font-family:system-ui,sans-serif;font-size:13px;fill:#646b62}
+.vw{font-size:11px;font-style:italic}
+.band{stroke:#a3a9a0;stroke-width:3;fill:none}
+.pil{fill:#e1e4de}
+.lb{font-weight:600;fill:#1d211c}
+@media (prefers-color-scheme:dark){
+.b{stroke:#e8ebe6}.far{stroke:#6f766c}.hd{fill:#e8ebe6}.fl{stroke:#4a4f48}.dv{stroke:#2f332e}
+.ac,.acb{stroke:#7bc67e}.acf{fill:#7bc67e}.ar{stroke:#f0a640}.arh{fill:#f0a640}
+.bench{fill:#2f332e;stroke:#6f766c}text{fill:#9aa197}.lb{fill:#e8ebe6}.band{stroke:#6f766c}.pil{fill:#2f332e}}
+</style>
+<marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="arh" d="M0 0L10 5L0 10z"/></marker></defs>
+<line class="dv" x1="260" y1="90" x2="260" y2="215"/>
+<text class="lb" x="12" y="100">Pull-Apart</text><text class="lb" x="272" y="100">Face Pull</text>
+<text class="vw" x="248" y="100" text-anchor="end">Ansicht von oben</text>
+<polyline class="b far" points="98,125 115,190 145,190 162,125"/>
+<ellipse class="acf" cx="130" cy="110" rx="32" ry="8"/>
+<line class="band" x1="35" y1="142" x2="225" y2="142"/>
+<polyline class="b" points="35,142 98,125 162,125 225,142"/>
+<circle class="hd" cx="130" cy="122" r="15"/>
+<path class="ar" d="M108 182 Q70 175 52 154" marker-end="url(#ah)"/>
+<path class="ar" d="M152 182 Q190 175 208 154" marker-end="url(#ah)"/>
+<text x="130" y="225" text-anchor="middle">Arme gestreckt auseinanderziehen</text>
+<g transform="translate(260 0)">
+<rect class="bench" x="122" y="196" width="16" height="12" rx="2"/>
+<polyline class="band" points="113,150 130,198 147,150"/>
+<polyline class="b" points="112,150 68,148 98,125 162,125 192,148 148,150"/>
+<circle class="hd" cx="130" cy="122" r="15"/>
+<line class="ar" x1="164" y1="192" x2="152" y2="166" marker-end="url(#ah)"/>
+<text x="130" y="225" text-anchor="middle">Band zum Gesicht, Ellbogen hoch</text>
+</g>
+</svg>

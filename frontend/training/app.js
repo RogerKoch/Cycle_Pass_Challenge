@@ -22,6 +22,11 @@ const state = {
   swapFirst: null, // im Tauschmodus der zuerst angetippte Tag
 };
 
+// Uebungsname -> {img, video}; fehlt die Datei, gibt es einfach keine Skizzen
+const ILLUSTRATIONS = fetch("img/exercises/index.json")
+  .then((response) => (response.ok ? response.json() : {}))
+  .catch(() => ({}));
+
 async function api(method, path, body) {
   const options = { method, headers: {} };
   if (body !== undefined) {
@@ -91,6 +96,7 @@ async function load() {
     return;
   }
   $("page-msg").textContent = "";
+  state.illustrations = await ILLUSTRATIONS;
   state.day = day.data;
   state.week = week.data;
   state.plan = null;
@@ -163,7 +169,8 @@ function strengthCard(strength) {
   const items = strength.exercises.map((e) => el("li", {},
     el("span", { class: "dose" }, `${e.sets} × ${e.reps}`),
     e.name,
-    e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null));
+    e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
+    illustration(e.name)));
   return el("section", { class: "card" },
     el("h2", {}, `💪 ${strength.title}`),
     el("p", { class: "card-sub" },
@@ -178,7 +185,18 @@ function mobilityCard(mobility) {
       el("summary", {}, "🧘 Mobility (5–10 min, nach dem Fahren)"),
       el("ul", { class: "exercises" }, ...mobility.map((e) => el("li", {},
         el("span", { class: "dose" }, `${e.sets} × ${e.reps}`), e.name,
-        e.note ? el("span", { class: "sub" }, e.note) : null)))));
+        e.note ? el("span", { class: "sub" }, e.note) : null,
+        illustration(e.name))))));
+}
+
+function illustration(name) {
+  const entry = (state.illustrations || {})[name];
+  if (!entry) return null;
+  const video = `https://www.youtube.com/results?search_query=${encodeURIComponent(entry.video)}`;
+  return el("details", { class: "illus" },
+    el("summary", {}, "Skizze & Video"),
+    el("img", { src: `img/exercises/${entry.img}`, alt: name, loading: "lazy" }),
+    el("a", { href: video, target: "_blank", rel: "noopener" }, "▶ Video-Suche auf YouTube"));
 }
 
 function actionsCard(day) {
