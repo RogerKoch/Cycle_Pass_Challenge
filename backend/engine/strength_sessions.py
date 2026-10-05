@@ -81,7 +81,6 @@ _SESSION_A: list[Exercise] = [
     Exercise("Side Plank", "3", "15–30 s je Seite", note="Phase 1 Knie gebeugt, ab Phase 2 gestreckt"),
     Exercise("Anti-rotatorischer Band-Hold (Pallof)", "3", "20–30 s je Seite", min_phase=3),
     Exercise("Band External Rotation", "2", "12–15 je Seite", note="Handtuch zwischen Ellbogen und Rippen"),
-    Exercise("Auslaufen/Stretch", "1", "5 min"),
 ]
 
 _SESSION_B: list[Exercise] = [
@@ -98,7 +97,6 @@ _SESSION_B: list[Exercise] = [
     Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Kein Nacken-Crunch"),
     Exercise("Bird Dog", "3", "6–8 je Seite, 3–5 s halten", note="Neutrale Wirbelsäule"),
     Exercise("YTW-Raises", "2–3", "8–12 pro Buchstabe"),
-    Exercise("Auslaufen/Stretch", "1", "5 min"),
 ]
 
 _SESSIONS: dict[str, tuple[str, list[Exercise]]] = {

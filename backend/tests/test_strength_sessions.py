@@ -41,6 +41,11 @@ def test_holds_keep_their_library_values():
     assert side_plank.reps == "15–30 s je Seite"
 
 
+def test_sessions_end_without_stretch_block_mobility_closes_instead():
+    for session_id in ("A", "B"):
+        assert "Auslaufen/Stretch" not in _names(build_strength_session(session_id, STRENGTH_PHASES[1]))
+
+
 def test_rejects_unknown_session_and_phase():
     with pytest.raises(ValueError):
         build_strength_session("C", STRENGTH_PHASES[1])
