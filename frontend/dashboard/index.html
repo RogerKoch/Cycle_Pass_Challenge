@@ -73,27 +73,8 @@
 
   <section id="today">
     <h2>Heute</h2>
-    <form id="today-form">
-      <label>Radstunden <input name="cycling_hours" type="number" step="0.25" min="0" value="1" required></label>
-      <label>Rad-Intensität
-        <select name="cycling_intensity">
-          <option value="leicht_rekom">Leicht/Rekom (503 kcal/h)</option>
-          <option value="moderat_base" selected>Moderat/Base (592)</option>
-          <option value="zuegig_tempo">Zügig/Tempo (740)</option>
-          <option value="rennen_intervalle">Rennen/Intervalle (888)</option>
-          <option value="sehr_hart">Sehr hart (1169)</option>
-        </select>
-      </label>
-      <label>Krafteinheiten <input name="strength_sessions" type="number" min="0" step="1" value="0" required></label>
-      <label>Tagestyp
-        <select name="day_type">
-          <option value="ruhetag">Ruhetag</option>
-          <option value="moderater_tag" selected>Moderater Tag</option>
-          <option value="langer_harter_tag">Langer/harter Tag</option>
-        </select>
-      </label>
-      <button type="submit">Berechnen</button>
-    </form>
+    <p>Aus dem Trainingskalender. Tagesplan, Anpassen und Rückmeldung: <a href="training/">Training</a></p>
+    <button id="today-refresh" type="button">Aktualisieren</button>
     <p class="msg" id="today-msg"></p>
     <div id="today-result"></div>
   </section>
