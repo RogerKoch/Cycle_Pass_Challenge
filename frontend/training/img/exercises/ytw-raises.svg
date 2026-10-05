@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 230" role="img" aria-label="YTW-Raises in Bauchlage, Ansicht von oben">
+<defs><style>
+.b{stroke:#1d211c;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.far{stroke:#a3a9a0}
+.hd{fill:#1d211c}
+.fl{stroke:#c9cdc5;stroke-width:3}
+.dv{stroke:#e1e4de;stroke-width:1.5;stroke-dasharray:4 5}
+.ac{stroke:#2e7d32;stroke-width:3;stroke-dasharray:6 5;fill:none}
+.acf{fill:#2e7d32;opacity:.35}
+.acb{stroke:#2e7d32;stroke-width:5;stroke-linecap:round}
+.ar{stroke:#c77700;stroke-width:3;fill:none;stroke-linecap:round}
+.arh{fill:#c77700}
+.bench{fill:#e1e4de;stroke:#a3a9a0;stroke-width:2}
+text{font-family:system-ui,sans-serif;font-size:13px;fill:#646b62}
+.vw{font-size:11px;font-style:italic}
+.band{stroke:#a3a9a0;stroke-width:3;fill:none}
+.pil{fill:#e1e4de}
+.lb{font-weight:600;fill:#1d211c}
+@media (prefers-color-scheme:dark){
+.b{stroke:#e8ebe6}.far{stroke:#6f766c}.hd{fill:#e8ebe6}.fl{stroke:#4a4f48}.dv{stroke:#2f332e}
+.ac,.acb{stroke:#7bc67e}.acf{fill:#7bc67e}.ar{stroke:#f0a640}.arh{fill:#f0a640}
+.bench{fill:#2f332e;stroke:#6f766c}text{fill:#9aa197}.lb{fill:#e8ebe6}.band{stroke:#6f766c}.pil{fill:#2f332e}}
+</style>
+<marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="arh" d="M0 0L10 5L0 10z"/></marker></defs>
+<line class="dv" x1="173" y1="10" x2="173" y2="200"/><line class="dv" x1="347" y1="10" x2="347" y2="200"/>
+<text class="lb" x="12" y="20">Y</text><text class="lb" x="185" y="20">T</text><text class="lb" x="359" y="20">W</text>
+<text class="vw" x="508" y="20" text-anchor="end">Bauchlage, von oben</text>
+<ellipse class="acf" cx="86" cy="92" rx="18" ry="9"/>
+<line class="b" x1="86" y1="70" x2="86" y2="150"/>
+<line class="b" x1="64" y1="75" x2="108" y2="75"/>
+<line class="b" x1="74" y1="150" x2="98" y2="150"/>
+<line class="b" x1="74" y1="150" x2="72" y2="195"/><line class="b" x1="98" y1="150" x2="100" y2="195"/>
+<polyline class="b" points="24,33 64,75 108,75 148,33"/>
+<circle class="hd" cx="86" cy="55" r="13"/>
+<ellipse class="acf" cx="260" cy="92" rx="18" ry="9"/>
+<line class="b" x1="260" y1="70" x2="260" y2="150"/>
+<line class="b" x1="238" y1="75" x2="282" y2="75"/>
+<line class="b" x1="248" y1="150" x2="272" y2="150"/>
+<line class="b" x1="248" y1="150" x2="246" y2="195"/><line class="b" x1="272" y1="150" x2="274" y2="195"/>
+<polyline class="b" points="185,75 335,75"/>
+<circle class="hd" cx="260" cy="55" r="13"/>
+<ellipse class="acf" cx="434" cy="92" rx="18" ry="9"/>
+<line class="b" x1="434" y1="70" x2="434" y2="150"/>
+<line class="b" x1="412" y1="75" x2="456" y2="75"/>
+<line class="b" x1="422" y1="150" x2="446" y2="150"/>
+<line class="b" x1="422" y1="150" x2="420" y2="195"/><line class="b" x1="446" y1="150" x2="448" y2="195"/>
+<polyline class="b" points="386,62 384,100 412,75 456,75 484,100 482,62"/>
+<circle class="hd" cx="434" cy="55" r="13"/>
+<text x="86" y="220" text-anchor="middle">Arme 45° nach oben</text>
+<text x="260" y="220" text-anchor="middle">Arme seitlich</text>
+<text x="434" y="220" text-anchor="middle">Ellbogen zur Hüfte</text>
+</svg>

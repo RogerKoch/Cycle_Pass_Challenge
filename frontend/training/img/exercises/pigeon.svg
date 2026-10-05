@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 82 520 153" role="img" aria-label="Pigeon-Stretch: Start und Endposition">
+<defs><style>
+.b{stroke:#1d211c;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.far{stroke:#a3a9a0}
+.hd{fill:#1d211c}
+.fl{stroke:#c9cdc5;stroke-width:3}
+.dv{stroke:#e1e4de;stroke-width:1.5;stroke-dasharray:4 5}
+.ac{stroke:#2e7d32;stroke-width:3;stroke-dasharray:6 5;fill:none}
+.acf{fill:#2e7d32;opacity:.35}
+.acb{stroke:#2e7d32;stroke-width:5;stroke-linecap:round}
+.ar{stroke:#c77700;stroke-width:3;fill:none;stroke-linecap:round}
+.arh{fill:#c77700}
+.bench{fill:#e1e4de;stroke:#a3a9a0;stroke-width:2}
+text{font-family:system-ui,sans-serif;font-size:13px;fill:#646b62}
+.vw{font-size:11px;font-style:italic}
+.band{stroke:#a3a9a0;stroke-width:3;fill:none}
+.pil{fill:#e1e4de}
+.lb{font-weight:600;fill:#1d211c}
+@media (prefers-color-scheme:dark){
+.b{stroke:#e8ebe6}.far{stroke:#6f766c}.hd{fill:#e8ebe6}.fl{stroke:#4a4f48}.dv{stroke:#2f332e}
+.ac,.acb{stroke:#7bc67e}.acf{fill:#7bc67e}.ar{stroke:#f0a640}.arh{fill:#f0a640}
+.bench{fill:#2f332e;stroke:#6f766c}text{fill:#9aa197}.lb{fill:#e8ebe6}.band{stroke:#6f766c}.pil{fill:#2f332e}}
+</style>
+<marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="arh" d="M0 0L10 5L0 10z"/></marker></defs>
+<line class="fl" x1="8" y1="200" x2="252" y2="200"/><line class="fl" x1="268" y1="200" x2="512" y2="200"/>
+<line class="dv" x1="260" y1="90" x2="260" y2="215"/>
+<text class="lb" x="12" y="100">Start</text><text class="lb" x="272" y="100">Ende</text>
+<line class="b far" x1="175" y1="196" x2="150" y2="197"/>
+<ellipse class="acf" cx="132" cy="180" rx="14" ry="9"/>
+<polyline class="b" points="40,197 130,182 175,196"/>
+<line class="b" x1="130" y1="182" x2="138" y2="125"/>
+<line class="b far" x1="138" y1="125" x2="150" y2="190"/>
+<circle class="hd" cx="140" cy="108" r="11"/>
+<path class="ar" d="M157 104 Q200 108 206 148" marker-end="url(#ah)"/>
+<text x="130" y="225" text-anchor="middle">Vorderes Bein quer, hinteres gestreckt</text>
+<g transform="translate(260 0)">
+<line class="b far" x1="175" y1="196" x2="150" y2="197"/>
+<ellipse class="acf" cx="132" cy="180" rx="14" ry="9"/>
+<polyline class="b" points="40,197 130,182 175,196"/>
+<polyline class="b" points="130,182 186,168 186,195 215,197"/>
+<circle class="hd" cx="204" cy="164" r="11"/>
+<text x="130" y="225" text-anchor="middle">Oberkörper nach vorn ablegen</text>
+</g>
+</svg>

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 95 520 140" role="img" aria-label="BWS-Extension über Foam Roller: Start und Endposition">
+<defs><style>
+.b{stroke:#1d211c;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.far{stroke:#a3a9a0}
+.hd{fill:#1d211c}
+.fl{stroke:#c9cdc5;stroke-width:3}
+.dv{stroke:#e1e4de;stroke-width:1.5;stroke-dasharray:4 5}
+.ac{stroke:#2e7d32;stroke-width:3;stroke-dasharray:6 5;fill:none}
+.acf{fill:#2e7d32;opacity:.35}
+.acb{stroke:#2e7d32;stroke-width:5;stroke-linecap:round}
+.ar{stroke:#c77700;stroke-width:3;fill:none;stroke-linecap:round}
+.arh{fill:#c77700}
+.bench{fill:#e1e4de;stroke:#a3a9a0;stroke-width:2}
+text{font-family:system-ui,sans-serif;font-size:13px;fill:#646b62}
+.vw{font-size:11px;font-style:italic}
+.band{stroke:#a3a9a0;stroke-width:3;fill:none}
+.pil{fill:#e1e4de}
+.lb{font-weight:600;fill:#1d211c}
+@media (prefers-color-scheme:dark){
+.b{stroke:#e8ebe6}.far{stroke:#6f766c}.hd{fill:#e8ebe6}.fl{stroke:#4a4f48}.dv{stroke:#2f332e}
+.ac,.acb{stroke:#7bc67e}.acf{fill:#7bc67e}.ar{stroke:#f0a640}.arh{fill:#f0a640}
+.bench{fill:#2f332e;stroke:#6f766c}text{fill:#9aa197}.lb{fill:#e8ebe6}.band{stroke:#6f766c}.pil{fill:#2f332e}}
+</style>
+<marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path class="arh" d="M0 0L10 5L0 10z"/></marker></defs>
+<line class="fl" x1="8" y1="200" x2="252" y2="200"/><line class="fl" x1="268" y1="200" x2="512" y2="200"/>
+<line class="dv" x1="260" y1="103" x2="260" y2="215"/>
+<text class="lb" x="12" y="113">Start</text><text class="lb" x="272" y="113">Ende</text>
+<circle class="bench" cx="112" cy="186" r="14"/>
+<ellipse class="acf" cx="112" cy="168" rx="16" ry="8"/>
+<polyline class="b" points="170,195 205,155 225,195 238,196"/>
+<line class="b" x1="170" y1="195" x2="100" y2="165"/>
+<polyline class="b" points="100,165 96,138 78,150"/>
+<circle class="hd" cx="80" cy="158" r="11"/>
+<path class="ar" d="M66 140 Q42 150 46 178" marker-end="url(#ah)"/>
+<text x="130" y="225" text-anchor="middle">Rolle unter BWS, Hände am Kopf</text>
+<g transform="translate(260 0)">
+<circle class="bench" cx="112" cy="186" r="14"/>
+<ellipse class="acf" cx="112" cy="168" rx="16" ry="8"/>
+<polyline class="b" points="170,195 205,155 225,195 238,196"/>
+<polyline class="b" points="170,195 112,171 90,180"/>
+<polyline class="b" points="90,180 90,154 70,168"/>
+<circle class="hd" cx="68" cy="180" r="11"/>
+<text x="130" y="225" text-anchor="middle">Über die Rolle strecken, langsam</text>
+</g>
+</svg>
