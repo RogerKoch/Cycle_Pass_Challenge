@@ -218,7 +218,18 @@ sync_rules:
 # ---------------------------------------------------------------------------
 # CHECK-IN & TRIGGER-REGELN
 # ---------------------------------------------------------------------------
+# Vollständige Regeln und Quellen: docs/architecture.md → Check-in-Review; Umsetzung backend/engine/checkin_triggers.py.
+# Massgeblich bleiben die Volltexte in docs/research/ (Abschnitte „Schwellen“, Ernährung §6, Kraft Signal-Monitoring).
 checkin_triggers:
-  weight_loss_too_fast: { condition: ">0.7%/week", action: "Defizit verkleinern" }
+  weight_loss_too_fast: { condition: ">0.7%/week (2-Wochen-Trend)", action: "Defizit verkleinern (-100 kcal)" }
+  weight_stagnation: { condition: "Trend >= 0 über >2–3 Wochen bei Defizit", action: "Defizit reduzieren" }
+  diet_break_due: { condition: "Defizit 6–10 Wochen ohne Pause", action: "1–2 Wochen Erhaltung (umgesetzt: 7 Tage)" }
+  target_weight_reached: { condition: "Gewicht <= Zielgewicht", action: "Erhaltung, Protein ~2,0 g/kg" }
+  low_energy_availability: { condition: "EA < 30 kcal/kg FFM (Ø 7 Tage)", action: "mehr essen / Defizit verkleinern" }
   ftp_stagnation: { condition: "2 Retests in Folge ohne Fortschritt", action: "Volumen/Recovery prüfen" }
+  ftp_declining: { condition: "FTP sinkt über zwei Tests", action: "Fettabbau stoppen/neu bewerten" }
   recovery_warning: { condition: "Ruhe-HF/HRV kippt mehrtägig ODER RPE steigt bei gleicher Watt ODER Schlaf leidet", action: "Erholungswoche/Deload sofort" }
+  legs_flat: { condition: "Beine chronisch platt", action: "Kraftvolumen -20 %, Beinanteil reduzieren" }
+  back_pain: { condition: "unterer Rücken schmerzt nach langen Fahrten", action: "Core-Frequenz erhöhen" }
+  constant_hunger: { condition: "Dauerhunger", action: "Defizit reduzieren" }
+  ftp_retests: { when: "alle 6–8 Wochen: Ende Base, Mitte Build, Ende Build 2, vor Peak", calendar: "Phase0 W1, Base W8, Build1 W6, Build2 W5 (Samstag)" }
