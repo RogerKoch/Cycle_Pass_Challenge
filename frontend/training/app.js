@@ -94,6 +94,7 @@ async function load() {
   state.day = day.data;
   state.week = week.data;
   state.plan = null;
+  loadReviewBanner();
   if (state.date === today()) {
     const plan = await api("GET", "/api/plan/today");
     state.plan = plan.ok ? plan.data : { error: plan.data.error };
@@ -106,6 +107,17 @@ function render() {
   $("date-label").textContent = state.date === today() ? `Heute, ${label}` : label;
   renderDay();
   renderWeek();
+}
+
+async function loadReviewBanner() {
+  const { ok, data } = await api("GET", "/api/review");
+  const banner = $("review-banner");
+  const count = ok ? data.findings.length : 0;
+  banner.hidden = count === 0;
+  if (!count) return;
+  const urgent = data.findings.some((f) => f.severity === "alert");
+  banner.className = urgent ? "card banner alert" : "card banner";
+  banner.textContent = `${urgent ? "⚠ " : ""}${count} offene${count === 1 ? "r Hinweis" : " Hinweise"} im Check-in-Review →`;
 }
 
 // ---------------------------------------------------------------- Tag

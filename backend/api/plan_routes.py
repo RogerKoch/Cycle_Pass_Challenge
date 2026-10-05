@@ -20,11 +20,13 @@ from backend.engine.nutrition_calc import (
     intra_fueling,
     nutrition_timing_hints,
 )
+from backend.engine.plan_adjustments import active_kinds, effective_deficit
 from backend.engine.training_phase import get_current_phase
 from backend.engine.week_plan import phase_week
 from backend.models.checkins import Checkin
 from backend.models.ftp_tests import FtpTest
 from backend.models.intake import IntakeDay
+from backend.models.plan_adjustments import adjustment_spans
 from backend.models.user_profile import UserProfile
 
 logger = logging.getLogger(__name__)
@@ -56,6 +58,7 @@ def get_today_plan():
 
     today = date.today()
     training = None
+    spans = adjustment_spans()
     if request.args:
         try:
             cycling_hours = float(request.args["cycling_hours"])
@@ -68,13 +71,13 @@ def get_today_plan():
         week_rows = ensure_week(profile, today)
         row = next(r for r in week_rows if r.day_date == today)
         today_phase, week = phase_week(profile.program_start_date, today)
-        params = training_params(row, resolve_cycling(row, today_phase.phase_id, week))
+        params = training_params(row, resolve_cycling(row, today_phase.phase_id, week, spans))
         cycling_hours = params.cycling_minutes / 60
         # ohne Rad ist die Intensitaet fuer die kcal irrelevant (0 h)
         cycling_intensity = params.cycling_intensity or CyclingIntensity.LEICHT_REKOM
         strength_sessions = params.strength_sessions
         day_type = derive_day_type(params.cycling_minutes, params.cycling_intensity, strength_sessions)
-        training = serialize_day(row, profile, week_rows, ftp_test.ftp_watts if ftp_test else None)
+        training = serialize_day(row, profile, week_rows, ftp_test.ftp_watts if ftp_test else None, spans=spans)
 
     phase = get_current_phase(profile.program_start_date, today)
     zones = compute_cycling_zones(ftp_test.ftp_watts if ftp_test else None)
@@ -93,6 +96,7 @@ def get_today_plan():
             cycling_intensity=cycling_intensity,
             strength_sessions=strength_sessions,
             rmr_kcal=rmr.value,
+            deficit_kcal=effective_deficit(today, phase.phase_id, spans),
         )
     except ValueError as exc:
         return jsonify({"error": f"ungueltige Trainingsparameter: {exc}"}), 400
@@ -137,6 +141,7 @@ def get_today_plan():
             "fueling": asdict(fueling) if fueling else None,
             "timing_hints": nutrition_timing_hints(cycling_hours > 0, strength_sessions > 0, checkin.weight_kg),
             "training": training,
+            "adjustments": sorted(active_kinds(today, spans)),
             "targets_source": targets_source,
             "intake": intake,
         }

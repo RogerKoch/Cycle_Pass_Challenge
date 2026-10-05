@@ -41,3 +41,6 @@ table.segments .sub { display: block; color: var(--muted); font-weight: 400; fon
 
 label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
 label.check input { width: auto; min-height: 0; }
+
+.banner { display: block; text-decoration: none; color: var(--text); border-color: var(--warn); }
+.banner.alert { border-color: var(--danger); }

@@ -26,6 +26,7 @@ class Exercise:
     min_phase: int = 1
     max_phase: int = 3
     scaled: bool = False
+    leg: bool = False  # Beinuebung, entfaellt bei reduzierter Kraft (Beine chronisch platt)
 
 
 @dataclass
@@ -88,10 +89,11 @@ _SESSION_B: list[Exercise] = [
     Exercise("Inverted Rows (Tischkanten-Rudern)", "3–4", "8–15", scaled=True,
              note="Körper gerade, Schulterblätter zusammen; Progression Füsse erhöht"),
     Exercise("Band Pull-Aparts + Face Pulls", "2–3", "15–20", min_phase=2),
-    Exercise("Bulgarian Split Squat", "3", "6–10 je Bein", min_phase=2, scaled=True,
+    Exercise("Bulgarian Split Squat", "3", "6–10 je Bein", min_phase=2, scaled=True, leg=True,
              note="Wdh. je Bein, 2–3 Wdh. in Reserve"),
-    Exercise("Single-Leg Deadlift", "2–3", "8 je Bein", min_phase=2, note="Hüfthinge, Balance"),
-    Exercise("Lateral Band Walks", "2", "10 Schritte je Richtung", note="Leichte Kniebeuge, Knie nicht einknicken"),
+    Exercise("Single-Leg Deadlift", "2–3", "8 je Bein", min_phase=2, leg=True, note="Hüfthinge, Balance"),
+    Exercise("Lateral Band Walks", "2", "10 Schritte je Richtung", leg=True,
+             note="Leichte Kniebeuge, Knie nicht einknicken"),
     Exercise("Copenhagen Plank", "2", "10–20 s je Seite", min_phase=3),
     Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Kein Nacken-Crunch"),
     Exercise("Bird Dog", "3", "6–8 je Seite, 3–5 s halten", note="Neutrale Wirbelsäule"),
@@ -114,6 +116,15 @@ MOBILITY_ROUTINE: list[Exercise] = [
     Exercise("Pigeon (Glute-Stretch)", "1", "30–60 s je Seite", note="bei Bedarf"),
 ]
 
+# Bei Rueckenschmerz nach langen Fahrten: Core-Frequenz erhoehen (McGill: kurze, haeufige Belastungen)
+MCGILL_BIG_3: list[Exercise] = [
+    Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Core täglich"),
+    Exercise("Side Plank", "2", "10–20 s je Seite", note="Core täglich"),
+    Exercise("Bird Dog", "2", "6 je Seite, 3–5 s halten", note="Core täglich"),
+]
+
+REDUCED_NOTE = "Reduziert (Beine platt): Beinübungen entfallen, Volumen ~20 % runter (je Übung 1 Satz weniger)."
+
 
 def strength_phase_for(cycling_phase_id: str) -> StrengthPhase:
     """Kraftphase, die laut sync_rules zur Rad-Phase gehoert.
@@ -132,7 +143,9 @@ def strength_phase_for(cycling_phase_id: str) -> StrengthPhase:
     return STRENGTH_PHASES[_STRENGTH_PHASE_BY_CYCLING_PHASE[cycling_phase_id]]
 
 
-def build_strength_session(session_id: str, phase: StrengthPhase, note: str | None = None) -> StrengthSession:
+def build_strength_session(
+    session_id: str, phase: StrengthPhase, note: str | None = None, reduced: bool = False
+) -> StrengthSession:
     """Stellt Einheit A oder B fuer eine Kraftphase zusammen.
 
     Uebungen ausserhalb ihres Phasenfensters entfallen; `scaled`-Uebungen uebernehmen
@@ -142,6 +155,8 @@ def build_strength_session(session_id: str, phase: StrengthPhase, note: str | No
         session_id: "A" oder "B".
         phase: Kraftphase (siehe strength_phase_for).
         note: optionaler Hinweis (z. B. reduzierte Einheit im Taper).
+        reduced: Beinuebungen weglassen und Reduktionshinweis ergaenzen (Kraft-Recherche:
+            "Beine chronisch platt -> Volumen -20 %").
 
     Returns:
         StrengthSession mit den Uebungen der Phase.
@@ -154,9 +169,11 @@ def build_strength_session(session_id: str, phase: StrengthPhase, note: str | No
     title, library = _SESSIONS[session_id]
     exercises = []
     for exercise in library:
-        if not exercise.min_phase <= phase.number <= exercise.max_phase:
+        if not exercise.min_phase <= phase.number <= exercise.max_phase or (reduced and exercise.leg):
             continue
         if exercise.scaled:
             exercise = replace(exercise, sets=phase.sets or exercise.sets, reps=phase.reps, rest=phase.rest)
         exercises.append(exercise)
+    if reduced:
+        note = f"{note} {REDUCED_NOTE}" if note else REDUCED_NOTE
     return StrengthSession(session_id=session_id, title=title, phase=phase, exercises=exercises, note=note)

@@ -24,15 +24,22 @@ SLOT_Z2 = "z2_grundlage"
 SLOT_Z2_OR_REKOM = "z2_oder_rekom"
 SLOT_KEY_2 = "schluessel_2"
 SLOT_LONG = "lang"
+SLOT_FTP_TEST = "ftp_test"  # Ramp-Test, in Retest-Wochen statt schluessel_2
 
-ALL_SLOTS: tuple[str, ...] = (SLOT_REKOM, SLOT_KEY_1, SLOT_Z2, SLOT_Z2_OR_REKOM, SLOT_KEY_2, SLOT_LONG)
-KEY_SLOTS: frozenset[str] = frozenset({SLOT_KEY_1, SLOT_KEY_2})
+ALL_SLOTS: tuple[str, ...] = (SLOT_REKOM, SLOT_KEY_1, SLOT_Z2, SLOT_Z2_OR_REKOM, SLOT_KEY_2, SLOT_LONG, SLOT_FTP_TEST)
+KEY_SLOTS: frozenset[str] = frozenset({SLOT_KEY_1, SLOT_KEY_2, SLOT_FTP_TEST})
 # Nur bei diesen Slots darf die Dauer angepasst werden (Intervallstruktur der Schluesseleinheiten bleibt fix)
 ENDURANCE_SLOTS: frozenset[str] = frozenset({SLOT_REKOM, SLOT_Z2, SLOT_Z2_OR_REKOM, SLOT_LONG})
 
 BUILD1_DELOAD_EVERY_WEEKS = 3  # "Erholungswoche alle 3. Woche: Volumen -40 %"
 DELOAD_VOLUME_FACTOR = 0.6
 PEAK_SPECIFIC_WEEKS = 3  # danach Taper (peak_taper hat 5 Wochen, siehe engine.training_phase)
+# FTP-Retest alle 6–8 Wochen (§6): Ende Base, "Mitte Build" (Build 1 W6, 6 Wochen nach Ende Base),
+# Ende Build 2 = "vor Peak" (beide Termine liegen direkt hintereinander und sind zusammengelegt).
+# Dazu der erste Test am Ende von Phase 0, Woche 1.
+RETEST_WEEKS: frozenset[tuple[str, int]] = frozenset(
+    {("phase0_wiedereinstieg", 1), ("base", 8), ("build1", 6), ("build2", 5)}
+)
 
 FTP_MISSING_MESSAGE = "Noch kein FTP-Test erfasst – Vorgaben in % FTP statt Watt."
 
@@ -158,6 +165,21 @@ def _late_efforts(total_minutes: float, blocks: list[Segment]) -> list[Segment]:
     return [_z2(remaining - after, "Lange Ausfahrt Z2", low=65), *blocks, _z1(after, "Ausrollen")]
 
 
+def _ramp_test() -> CyclingSession:
+    return CyclingSession(
+        SLOT_FTP_TEST,
+        "Zwift-Ramp-Test (FTP)",
+        [
+            _warmup(10),
+            Segment(15, None, None, "Ramp-Test: Start 100 W, +20 W/min bis zur Erschöpfung"),
+            _cooldown(10),
+        ],
+        CyclingIntensity.ZUEGIG_TEMPO,
+        zwift_hint="Workout „Ramp Test“ (Wiedereinsteiger ggf. „Ramp Test Lite“: 50 W, +10 W/min)",
+        note="FTP = 75 % der besten 1-Min-Leistung – danach im Dashboard als FTP-Test erfassen.",
+    )
+
+
 def _rekom(minutes: float, title: str = "Rekom-Spin") -> CyclingSession:
     return CyclingSession(SLOT_REKOM, title, [_z1(minutes)], CyclingIntensity.LEICHT_REKOM)
 
@@ -189,18 +211,7 @@ def _phase0(slot: str, week: int) -> CyclingSession | None:
         return _rekom(30)
     if slot == SLOT_KEY_2:
         if week == 1:
-            return CyclingSession(
-                slot,
-                "Zwift-Ramp-Test (FTP)",
-                [
-                    _warmup(10),
-                    Segment(15, None, None, "Ramp-Test: Start 100 W, +20 W/min bis zur Erschöpfung"),
-                    _cooldown(10),
-                ],
-                CyclingIntensity.ZUEGIG_TEMPO,
-                zwift_hint="Workout „Ramp Test“ (Wiedereinsteiger ggf. „Ramp Test Lite“: 50 W, +10 W/min)",
-                note="FTP = 75 % der besten 1-Min-Leistung – danach im Dashboard als FTP-Test erfassen.",
-            )
+            return _ramp_test()  # fuer bereits gespeicherte Tage; neue Tage erhalten den Slot ftp_test
         return CyclingSession(
             slot, "Grundlage mit Aktivierung 3×3 min Z3", _endurance_with_blocks(60, activation, low=56),
             CyclingIntensity.MODERAT_BASE,
@@ -428,6 +439,8 @@ def build_cycling_session(slot: str, phase_id: str, week_in_phase: int) -> Cycli
         raise ValueError(f"unbekannter Slot: {slot}")
     if phase_id not in _PHASE_BUILDERS:
         raise ValueError(f"unbekannte Phase: {phase_id}")
+    if slot == SLOT_FTP_TEST:
+        return _ramp_test()
     session = _PHASE_BUILDERS[phase_id](slot, max(week_in_phase, 1))
     # Bausteine wie _rekom() kennen den angefragten Slot nicht
     return replace(session, slot=slot) if session is not None else None

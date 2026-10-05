@@ -121,3 +121,28 @@ def test_taper_strength_session_is_reduced():
     assert session.duration_minutes == "40"
     assert session.note is not None
     assert resolve_strength("A", "peak_taper", 1).note is None
+
+
+def test_ftp_retests_replace_saturday_key_session_in_retest_weeks():
+    def saturday(phase_offset_weeks, week):
+        return PROGRAM_START + timedelta(weeks=phase_offset_weeks + week - 1, days=5)
+
+    assert default_day_plan(PROGRAM_START, saturday(0, 1))[0] == "ftp_test"  # Phase 0 W1
+    assert default_day_plan(PROGRAM_START, saturday(2, 8))[0] == "ftp_test"  # Base W8
+    assert default_day_plan(PROGRAM_START, saturday(2 + 8, 6))[0] == "ftp_test"  # Build 1 W6
+    assert default_day_plan(PROGRAM_START, saturday(2 + 8 + 8, 5))[0] == "ftp_test"  # Build 2 W5
+    assert default_day_plan(PROGRAM_START, saturday(2, 7))[0] == "schluessel_2"
+
+
+def test_ftp_test_counts_as_key_session_in_rules():
+    week = _week(BASE_MONDAY)
+    week[4] = DayPlan(week[4].day, "ftp_test", None)
+    assert MSG_CONSECUTIVE_HARD in [v.message for v in validate_week(week)]
+
+
+def test_reduced_strength_session_drops_leg_exercises():
+    session = resolve_strength("B", "build1", 1, reduced=True)
+    names = [e.name for e in session.exercises]
+    assert "Bulgarian Split Squat" not in names
+    assert "Lateral Band Walks" not in names
+    assert "Volumen" in session.note

@@ -11,3 +11,9 @@ th:first-child, td:first-child { text-align: left; }
 .msg { color: #b00020; min-height: 1.2em; margin: 0.25rem 0; }
 .hint { background: #fff8e1; padding: 0.5rem; border-radius: 4px; }
 #profile-form[hidden] { display: none; }
+.finding { border-left: 4px solid #999; padding: 0.4rem 0.8rem; margin: 0.5rem 0; background: #fafafa; }
+.finding.alert { border-color: #b00020; }
+.finding.warn { border-color: #e08a00; }
+.finding.info { border-color: #1976d2; }
+.finding .source { color: #666; font-size: 0.85rem; }
+.finding button { margin-right: 0.5rem; }

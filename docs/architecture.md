@@ -15,7 +15,7 @@ integriert.
 | **Kraft-Engine** | Phasenabhängige Sätze/Reps/Übungsauswahl | gebaut (`strength_sessions.py`) |
 | **Ernährungs-Engine** | kcal/Makros aus Gewicht, Körperfett %, Trainingslast | gebaut |
 | **Trainingskalender** | Standardwoche je Phase, Tauschen/Anpassen/Absagen, Kopplungsregeln | gebaut (`week_plan.py`, `/training/`) |
-| **Check-in-Modul** | Wöchentliche/periodische Erfassung, Trigger-Regeln für Re-Kalibrierung | Erfassung gebaut, Trigger zu bauen |
+| **Check-in-Modul** | Wöchentliche/periodische Erfassung, Trigger-Regeln für Re-Kalibrierung | gebaut (`checkin_triggers.py`, Review im Dashboard) |
 | **Pass-Datenbank** | 199 Pässe, Cluster, Logistik-Planung | Excel vorhanden |
 | **Frontend/Dashboard** | Anzeige aller abgeleiteten Pläne + Pass-Übersicht | Dashboard, `/training/`, `/ernaehrung/` gebaut; Pass-Übersicht zu bauen |
 
@@ -48,14 +48,18 @@ alpenpaesse-app/
 │   │   ├── user_profile.py
 │   │   ├── checkins.py
 │   │   ├── ftp_tests.py
-│   │   └── training_days.py         # Trainingskalender, 1 Zeile pro Tag
+│   │   ├── training_days.py         # Trainingskalender, 1 Zeile pro Tag
+│   │   ├── wellbeing.py             # wöchentlicher Kurz-Fragebogen
+│   │   └── plan_adjustments.py      # übernommene Anpassungen + Review-Entscheidungen
 │   ├── engine/                      # reine Berechnungslogik, ungekoppelt von Flask
 │   │   ├── cycling_zones.py         # Coggan-Zonen aus FTP
 │   │   ├── nutrition_calc.py        # BMR, kcal-Ziel, Makros
 │   │   ├── training_phase.py        # Phase aus Programmstart + Datum
 │   │   ├── cycling_sessions.py      # Rad-Einheiten je Phase/Slot/Woche, Watt aus FTP
 │   │   ├── strength_sessions.py     # Übungsbibliothek, Einheiten A/B je Kraftphase, Mobility
-│   │   └── week_plan.py             # Standardwoche, Kopplungsregeln, Ersatztage
+│   │   ├── week_plan.py             # Standardwoche, Kopplungsregeln, Ersatztage
+│   │   ├── checkin_triggers.py      # Trigger-Regeln des Check-in-Reviews
+│   │   └── plan_adjustments.py      # Wirkung der Anpassungen (Defizit, Erholungswoche …)
 │   ├── integrations/
 │   │   ├── blv_import.py            # BLV-Nährwertdatenbank → foods (CLI import-blv)
 │   │   ├── open_food_facts.py       # Barcode-Lookup
@@ -65,6 +69,7 @@ alpenpaesse-app/
 │       ├── profile_routes.py
 │       ├── checkin_routes.py
 │       ├── calendar_routes.py       # Woche/Tag, Tauschen, Anpassen, Rückmeldung
+│       ├── review_routes.py         # Fragebogen, Review, Anpassungen
 │       └── plan_routes.py
 │
 ├── frontend/
@@ -105,6 +110,33 @@ alpenpaesse-app/
 | Rückmeldung | `done` / `modified` (Ist-Minuten, Intensität, Kraft ja/nein) nur heute/vergangen; `skipped` auch im Voraus mit Grund |
 | Ernährung | `/api/plan/today` ohne Parameter rechnet mit dem Kalendertag (Ist vor geplant, abgesagt = 0) und liefert Mahlzeitenverteilung (3 + 2 Snacks), Fueling und Timing-Hinweise |
 
+## Check-in-Review (Trigger-Regeln)
+
+Wöchentlich: Check-in (Waage) und Kurz-Fragebogen (Problem-Score 0–3 für Schlaf, Beine, Hunger, Rücken,
+Anstrengung bei gleicher Leistung, optional Ruhe-HF). Das Review (`GET /api/review`) wertet die Regeln live aus
+und **schlägt nur vor**: Eine Anpassung wirkt erst nach „Übernehmen“ (`plan_adjustments`, Zeitfenster ab heute),
+„Verwerfen“ blendet den Befund aus. Befund-Keys enthalten die Datenbasis (z. B. Datum des neuesten
+Check-ins), neue Daten erzeugen neue Befunde. „Rückgängig“ löscht die Anpassung, der Befund ist wieder offen.
+
+| Trigger | Bedingung | Vorschlag | Quelle |
+|---|---|---|---|
+| `weight_loss_too_fast` | 2-Wochen-Trend (Regression, ≥ 7 Tage Spanne) > 0,7 %/Woche | Defizit −100 kcal | Ausdauer „Schwellen“, Garthe 2011 |
+| `weight_stagnation` | Defizit aktiv, Trend ≥ 0 über ≥ 14 Tage (≥ 3 Check-ins in 28 Tagen) | Defizit −100 kcal | Ernährung §6 Warnsignale |
+| `diet_break_due` | Defizit ≥ 6 Wochen am Stück (ab 10 Wochen Warnung) | Diät-Pause 7 Tage | Ernährung §6 |
+| `target_weight_reached` | Gewicht ≤ Zielgewicht (Baseline) | Erhaltung (Defizit 0, offen) | Ernährung §6 |
+| `low_energy_availability` | Ø EA der letzten 7 Tage (≥ 3 Tage mit Zufuhr) < 30 kcal/kg FFM | Defizit −100 kcal | Körperwerte (RED-S) |
+| `ftp_stagnation` / `ftp_declining` | zwei Retests ohne Anstieg / zweimal gesunken | Erholungswoche / Diät-Pause | Ausdauer „Schwellen“, Körperwerte |
+| `ftp_test_missing` | eingeplanter Ramp-Test vorbei, kein Ergebnis | Hinweis | Ausdauer §6 |
+| `recovery_warning` | Schlaf ≥ 2, Anstrengung ≥ 2 oder Ruhe-HF ≥ Ø(4) + 5 | Erholungswoche 7 Tage | Ausdauer „Schwellen“ |
+| `legs_flat` | Beine ≥ 2 in zwei Fragebögen in Folge | Kraft reduziert 28 Tage (ohne Beinübungen) | Kraft Signal-Monitoring |
+| `back_pain` | Rücken ≥ 2 | McGill Big 3 täglich 28 Tage | Kraft Signal-Monitoring |
+| `constant_hunger` | Hunger ≥ 2 | Defizit −100 kcal | Ernährung §6 Warnsignale |
+| `checkin_due` / `signals_due` | letzter Eintrag > 7 Tage | Hinweis | Projekt-Brief |
+
+Wirkung: Defizit = Phasen-Defizit + Summe der Deltas (≥ 0), Diät-Pause/Erhaltung → 0 (`effective_deficit`).
+Erholungswoche = alle Abschnitte ×0,6 bei gleicher Intensität, außer Ramp-Test und regulärer Build-1-Erholungswoche.
+FTP-Retests sind fest im Kalender: Samstag in Phase 0 W1, Base W8, Build 1 W6, Build 2 W5 (Slot `ftp_test`).
+
 ## Messwert-Fallback-Pattern (estimated → measured)
 
 Baseline-Werte (RMR, FFM, Körperfett, VT1/VT2, FatMax, MFO, Ernährungsziele) werden mit
@@ -144,6 +176,12 @@ separaten Repo `server-infra`.
 | Secrets | `instance/config.py` (nicht versioniert): `SECRET_KEY`, `PASSWORD_HASH`; Hash per `flask --app main.py hash-password` |
 
 ## Offene Punkte (aus Recherche)
+
+- Annahmen der Trigger (Recherche nennt keine Zahl): Defizit-Schritt −100 kcal, Diät-Pause 7 Tage,
+  Ruhe-HF +5 bpm über Ø der letzten 4 Einträge, Erholungswoche ×0,6, Kraft-/Core-Anpassung 28 Tage,
+  Retest „Mitte Build“ = Build 1 W6 und „vor Peak“ = Ende Build 2 (zusammengelegt)
+- Noch ohne Trigger: Kraft-Benchmarks alle 4 Wochen, Mobility-Stagnation, Durability-Check (brauchen Benchmark-Erfassung)
+- Ruhe-HF/HRV täglich und „mehrtägig kippt“ erst mit intervals.icu (Schritt 3); bis dahin manuell im Fragebogen
 
 - Kraft-Platzierung: Die Kraft-Recherche empfiehlt Kraft am harten Radtag (danach bzw. ≥6 h später),
   die Ausdauer-Recherche und `data-model.yaml` Mo/Do an lockeren Tagen. Umgesetzt ist Mo/Do.

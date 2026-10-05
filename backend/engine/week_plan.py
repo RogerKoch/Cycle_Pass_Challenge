@@ -12,6 +12,8 @@ from datetime import date, timedelta
 from backend.engine.cycling_sessions import (
     KEY_SLOTS,
     PEAK_SPECIFIC_WEEKS,
+    RETEST_WEEKS,
+    SLOT_FTP_TEST,
     SLOT_KEY_1,
     SLOT_KEY_2,
     SLOT_LONG,
@@ -102,6 +104,8 @@ def default_day_plan(program_start_date: date, day: date) -> tuple[str | None, s
         return None, None
     phase, week = phase_week(program_start_date, day)
     slot, strength = STANDARD_WEEK[day.weekday()]
+    if slot == SLOT_KEY_2 and (phase.phase_id, week) in RETEST_WEEKS:
+        slot = SLOT_FTP_TEST
     if slot is not None and build_cycling_session(slot, phase.phase_id, week) is None:
         slot = None
     if phase.phase_id not in TWO_STRENGTH_SESSION_PHASES:
@@ -109,13 +113,14 @@ def default_day_plan(program_start_date: date, day: date) -> tuple[str | None, s
     return slot, strength
 
 
-def resolve_strength(session_id: str, phase_id: str, week_in_phase: int) -> StrengthSession:
+def resolve_strength(session_id: str, phase_id: str, week_in_phase: int, reduced: bool = False) -> StrengthSession:
     """Krafteinheit fuer Phase und Woche, im Taper mit Reduktionshinweis.
 
     Args:
         session_id: "A" oder "B".
         phase_id: Trainingsphase.
         week_in_phase: Woche in der Phase.
+        reduced: reduzierte Einheit aus dem Check-in-Review (Beine platt).
 
     Returns:
         StrengthSession der zugehoerigen Kraftphase.
@@ -123,7 +128,7 @@ def resolve_strength(session_id: str, phase_id: str, week_in_phase: int) -> Stre
     note = None
     if phase_id == "peak_taper" and week_in_phase > PEAK_SPECIFIC_WEEKS:
         note = "Taper: Erhalt, reduziert auf ~40 min."
-    session = build_strength_session(session_id, strength_phase_for(phase_id), note)
+    session = build_strength_session(session_id, strength_phase_for(phase_id), note, reduced)
     return replace(session, duration_minutes="40") if note else session
 
 

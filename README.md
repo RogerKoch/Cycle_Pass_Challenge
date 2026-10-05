@@ -93,6 +93,10 @@ Ohne FTP-Test zeigt "Heute" statt der Zonen einen Hinweis.
 | PUT | `/api/calendar/day/<YYYY-MM-DD>/plan` | `cycling_slot`, `planned_minutes` (nur Ausdauerfahrten), `strength_session`; Regelverstoss → 409 |
 | PATCH | `/api/calendar/day/<YYYY-MM-DD>` | `status` planned/done/modified/skipped, `note`, `actual_minutes`, `actual_intensity`, `actual_strength_done` |
 | POST | `/api/calendar/week/<YYYY-MM-DD>/reset` | Heutige/künftige, nicht erledigte Tage auf Standard zurücksetzen |
+| GET / POST | `/api/signals` | Fragebögen listen / erfassen (`sleep`, `legs`, `hunger`, `back`, `effort` je 0–3, optional `resting_hr`, `date`), Upsert je Datum |
+| GET | `/api/review` | Kennzahlen, offene Befunde (Trigger) mit vorgeschlagener Aktion, Anpassungen |
+| POST | `/api/review/decisions` | `{key, decision: accepted\|dismissed}`; `accepted` legt die Anpassung ab heute an |
+| GET / DELETE | `/api/adjustments[/<id>]` | Anpassungen listen / zurücknehmen |
 
 Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` · `rennen_intervalle` · `sehr_hart`;
 `day_type` = `ruhetag` · `moderater_tag` · `langer_harter_tag`.
@@ -113,4 +117,4 @@ Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` 
 
 ## Stand
 
-Vorhanden: Rad-Zonen, Ernährung, Phasenlogik, Messwert-Fallback, Intake-API, Ernährungs-Tagebuch (mobil), Dashboard, Trainingskalender mit Rad-/Kraft-Einheiten und Tagesplan (mobil). Fehlt: Check-in-Trigger, Garmin-/intervals.icu-Import, Pass-Übersicht.
+Vorhanden: Rad-Zonen, Ernährung, Phasenlogik, Messwert-Fallback, Intake-API, Ernährungs-Tagebuch (mobil), Dashboard, Trainingskalender mit Rad-/Kraft-Einheiten und Tagesplan (mobil). Check-in-Review mit Trigger-Regeln und Plan-Anpassungen. Fehlt: Garmin-/intervals.icu-Import, Pass-Übersicht.

@@ -8,7 +8,7 @@
 </head>
 <body>
   <h1>Alpenpässe – Dashboard</h1>
-  <p><a href="ernaehrung/">Ernährungs-Tagebuch (mobil)</a></p>
+  <p><a href="training/">Training (mobil)</a> · <a href="ernaehrung/">Ernährungs-Tagebuch (mobil)</a></p>
   <form method="post" action="logout"><button type="submit">Abmelden</button></form>
 
   <section id="profile">
@@ -33,6 +33,29 @@
     </form>
     <p class="msg" id="checkin-msg"></p>
     <table id="checkin-table"></table>
+
+    <h3>Fragebogen (wöchentlich)</h3>
+    <p>Problem-Score der letzten Woche: 0 = kein, 1 = leicht, 2 = deutlich, 3 = stark.</p>
+    <form id="signals-form">
+      <label>Schlaf schlecht <select name="sleep"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+      <label>Beine platt <select name="legs"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+      <label>Dauerhunger <select name="hunger"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+      <label>Rücken nach langen Fahrten <select name="back"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+      <label>Anstrengung höher bei gleicher Leistung <select name="effort"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+      <label>Ruhe-HF (optional) <input name="resting_hr" type="number" min="30" max="120" step="1"></label>
+      <button type="submit">Erfassen</button>
+    </form>
+    <p class="msg" id="signals-msg"></p>
+    <p id="signals-view"></p>
+  </section>
+
+  <section id="review">
+    <h2>Check-in-Review</h2>
+    <div id="review-summary"></div>
+    <div id="review-findings"></div>
+    <h3>Anpassungen</h3>
+    <div id="review-adjustments"></div>
+    <p class="msg" id="review-msg"></p>
   </section>
 
   <section id="ftp">
