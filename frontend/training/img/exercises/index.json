@@ -1,5 +1,10 @@
 {
-  "Aufwärmen/Mobility": null,
+  "Aufwärmen/Mobility": {
+    "parts": {
+      "A": ["Kniender Hüftbeuger-Stretch", "Open Book", "Cat-Cow / Quadruped Rotation", "Wall Angels / Wall Slides"],
+      "B": ["90/90 Hüftrotationen", "BWS-Extension über Foam Roller", "Clamshells"]
+    }
+  },
   "Auslaufen/Stretch": null,
   "Glute Bridge (Progression → Single-Leg)": { "img": "glute-bridge.svg", "video": "glute bridge exercise" },
   "Liegestütz-Progression": { "img": "liegestuetz.svg", "video": "push up progression beginner" },
@@ -24,5 +29,6 @@
   "Cat-Cow / Quadruped Rotation": { "img": "cat-cow.svg", "video": "cat cow quadruped thoracic rotation" },
   "BWS-Extension über Foam Roller": { "img": "bws-extension-foam-roller.svg", "video": "thoracic extension foam roller" },
   "Wall Angels / Wall Slides": { "img": "wall-angels.svg", "video": "wall angels" },
-  "Pigeon (Glute-Stretch)": { "img": "pigeon.svg", "video": "pigeon stretch" }
+  "Pigeon (Glute-Stretch)": { "img": "pigeon.svg", "video": "pigeon stretch" },
+  "Clamshells": { "img": "clamshell.svg", "video": "clamshell exercise mini band" }
 }

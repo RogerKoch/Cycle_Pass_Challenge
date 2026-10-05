@@ -204,7 +204,7 @@ function strengthCard(strength) {
     el("span", { class: "dose" }, `${e.sets} × ${e.reps}`),
     e.name,
     e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
-    illustration(e.name)));
+    illustration(e.name, strength.session_id)));
   return el("section", { class: "card" },
     el("h2", {}, `💪 ${strength.title}`),
     el("p", { class: "card-sub" },
@@ -223,14 +223,27 @@ function mobilityCard(mobility) {
         illustration(e.name))))));
 }
 
-function illustration(name) {
-  const entry = (state.illustrations || {})[name];
+// sessionId: Bloecke wie "Aufwärmen/Mobility" bestehen je Krafteinheit aus anderen Teiluebungen
+function illustration(name, sessionId) {
+  const illustrations = state.illustrations || {};
+  const entry = illustrations[name];
   if (!entry) return null;
-  const video = `https://www.youtube.com/results?search_query=${encodeURIComponent(entry.video)}`;
+  if (!entry.parts) {
+    return el("details", { class: "illus" }, el("summary", {}, "Skizze & Video"), ...illustrationContent(name, entry));
+  }
+  const parts = (entry.parts[sessionId] || []).filter((part) => illustrations[part]);
+  if (!parts.length) return null;
   return el("details", { class: "illus" },
-    el("summary", {}, "Skizze & Video"),
+    el("summary", {}, "Skizzen & Video"),
+    ...parts.flatMap((part) => [el("h4", {}, part), ...illustrationContent(part, illustrations[part])]));
+}
+
+function illustrationContent(name, entry) {
+  const video = `https://www.youtube.com/results?search_query=${encodeURIComponent(entry.video)}`;
+  return [
     el("img", { src: `img/exercises/${entry.img}`, alt: name, loading: "lazy" }),
-    el("a", { href: video, target: "_blank", rel: "noopener" }, "▶ Video-Suche auf YouTube"));
+    el("a", { href: video, target: "_blank", rel: "noopener" }, "▶ Video-Suche auf YouTube"),
+  ];
 }
 
 function actionsCard(day) {

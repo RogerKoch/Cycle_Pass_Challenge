@@ -27,6 +27,7 @@ table.segments .sub { display: block; color: var(--muted); font-weight: 400; fon
 .exercises .illus summary { font-size: 0.8rem; padding: 4px 0 0; }
 .exercises .illus img { display: block; width: 100%; max-width: 520px; margin: 6px 0; }
 .exercises .illus a { color: var(--accent); font-size: 0.8rem; }
+.exercises .illus h4 { font-size: 0.85rem; margin: 12px 0 0; }
 
 .actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .actions-row button { flex: 1; min-width: 6.5rem; }
