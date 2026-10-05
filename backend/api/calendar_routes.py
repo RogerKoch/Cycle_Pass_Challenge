@@ -128,10 +128,15 @@ def resolve_cycling(
     return session
 
 
-def imported_day(day: date) -> ImportedDay | None:
-    """Zusammenfassung der aus intervals.icu importierten Aktivitaeten eines Tages, None ohne Import."""
+def imported_day(day: date, weight_kg: float | None = None) -> ImportedDay | None:
+    """Zusammenfassung der aus intervals.icu importierten Aktivitaeten eines Tages, None ohne Import.
+
+    Args:
+        day: Datum.
+        weight_kg: aktuelles Gewicht fuer die MET-Schaetzung von Fahrten ohne Leistungsmesser.
+    """
     records = imported_records(day, day).get(day)
-    return summarize_day(records) if records else None
+    return summarize_day(records, weight_kg) if records else None
 
 
 def _manual_or_planned_params(row: TrainingDay, session: CyclingSession | None) -> TrainingParams:

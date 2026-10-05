@@ -72,7 +72,7 @@ def get_today_plan():
         week_rows = ensure_week(profile, today)
         row = next(r for r in week_rows if r.day_date == today)
         today_phase, week = phase_week(profile.program_start_date, today)
-        params = training_params(row, resolve_cycling(row, today_phase.phase_id, week, spans), imported_day(today))
+        params = training_params(row, resolve_cycling(row, today_phase.phase_id, week, spans), imported_day(today, checkin.weight_kg))
         measured_cycling_kcal = params.cycling_kcal
         cycling_hours = params.cycling_minutes / 60
         # ohne Rad ist die Intensitaet fuer die kcal irrelevant (0 h)

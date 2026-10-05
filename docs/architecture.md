@@ -145,7 +145,7 @@ Key (`INTERVALS_ICU_API_KEY` in `instance/config.py`, HTTP Basic mit Username `A
 |---|---|
 | Sync | `POST /api/intervals/sync` holt die letzten 14 Tage (Aktivitäten + Wellness), Upsert; im Fenster gelöschte Aktivitäten werden entfernt. Auto-Sync beim Öffnen von `/training/` und Dashboard (`?if_stale=1`, höchstens alle 30 min) plus Button. Ohne Key ist alles aus |
 | Speicher | neue Tabellen `icu_activities`, `icu_wellness`, `integration_state` (keine Spalten an bestehende Tabellen) |
-| Trainings-Ist | `imported_training.summarize_day`: Rad = Typen auf `…Ride`, Kraft = `WeightTraining`. Rad-kcal = kJ (1 kcal/kJ, Ernährungsplan-Caveat „~3,6 kcal/Wh“), sonst Garmin-kcal, sonst MET. Intensität aus dem Intensity Factor (Coggan-Bänder). Import vor manueller Rückmeldung; heute ersetzt der Import nur bereits importierte Teile |
+| Trainings-Ist | `imported_training.summarize_day`: Rad = Typen auf `…Ride`, Kraft = `WeightTraining`. Rad-kcal pro Fahrt = kJ (1 kcal/kJ, Ernährungsplan-Caveat „~3,6 kcal/Wh“); ohne Leistungsmesser MET-Tabelle (moderat, aufs Gewicht skaliert). Garmins Kalorienwert wird nicht verwendet (ohne Leistung teils unplausibel tief, z. B. 351 kcal für 3 h). Intensität aus dem Intensity Factor (Coggan-Bänder). Import vor manueller Rückmeldung; heute ersetzt der Import nur bereits importierte Teile |
 | Auto-Check-ins | Jeder Wiegetag wird zum Check-in (Quelle „Garmin“), manueller Check-in desselben Tags hat Vorrang. Fehlender KFA → letzter Wert; Muskelmasse → letzter Wert (liefert intervals.icu nicht, fliesst in keine Berechnung ein). Braucht einen ersten manuellen Check-in |
 | Erholung | Trigger `recovery_warning_wellness`: Ruhe-HF Ø 3 Tage ≥ Ø 28 Tage davor + 5 bpm oder HRV ≤ −10 % (≥ 14 Basistage) |
 

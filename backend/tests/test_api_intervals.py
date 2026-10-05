@@ -101,3 +101,11 @@ def test_low_energy_availability_uses_imported_kilojoules(app, profile):
     findings = {f["trigger_id"] for f in profile.get("/api/review").get_json()["findings"]}
     # (2400 - 1500 kcal Rad) / 57 kg FFM ~ 15.8 < 30
     assert "low_energy_availability" in findings
+
+
+def test_ride_without_power_is_estimated_with_met_not_garmin_calories(app, profile):
+    unpowered = ActivityRecord("i5", TODAY, "Ride", "Ausfahrt", 10800, None, 351)
+    _use_fake(app, activities=[unpowered])
+    profile.post("/api/intervals/sync")
+    body = profile.get("/api/plan/today").get_json()
+    assert body["nutrition"]["cycling_kcal"] == pytest.approx(592 * 3)

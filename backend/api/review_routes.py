@@ -129,7 +129,7 @@ def _ea_days(profile: UserProfile, checkin: Checkin, ffm_kg: float, spans: list[
             rows.update({r.day_date: r for r in ensure_week(profile, intake.intake_date)})
         row = rows[intake.intake_date]
         phase, week = phase_week(profile.program_start_date, row.day_date)
-        params = training_params(row, resolve_cycling(row, phase.phase_id, week, spans), imported_day(row.day_date))
+        params = training_params(row, resolve_cycling(row, phase.phase_id, week, spans), imported_day(row.day_date, checkin.weight_kg))
         if params.cycling_kcal is not None:
             cycling = params.cycling_kcal
         elif params.cycling_intensity:

@@ -18,10 +18,23 @@ def test_ride_types_and_strength_are_recognised():
     assert _activity("WeightTraining").is_strength
 
 
-def test_kcal_from_kilojoules_otherwise_garmin_calories():
+def test_kcal_from_kilojoules_and_garmin_calories_are_ignored():
     assert _activity(joules=812_000, calories=700).kcal == pytest.approx(812)
-    assert _activity(calories=650).kcal == 650
-    assert _activity().kcal is None
+    assert _activity(calories=351).kcal is None
+
+
+def test_ride_without_power_uses_met_estimate_instead_of_garmin_calories():
+    # 3 h ohne Leistung, Garmin meldet 351 kcal -> MET moderat (592 kcal/h bei 74 kg)
+    day = summarize_day([_activity("Ride", seconds=10800, calories=351)], weight_kg=74.0)
+    assert day.ride_kcal == pytest.approx(592 * 3)
+
+
+def test_mixed_day_combines_kilojoules_and_met_per_ride():
+    day = summarize_day([
+        _activity(icu_id="a", seconds=3600, joules=700_000, intensity=70),
+        _activity("Ride", icu_id="b", seconds=3600),
+    ], weight_kg=74.0)
+    assert day.ride_kcal == pytest.approx(700 + 592)
 
 
 @pytest.mark.parametrize("intensity_pct,expected", [
@@ -51,7 +64,7 @@ def test_summary_adds_rides_weights_intensity_by_time_and_detects_strength():
     assert day.has_training
 
 
-def test_missing_energy_on_one_ride_falls_back_to_met_estimate():
+def test_without_weight_unpowered_rides_leave_kcal_to_the_caller():
     day = summarize_day([_activity(icu_id="a", joules=500_000), _activity(icu_id="b")])
     assert day.ride_kcal is None
 
