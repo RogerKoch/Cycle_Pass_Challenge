@@ -105,6 +105,14 @@ async function saveSignals(event) {
 
 const SEVERITY_LABEL = { alert: "Dringend", warn: "Achtung", info: "Hinweis" };
 
+// ⓘ-Link auf einen Abschnitt der Erklaer-Seite
+function infoLink(anchor) {
+  const link = el("a", "ⓘ", "info");
+  link.href = `hilfe/#${anchor}`;
+  link.setAttribute("aria-label", "Erklärung");
+  return link;
+}
+
 function el(tag, text, className) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -257,6 +265,7 @@ function renderToday(plan) {
   }
   const training = document.createElement("p");
   training.textContent = `Training: ${parts.length ? parts.join(" · ") : "Ruhetag"} – Tagestyp ${plan.day_type}`;
+  training.append(" ", infoLink("tagestyp"));
   box.appendChild(training);
 
   const n = plan.nutrition;
@@ -273,6 +282,7 @@ function renderToday(plan) {
   const m = plan.macros;
   const src = document.createElement("p");
   src.textContent = `Ziele basieren auf ${SOURCE_LABEL[plan.targets_source]}en Werten (RMR/FFM).`;
+  src.append(" ", infoLink("kcalziel"));
   box.appendChild(src);
   const intake = plan.intake;
   box.appendChild(makeTable(intake ? ["Makro", "Soll", "Ist"] : ["Makro", "Soll"], [
@@ -284,6 +294,7 @@ function renderToday(plan) {
   if (intake) {
     const ea = document.createElement("p");
     ea.textContent = `Energy Availability: ${fmt(intake.energy_availability, 1)} kcal/kg FFM`;
+    ea.append(" ", infoLink("ea"));
     box.appendChild(ea);
   }
 
@@ -291,6 +302,7 @@ function renderToday(plan) {
     const hint = document.createElement("p");
     hint.className = "hint";
     hint.textContent = plan.zones.message;
+    hint.append(" ", infoLink("ftp"));
     box.appendChild(hint);
     return;
   }
@@ -299,6 +311,9 @@ function renderToday(plan) {
     z.pct_ftp_max === null ? `>${z.pct_ftp_min}%` : `${z.pct_ftp_min}–${z.pct_ftp_max}%`,
     z.watts_max === null ? `>${z.watts_min} W` : `${z.watts_min}–${z.watts_max} W`,
   ]);
+  const zonesTitle = el("p", "Trainingszonen ");
+  zonesTitle.append(infoLink("zonentabelle"));
+  box.appendChild(zonesTitle);
   box.appendChild(makeTable([`Zone (FTP ${plan.zones.ftp_watts} W)`, "% FTP", "Watt"], rows));
 }
 

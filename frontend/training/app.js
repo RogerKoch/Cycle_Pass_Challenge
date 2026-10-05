@@ -153,11 +153,15 @@ function renderDay() {
 function phaseLine(day) {
   return el("div", { class: "phase-line" },
     el("span", { class: "badge" }, `${PHASE_NAMES[day.phase.phase_id] || day.phase.phase_id} · Woche ${day.phase.week_in_phase}`),
+    infoLink("phasen"),
     day.phase.deload ? el("span", { class: "badge warn" }, "Erholungswoche") : null,
     hasImportedTraining(day)
       ? el("span", { class: "badge" }, "erledigt (Garmin)")
       : day.status !== "planned" ? el("span", { class: "badge muted" }, STATUS_NAMES[day.status]) : null);
 }
+
+// ⓘ-Link auf einen Abschnitt der Erklaer-Seite
+const infoLink = (anchor) => el("a", { class: "info", href: `../hilfe/#${anchor}`, "aria-label": "Erklärung" }, "ⓘ");
 
 const hasImportedTraining = (day) => day.imported.some((a) => a.is_ride || a.is_strength);
 
@@ -191,7 +195,8 @@ function cyclingCard(cycling) {
   });
   return el("section", { class: "card" },
     el("h2", {}, `🚴 ${cycling.title}`),
-    el("p", { class: "card-sub" }, `${fmtMinutes(cycling.minutes)}${cycling.adjusted ? " · angepasst" : ""}${cycling.ftp_watts ? ` · FTP ${cycling.ftp_watts} W` : ""}`),
+    el("p", { class: "card-sub" }, `${fmtMinutes(cycling.minutes)}${cycling.adjusted ? " · angepasst" : ""}${cycling.ftp_watts ? ` · FTP ${cycling.ftp_watts} W` : ""} `,
+      infoLink("zonentabelle")),
     cycling.message ? el("p", { class: "warning" }, cycling.message) : null,
     el("table", { class: "segments" }, el("tbody", {}, ...rows)),
     cycling.note ? el("p", { class: "hint" }, cycling.note) : null,
@@ -208,7 +213,8 @@ function strengthCard(strength) {
   return el("section", { class: "card" },
     el("h2", {}, `💪 ${strength.title}`),
     el("p", { class: "card-sub" },
-      `${strength.duration_minutes} min · Phase ${phase.number}: ${phase.title} · Tempo ${phase.tempo}`),
+      `${strength.duration_minutes} min · Phase ${phase.number}: ${phase.title} · Tempo ${phase.tempo} `,
+      infoLink("kraftphasen")),
     strength.note ? el("p", { class: "warning" }, strength.note) : null,
     el("ul", { class: "exercises" }, ...items));
 }
