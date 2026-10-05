@@ -161,6 +161,17 @@ function renderToday(plan) {
   info.textContent = `${plan.date} – Phase: ${p.phase_id} (${p.phase_start} bis ${p.phase_end || "offen"}, Tag ${p.day_in_phase})`;
   box.appendChild(info);
 
+  const t = plan.training;
+  const parts = [];
+  if (t.status === "skipped") parts.push("abgesagt");
+  else {
+    if (t.cycling) parts.push(`Rad: ${t.cycling.title} (${fmt(t.cycling.minutes)} min)`);
+    if (t.strength) parts.push(t.strength.title);
+  }
+  const training = document.createElement("p");
+  training.textContent = `Training: ${parts.length ? parts.join(" · ") : "Ruhetag"} – Tagestyp ${plan.day_type}`;
+  box.appendChild(training);
+
   const n = plan.nutrition;
   box.appendChild(makeTable(["kcal", "Wert"], [
     ["Grundumsatz (BMR)", fmt(n.bmr_kcal)],
@@ -204,10 +215,8 @@ function renderToday(plan) {
   box.appendChild(makeTable([`Zone (FTP ${plan.zones.ftp_watts} W)`, "% FTP", "Watt"], rows));
 }
 
-async function calculateToday(event) {
-  event.preventDefault();
-  const query = new URLSearchParams(formToObject(event.target));
-  const { ok, data } = await api("GET", `/api/plan/today?${query}`);
+async function loadToday() {
+  const { ok, data } = await api("GET", "/api/plan/today");
   setMsg("today-msg", ok ? "" : data.error);
   if (ok) renderToday(data);
   else $("today-result").replaceChildren();
@@ -216,7 +225,7 @@ async function calculateToday(event) {
 $("profile-form").addEventListener("submit", saveProfile);
 $("checkin-form").addEventListener("submit", saveCheckin);
 $("ftp-form").addEventListener("submit", saveFtp);
-$("today-form").addEventListener("submit", calculateToday);
+$("today-refresh").addEventListener("click", loadToday);
 $("baseline-form").addEventListener("submit", saveBaseline);
 $("intake-form").addEventListener("submit", saveIntake);
 
@@ -225,3 +234,4 @@ loadCheckins();
 loadFtp();
 loadBaseline();
 loadIntake();
+loadToday();
