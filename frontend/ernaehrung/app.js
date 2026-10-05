@@ -418,9 +418,15 @@ async function openScan() {
   $("scan-video").hidden = false;
   try {
     await loadZxing();
-    const reader = new ZXingBrowser.BrowserMultiFormatReader();
+    // Nur Produkt-Barcodes, gruendlich suchen. DecodeHintType exportiert das UMD-Bundle nicht:
+    // 2 = POSSIBLE_FORMATS, 3 = TRY_HARDER.
+    const { EAN_13, EAN_8, UPC_A, UPC_E } = ZXingBrowser.BarcodeFormat;
+    const hints = new Map([[2, [EAN_13, EAN_8, UPC_A, UPC_E]], [3, true]]);
+    const reader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+    // Hohe Aufloesung: iPhones stellen erst ab ~20 cm scharf, bei 640x480 (Safari-Default)
+    // sind die Striche aus dieser Distanz zu wenige Pixel breit.
     state.scanControls = await reader.decodeFromConstraints(
-      { video: { facingMode: "environment" } },
+      { video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } },
       $("scan-video"),
       (result) => {
         if (result) {
