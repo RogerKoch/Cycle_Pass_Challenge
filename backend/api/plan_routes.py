@@ -7,7 +7,7 @@ from datetime import date
 from flask import Blueprint, jsonify, request
 
 from backend.api.baseline_routes import resolve_baseline
-from backend.api.calendar_routes import ensure_week, resolve_cycling, serialize_day, training_params
+from backend.api.calendar_routes import ensure_week, imported_day, resolve_cycling, serialize_day, training_params
 from backend.engine.baseline import calculate_energy_availability
 from backend.engine.cycling_zones import compute_cycling_zones
 from backend.engine.nutrition_calc import (
@@ -58,6 +58,7 @@ def get_today_plan():
 
     today = date.today()
     training = None
+    measured_cycling_kcal = None
     spans = adjustment_spans()
     if request.args:
         try:
@@ -71,7 +72,8 @@ def get_today_plan():
         week_rows = ensure_week(profile, today)
         row = next(r for r in week_rows if r.day_date == today)
         today_phase, week = phase_week(profile.program_start_date, today)
-        params = training_params(row, resolve_cycling(row, today_phase.phase_id, week, spans))
+        params = training_params(row, resolve_cycling(row, today_phase.phase_id, week, spans), imported_day(today))
+        measured_cycling_kcal = params.cycling_kcal
         cycling_hours = params.cycling_minutes / 60
         # ohne Rad ist die Intensitaet fuer die kcal irrelevant (0 h)
         cycling_intensity = params.cycling_intensity or CyclingIntensity.LEICHT_REKOM
@@ -97,6 +99,7 @@ def get_today_plan():
             strength_sessions=strength_sessions,
             rmr_kcal=rmr.value,
             deficit_kcal=effective_deficit(today, phase.phase_id, spans),
+            cycling_kcal=measured_cycling_kcal,
         )
     except ValueError as exc:
         return jsonify({"error": f"ungueltige Trainingsparameter: {exc}"}), 400

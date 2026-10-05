@@ -46,6 +46,11 @@ SIGNAL_THRESHOLD = 2  # Problem-Score 0–3, ab „deutlich“
 SIGNAL_MAX_AGE_DAYS = 10
 RESTING_HR_RISE_BPM = 5  # Annahme: Recherche nennt nur „kippt mehrtaegig“
 RESTING_HR_BASELINE_ENTRIES = 4
+# Taegliche Wellness-Werte (intervals.icu): „kippt mehrtaegig“ = Ø der letzten 3 Tage gegen Ø der 28 Tage davor
+WELLNESS_RECENT_DAYS = 3
+WELLNESS_BASELINE_DAYS = 28
+WELLNESS_MIN_BASELINE_DAYS = 14
+HRV_DROP_PCT = 10.0  # Annahme: Recherche nennt keine Zahl
 CHECKIN_INTERVAL_DAYS = 7
 FTP_TEST_MISSING_WINDOW_DAYS = 14
 
@@ -71,6 +76,15 @@ class FtpPoint:
     test_id: int
     day: date
     ftp_watts: int
+
+
+@dataclass
+class WellnessPoint:
+    """Taegliche Erholungswerte aus intervals.icu (Garmin)."""
+
+    day: date
+    resting_hr: float | None = None
+    hrv: float | None = None
 
 
 @dataclass
@@ -130,6 +144,7 @@ class TriggerInputs:
     deficit_streak_start: date | None = None
     target_weight_kg: float | None = None
     planned_ftp_tests: list[date] = field(default_factory=list)
+    wellness: list[WellnessPoint] = field(default_factory=list)
 
 
 @dataclass
@@ -400,6 +415,41 @@ def _signal_findings(inputs: TriggerInputs) -> list[Finding]:
     return findings
 
 
+def _recent_vs_baseline(points: list[WellnessPoint], attr: str, today: date) -> tuple[float, float] | None:
+    """(Ø letzte 3 Tage, Ø der 28 Tage davor) fuer ein Wellness-Feld; None bei zu wenig Daten."""
+    recent_start = today - timedelta(days=WELLNESS_RECENT_DAYS - 1)
+    baseline_start = recent_start - timedelta(days=WELLNESS_BASELINE_DAYS)
+    recent = [getattr(p, attr) for p in points if recent_start <= p.day <= today and getattr(p, attr) is not None]
+    baseline = [
+        getattr(p, attr) for p in points if baseline_start <= p.day < recent_start and getattr(p, attr) is not None
+    ]
+    if len(recent) < WELLNESS_RECENT_DAYS or len(baseline) < WELLNESS_MIN_BASELINE_DAYS:
+        return None
+    return sum(recent) / len(recent), sum(baseline) / len(baseline)
+
+
+def _wellness_findings(inputs: TriggerInputs) -> list[Finding]:
+    reasons = []
+    hr = _recent_vs_baseline(inputs.wellness, "resting_hr", inputs.today)
+    if hr and hr[0] >= hr[1] + RESTING_HR_RISE_BPM:
+        reasons.append(f"Ruhe-HF Ø 3 Tage {hr[0]:.0f} statt Ø {hr[1]:.0f}")
+    hrv = _recent_vs_baseline(inputs.wellness, "hrv", inputs.today)
+    if hrv and hrv[0] <= hrv[1] * (1 - HRV_DROP_PCT / 100):
+        reasons.append(f"HRV Ø 3 Tage {hrv[0]:.0f} statt Ø {hrv[1]:.0f}")
+    if not reasons:
+        return []
+    return [Finding(
+        # pro Kalenderwoche ein Befund, sonst kaeme er nach "Verwerfen" taeglich wieder
+        key=f"recovery_warning_wellness:{(inputs.today - timedelta(days=inputs.today.weekday())).isoformat()}",
+        trigger_id="recovery_warning_wellness",
+        severity=SEVERITY_ALERT,
+        title="Erholung kippt (Garmin)",
+        detail=", ".join(reasons) + ". Empfehlung: sofort Erholungswoche/Deload.",
+        source="Trainingsplan Ausdauer: Schwellen (Ruhe-HF/HRV kippt mehrtägig)",
+        action=Action(KIND_DELOAD, f"Erholungswoche ({DELOAD_DAYS} Tage)", days=DELOAD_DAYS),
+    )]
+
+
 def _due_findings(inputs: TriggerInputs) -> list[Finding]:
     findings = []
     last_checkin = max((c.day for c in inputs.checkins), default=None)
@@ -440,6 +490,7 @@ def evaluate(inputs: TriggerInputs) -> list[Finding]:
         *_ea_finding(inputs),
         *_ftp_findings(inputs),
         *_signal_findings(inputs),
+        *_wellness_findings(inputs),
         *_due_findings(inputs),
     ]
     return sorted(findings, key=lambda f: _SEVERITY_ORDER[f.severity])

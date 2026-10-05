@@ -16,6 +16,7 @@ from backend.engine.cycling_sessions import (
     is_deload_week,
     session_watts,
 )
+from backend.engine.imported_training import ActivityRecord, ImportedDay, summarize_day
 from backend.engine.nutrition_calc import CyclingIntensity
 from backend.engine.plan_adjustments import (
     KIND_CORE_DAILY,
@@ -44,6 +45,7 @@ from backend.engine.week_plan import (
 )
 from backend.extensions import db
 from backend.models.ftp_tests import FtpTest
+from backend.models.intervals import imported_records
 from backend.models.plan_adjustments import adjustment_spans
 from backend.models.training_days import TrainingDay
 from backend.models.user_profile import UserProfile
@@ -64,6 +66,8 @@ class TrainingParams:
     cycling_minutes: float
     cycling_intensity: CyclingIntensity | None
     strength_sessions: int
+    cycling_kcal: float | None = None  # gemessen (kJ/Garmin) statt MET-Schaetzung
+    source: str = "plan"  # plan | manual | intervals
 
 
 def ensure_week(profile: UserProfile, day: date) -> list[TrainingDay]:
@@ -124,11 +128,16 @@ def resolve_cycling(
     return session
 
 
-def training_params(row: TrainingDay, session: CyclingSession | None) -> TrainingParams:
-    """Parameter fuer die kcal-Berechnung: Ist-Werte bei done/modified, 0 bei skipped, sonst geplant."""
+def imported_day(day: date) -> ImportedDay | None:
+    """Zusammenfassung der aus intervals.icu importierten Aktivitaeten eines Tages, None ohne Import."""
+    records = imported_records(day, day).get(day)
+    return summarize_day(records) if records else None
+
+
+def _manual_or_planned_params(row: TrainingDay, session: CyclingSession | None) -> TrainingParams:
     planned_strength = 1 if row.strength_session else 0
     if row.status == STATUS_SKIPPED:
-        return TrainingParams(0.0, None, 0)
+        return TrainingParams(0.0, None, 0, source="manual")
     if row.status in (STATUS_DONE, STATUS_MODIFIED):
         minutes = row.actual_minutes if row.actual_minutes is not None else (session.minutes if session else 0.0)
         if row.actual_intensity is not None:
@@ -136,10 +145,38 @@ def training_params(row: TrainingDay, session: CyclingSession | None) -> Trainin
         else:
             intensity = session.intensity if session else (CyclingIntensity.MODERAT_BASE if minutes else None)
         strength = planned_strength if row.actual_strength_done is None else int(row.actual_strength_done)
-        return TrainingParams(minutes, intensity if minutes else None, strength)
+        return TrainingParams(minutes, intensity if minutes else None, strength, source="manual")
     if session is None:
         return TrainingParams(0.0, None, planned_strength)
     return TrainingParams(session.minutes, session.intensity, planned_strength)
+
+
+def training_params(
+    row: TrainingDay, session: CyclingSession | None, imported: ImportedDay | None = None
+) -> TrainingParams:
+    """Parameter fuer die kcal-Berechnung.
+
+    Reihenfolge: Import aus intervals.icu vor manueller Rueckmeldung (done/modified/skipped) vor Plan.
+    Vergangene Tage mit Import gelten vollstaendig als Ist; heute ersetzt der Import nur die bereits
+    importierten Teile (eine geplante Abendfahrt bleibt geplant, wenn morgens nur Kraft importiert ist).
+    """
+    base = _manual_or_planned_params(row, session)
+    if imported is None or not imported.has_training:
+        return base
+    if row.day_date < date.today():
+        return TrainingParams(
+            imported.ride_minutes,
+            imported.ride_intensity,
+            int(imported.strength_done),
+            cycling_kcal=imported.ride_kcal,
+            source="intervals",
+        )
+    if imported.ride_minutes > 0:
+        minutes, intensity, kcal = imported.ride_minutes, imported.ride_intensity, imported.ride_kcal
+    else:
+        minutes, intensity, kcal = base.cycling_minutes, base.cycling_intensity, None
+    strength = max(base.strength_sessions, int(imported.strength_done))
+    return TrainingParams(minutes, intensity, strength, cycling_kcal=kcal, source="intervals")
 
 
 def _latest_ftp() -> int | None:
@@ -162,6 +199,23 @@ def _serialize_cycling(session: CyclingSession, ftp_watts: int | None) -> dict:
         "ftp_watts": watts.ftp_watts,
         "message": watts.message,
         "segments": [asdict(s) for s in watts.segments],
+    }
+
+
+def _serialize_imported(activity: ActivityRecord) -> dict:
+    return {
+        "name": activity.name,
+        "type": activity.type,
+        "is_ride": activity.is_ride,
+        "is_strength": activity.is_strength,
+        "minutes": activity.moving_seconds / 60 if activity.moving_seconds else None,
+        "kilojoules": activity.joules / 1000 if activity.joules else None,
+        "kcal": activity.kcal,
+        "training_load": activity.training_load,
+        "avg_watts": activity.avg_watts,
+        "weighted_watts": activity.weighted_watts,
+        "avg_hr": activity.avg_hr,
+        "intensity": activity.intensity,
     }
 
 
@@ -198,6 +252,7 @@ def serialize_day(
         else None
     )
     week_plans = [_day_plan(r) for r in week_rows]
+    imported = imported_day(row.day_date)
     deload = is_deload_week(phase.phase_id, week) or (started and is_forced_deload(row.day_date, spans))
     result = {
         "date": row.day_date.isoformat(),
@@ -213,6 +268,7 @@ def serialize_day(
             "intensity": row.actual_intensity,
             "strength_done": row.actual_strength_done,
         },
+        "imported": [_serialize_imported(a) for a in imported.activities] if imported else [],
         "warnings": [
             {"message": v.message, "blocking": v.blocking} for v in validate_week(week_plans) if v.day == row.day_date
         ],

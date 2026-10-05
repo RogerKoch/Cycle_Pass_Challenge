@@ -63,8 +63,7 @@ alpenpaesse-app/
 │   ├── integrations/
 │   │   ├── blv_import.py            # BLV-Nährwertdatenbank → foods (CLI import-blv)
 │   │   ├── open_food_facts.py       # Barcode-Lookup
-│   │   ├── garmin_csv_import.py     # MVP: manueller CSV-Import
-│   │   └── garmin_api.py            # Platzhalter für spätere API/Aggregator-Anbindung
+│   │   └── intervals_icu.py         # Garmin-Daten via intervals.icu-API (Aktivitäten, Wellness, Auto-Check-ins)
 │   └── api/                         # Flask-Endpunkte (REST)
 │       ├── profile_routes.py
 │       ├── checkin_routes.py
@@ -137,6 +136,19 @@ Wirkung: Defizit = Phasen-Defizit + Summe der Deltas (≥ 0), Diät-Pause/Erhalt
 Erholungswoche = alle Abschnitte ×0,6 bei gleicher Intensität, außer Ramp-Test und regulärer Build-1-Erholungswoche.
 FTP-Retests sind fest im Kalender: Samstag in Phase 0 W1, Base W8, Build 1 W6, Build 2 W5 (Slot `ftp_test`).
 
+## Garmin-Daten via intervals.icu
+
+Garmin hat keine Self-Serve-API; intervals.icu bündelt die Garmin-Daten und hat eine REST-API mit persönlichem
+Key (`INTERVALS_ICU_API_KEY` in `instance/config.py`, HTTP Basic mit Username `API_KEY`, Athlet `0`).
+
+| Baustein | Umsetzung |
+|---|---|
+| Sync | `POST /api/intervals/sync` holt die letzten 14 Tage (Aktivitäten + Wellness), Upsert; im Fenster gelöschte Aktivitäten werden entfernt. Auto-Sync beim Öffnen von `/training/` und Dashboard (`?if_stale=1`, höchstens alle 30 min) plus Button. Ohne Key ist alles aus |
+| Speicher | neue Tabellen `icu_activities`, `icu_wellness`, `integration_state` (keine Spalten an bestehende Tabellen) |
+| Trainings-Ist | `imported_training.summarize_day`: Rad = Typen auf `…Ride`, Kraft = `WeightTraining`. Rad-kcal = kJ (1 kcal/kJ, Ernährungsplan-Caveat „~3,6 kcal/Wh“), sonst Garmin-kcal, sonst MET. Intensität aus dem Intensity Factor (Coggan-Bänder). Import vor manueller Rückmeldung; heute ersetzt der Import nur bereits importierte Teile |
+| Auto-Check-ins | Jeder Wiegetag wird zum Check-in (Quelle „Garmin“), manueller Check-in desselben Tags hat Vorrang. Fehlender KFA → letzter Wert; Muskelmasse → letzter Wert (liefert intervals.icu nicht, fliesst in keine Berechnung ein). Braucht einen ersten manuellen Check-in |
+| Erholung | Trigger `recovery_warning_wellness`: Ruhe-HF Ø 3 Tage ≥ Ø 28 Tage davor + 5 bpm oder HRV ≤ −10 % (≥ 14 Basistage) |
+
 ## Messwert-Fallback-Pattern (estimated → measured)
 
 Baseline-Werte (RMR, FFM, Körperfett, VT1/VT2, FatMax, MFO, Ernährungsziele) werden mit
@@ -181,24 +193,22 @@ separaten Repo `server-infra`.
   Ruhe-HF +5 bpm über Ø der letzten 4 Einträge, Erholungswoche ×0,6, Kraft-/Core-Anpassung 28 Tage,
   Retest „Mitte Build“ = Build 1 W6 und „vor Peak“ = Ende Build 2 (zusammengelegt)
 - Noch ohne Trigger: Kraft-Benchmarks alle 4 Wochen, Mobility-Stagnation, Durability-Check (brauchen Benchmark-Erfassung)
-- Ruhe-HF/HRV täglich und „mehrtägig kippt“ erst mit intervals.icu (Schritt 3); bis dahin manuell im Fragebogen
+- Wellness-Trigger: Fenster 3 vs. 28 Tage, +5 bpm und HRV −10 % sind Annahmen (Recherche: „kippt mehrtägig“)
+- Ob intervals.icu bei der Garmin-Waage auch Körperfett liefert, ist ungeprüft (Fallback: letzter KFA)
 
 - Kraft-Platzierung: Die Kraft-Recherche empfiehlt Kraft am harten Radtag (danach bzw. ≥6 h später),
   die Ausdauer-Recherche und `data-model.yaml` Mo/Do an lockeren Tagen. Umgesetzt ist Mo/Do.
 - Progressionsschritte innerhalb der Phasen (z. B. Sweet Spot 3×10 → 3×12 → 2×20) und die Zuordnung
   der Kraftübungen aus Phase 2/3 zu Einheit A/B sind Annahmen; die Recherche nennt nur Start/Ziel
-- Rad-kcal weiter über MET-Stufen; mit FTP wären kJ aus den Watt-Vorgaben genauer
+- Geplante Rad-kcal weiter über MET-Stufen (Ist aus kJ, sobald importiert)
 
 - Mehrere User mit eigenen Daten (heute Einzel-Login): bräuchte `user_id` in allen Tabellen
 - Baseline-Fallback: %HFmax-Schätzformel für VT1/VT2 (Prozentwerte, HFmax-Quelle) zurückgestellt
-- Energy-Availability-Historie braucht ein Trainings-Log (Garmin-Import)
 
 - FTP-Baseline erst nach Zwift-Ramp-Test (Anfang Oktober) verfügbar → Zonen bis dahin
   nicht berechenbar, UI muss das abfangen (Platzhalter/Hinweis anzeigen)
 - Col du Sanetsch und Männlichen: Zufahrt/Befahrbarkeit noch zu verifizieren, bevor
   sie in Routen-Planung der Pass-Komponente einfliessen
-- Garmin-Datenweg: Start mit CSV-Import, `garmin_api.py` bleibt Platzhalter bis
-  API-Zugang oder Aggregator geklärt ist
 
 ## Tech-Stack
 
@@ -206,4 +216,4 @@ separaten Repo `server-infra`.
 - DB: SQLite
 - Frontend: HTML (+ ggf. leichtes JS, kein schweres Framework nötig für v1)
 - Betrieb: waitress hinter Caddy (siehe „Betrieb auf dem Server“)
-- Datenimport: manueller CSV-Export aus Garmin Connect (MVP)
+- Datenimport: intervals.icu-API (bündelt Garmin Connect)

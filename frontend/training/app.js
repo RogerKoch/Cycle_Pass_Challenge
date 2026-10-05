@@ -138,6 +138,7 @@ function renderDay() {
   }
   for (const warning of day.warnings) cards.push(el("p", { class: "warning" }, `⚠ ${warning.message}`));
   if (day.note) cards.push(el("p", { class: "hint" }, `Notiz: ${day.note}`));
+  if (day.imported.length) cards.push(importedCard(day.imported));
   if (!day.cycling && !day.strength) {
     cards.push(el("section", { class: "card" }, el("h2", {}, "Ruhetag"), el("p", { class: "card-sub" }, "Nur Mobility.")));
   }
@@ -153,7 +154,28 @@ function phaseLine(day) {
   return el("div", { class: "phase-line" },
     el("span", { class: "badge" }, `${PHASE_NAMES[day.phase.phase_id] || day.phase.phase_id} · Woche ${day.phase.week_in_phase}`),
     day.phase.deload ? el("span", { class: "badge warn" }, "Erholungswoche") : null,
-    day.status !== "planned" ? el("span", { class: "badge muted" }, STATUS_NAMES[day.status]) : null);
+    hasImportedTraining(day)
+      ? el("span", { class: "badge" }, "erledigt (Garmin)")
+      : day.status !== "planned" ? el("span", { class: "badge muted" }, STATUS_NAMES[day.status]) : null);
+}
+
+const hasImportedTraining = (day) => day.imported.some((a) => a.is_ride || a.is_strength);
+
+function importedCard(activities) {
+  const items = activities.map((a) => {
+    const facts = [
+      a.minutes ? fmtMinutes(a.minutes) : null,
+      a.kilojoules ? `${round(a.kilojoules)} kJ` : a.kcal ? `${round(a.kcal)} kcal` : null,
+      a.weighted_watts ? `NP ${round(a.weighted_watts)} W` : a.avg_watts ? `Ø ${round(a.avg_watts)} W` : null,
+      a.avg_hr ? `Ø ${round(a.avg_hr)} bpm` : null,
+      a.training_load ? `Load ${round(a.training_load)}` : null,
+    ].filter(Boolean).join(" · ");
+    return el("li", {}, `${a.is_ride ? "🚴" : a.is_strength ? "💪" : "•"} ${a.name || a.type}`, el("span", { class: "sub" }, facts));
+  });
+  return el("section", { class: "card" },
+    el("h2", {}, "⌚ Garmin-Ist"),
+    el("p", { class: "card-sub" }, "Aus intervals.icu – zählt für Ernährung und Review vor der manuellen Rückmeldung."),
+    el("ul", { class: "exercises" }, ...items));
 }
 
 function cyclingCard(cycling) {
@@ -215,7 +237,9 @@ function actionsCard(day) {
   const isPast = day.date < today();
   const isFuture = day.date > today();
   const buttons = [];
-  if (day.status === "planned") {
+  if (hasImportedTraining(day)) {
+    if (!isPast && day.status === "planned") buttons.push(el("button", { onclick: openPlan }, "Anpassen"));
+  } else if (day.status === "planned") {
     if (!isPast) buttons.push(el("button", { onclick: openPlan }, "Anpassen"));
     if (!isFuture) {
       buttons.push(el("button", { class: "primary", onclick: () => setStatus({ status: "done" }) }, "✓ Erledigt"));
@@ -438,5 +462,11 @@ function bindEvents() {
   }
 }
 
+async function syncIntervals() {
+  // Auto-Sync beim Oeffnen (Server synchronisiert hoechstens alle 30 min); Fehler zeigt das Dashboard
+  const status = await api("GET", "/api/intervals/status");
+  if (status.ok && status.data.configured) await api("POST", "/api/intervals/sync?if_stale=1");
+}
+
 bindEvents();
-load();
+syncIntervals().finally(load);

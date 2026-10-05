@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from flask import Blueprint, jsonify, request
 
 from backend.api.baseline_routes import resolve_baseline
-from backend.api.calendar_routes import ensure_week, resolve_cycling, training_params
+from backend.api.calendar_routes import ensure_week, imported_day, resolve_cycling, training_params
 from backend.engine.baseline import calculate_energy_availability, calculate_target_weight_kg
 from backend.engine.checkin_triggers import (
     LOSS_TREND_WINDOW_DAYS,
@@ -17,6 +17,7 @@ from backend.engine.checkin_triggers import (
     FtpPoint,
     SignalPoint,
     TriggerInputs,
+    WellnessPoint,
     average_energy_availability,
     deficit_streak_start,
     evaluate,
@@ -30,6 +31,7 @@ from backend.extensions import db
 from backend.models.checkins import Checkin
 from backend.models.ftp_tests import FtpTest
 from backend.models.intake import IntakeDay
+from backend.models.intervals import IcuWellness
 from backend.models.plan_adjustments import PlanAdjustment, ReviewDecision, adjustment_spans
 from backend.models.training_days import TrainingDay
 from backend.models.user_profile import UserProfile
@@ -43,6 +45,7 @@ SIGNAL_FIELDS: tuple[str, ...] = ("sleep", "legs", "hunger", "back", "effort")
 RESTING_HR_RANGE = (30, 120)
 MAX_NOTE_LENGTH = 200
 EA_LOOKBACK_DAYS = 8
+WELLNESS_WINDOW_DAYS = 31  # 3 aktuelle + 28 Basistage
 DECISIONS = ("accepted", "dismissed")
 
 
@@ -126,12 +129,13 @@ def _ea_days(profile: UserProfile, checkin: Checkin, ffm_kg: float, spans: list[
             rows.update({r.day_date: r for r in ensure_week(profile, intake.intake_date)})
         row = rows[intake.intake_date]
         phase, week = phase_week(profile.program_start_date, row.day_date)
-        params = training_params(row, resolve_cycling(row, phase.phase_id, week, spans))
-        cycling = (
-            calculate_cycling_kcal(params.cycling_minutes / 60, params.cycling_intensity, checkin.weight_kg)
-            if params.cycling_intensity
-            else 0.0
-        )
+        params = training_params(row, resolve_cycling(row, phase.phase_id, week, spans), imported_day(row.day_date))
+        if params.cycling_kcal is not None:
+            cycling = params.cycling_kcal
+        elif params.cycling_intensity:
+            cycling = calculate_cycling_kcal(params.cycling_minutes / 60, params.cycling_intensity, checkin.weight_kg)
+        else:
+            cycling = 0.0
         training_kcal = cycling + calculate_strength_kcal(params.strength_sessions)
         result.append(EaDay(intake.intake_date, calculate_energy_availability(intake.kcal, training_kcal, ffm_kg)))
     return result
@@ -173,6 +177,10 @@ def _review_state(profile: UserProfile, today: date) -> tuple[list[Finding], dic
         deficit_streak_start=deficit_streak_start(today, lambda d: deficit_on(d) > 0),
         target_weight_kg=target_weight,
         planned_ftp_tests=[r.day_date for r in planned_tests],
+        wellness=[
+            WellnessPoint(w.day, w.resting_hr, w.hrv)
+            for w in IcuWellness.query.filter(IcuWellness.day >= today - timedelta(days=WELLNESS_WINDOW_DAYS)).all()
+        ],
     )
     decided = {d.finding_key for d in ReviewDecision.query.all()}
     findings = [f for f in evaluate(inputs) if f.key not in decided]

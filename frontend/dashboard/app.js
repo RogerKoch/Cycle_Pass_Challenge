@@ -71,8 +71,9 @@ async function loadCheckins() {
   const { data } = await api("GET", "/api/checkins");
   const rows = (data || []).map((c) => [
     c.checkin_date, fmt(c.weight_kg, 1), fmt(c.bodyfat_pct, 1), fmt(c.muscle_kg, 1), fmt(c.ffm_kg, 1),
+    c.source === "intervals" ? "Garmin" : "manuell",
   ]);
-  const table = makeTable(["Datum", "Gewicht kg", "KF %", "Muskel kg", "FFM kg"], rows);
+  const table = makeTable(["Datum", "Gewicht kg", "KF %", "Muskel kg", "FFM kg", "Quelle"], rows);
   table.id = "checkin-table";
   $("checkin-table").replaceWith(table);
 }
@@ -246,7 +247,10 @@ function renderToday(plan) {
 
   const t = plan.training;
   const parts = [];
-  if (t.status === "skipped") parts.push("abgesagt");
+  const imported = t.imported.filter((a) => a.is_ride || a.is_strength);
+  if (imported.length) {
+    for (const a of imported) parts.push(`Garmin: ${a.name || a.type}${a.minutes ? ` (${fmt(a.minutes)} min)` : ""}`);
+  } else if (t.status === "skipped") parts.push("abgesagt");
   else {
     if (t.cycling) parts.push(`Rad: ${t.cycling.title} (${fmt(t.cycling.minutes)} min)`);
     if (t.strength) parts.push(t.strength.title);
@@ -312,12 +316,43 @@ $("ftp-form").addEventListener("submit", saveFtp);
 $("today-refresh").addEventListener("click", loadToday);
 $("baseline-form").addEventListener("submit", saveBaseline);
 $("intake-form").addEventListener("submit", saveIntake);
+$("intervals-sync").addEventListener("click", () => syncIntervals(false));
 
-loadProfile();
-loadCheckins();
-loadFtp();
-loadBaseline();
-loadIntake();
-loadToday();
-loadSignals();
-loadReview();
+function loadAll() {
+  loadProfile();
+  loadCheckins();
+  loadFtp();
+  loadBaseline();
+  loadIntake();
+  loadToday();
+  loadSignals();
+  loadReview();
+}
+
+async function loadIntervalsStatus() {
+  const { ok, data } = await api("GET", "/api/intervals/status");
+  if (!ok) return null;
+  $("intervals-sync").hidden = !data.configured;
+  $("intervals-view").textContent = data.configured
+    ? `Letzter Sync: ${data.last_sync ? new Date(data.last_sync).toLocaleString("de-CH") : "noch nie"} · `
+      + `${data.activities} Aktivitäten, ${data.wellness_days} Wellness-Tage`
+    : "Nicht konfiguriert: INTERVALS_ICU_API_KEY in instance/config.py eintragen (intervals.icu → Settings → Developer Settings).";
+  setMsg("intervals-msg", data.last_error ? `Letzter Fehler: ${data.last_error}` : "");
+  return data;
+}
+
+async function syncIntervals(ifStale) {
+  const status = await loadIntervalsStatus();
+  if (!status || !status.configured) return;
+  const { data } = await api("POST", `/api/intervals/sync${ifStale ? "?if_stale=1" : ""}`);
+  await loadIntervalsStatus();
+  if (data.synced) {
+    loadAll();
+    if (data.notes.length) setMsg("intervals-msg", data.notes.join(" "));
+  } else if (data.error) {
+    setMsg("intervals-msg", data.error);
+  }
+}
+
+loadAll();
+syncIntervals(true);
