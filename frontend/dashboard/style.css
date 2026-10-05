@@ -17,3 +17,4 @@ th:first-child, td:first-child { text-align: left; }
 .finding.info { border-color: #1976d2; }
 .finding .source { color: #666; font-size: 0.85rem; }
 .finding button { margin-right: 0.5rem; }
+.info { text-decoration: none; margin-left: 0.2em; }

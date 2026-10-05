@@ -107,3 +107,7 @@ def test_password_hash_without_secret_key_fails_fast():
 
     with pytest.raises(RuntimeError):
         create_app(Broken)
+
+
+def test_help_page_requires_login(auth_client):
+    assert auth_client.get("/hilfe/").status_code == 302

@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 FRONTEND_DIR = REPO_ROOT / "frontend" / "dashboard"
 NUTRITION_DIR = REPO_ROOT / "frontend" / "ernaehrung"
 TRAINING_DIR = REPO_ROOT / "frontend" / "training"
+HELP_DIR = REPO_ROOT / "frontend" / "hilfe"
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -53,6 +54,12 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     def training(filename: str = "index.html"):
         """Liefert die mobile Trainings-Seite (PWA)."""
         return send_from_directory(TRAINING_DIR, filename)
+
+    @app.get("/hilfe/")
+    @app.get("/hilfe/<path:filename>")
+    def help_page(filename: str = "index.html"):
+        """Liefert die Erklaer-Seite (Begriffe, Formeln, Regeln)."""
+        return send_from_directory(HELP_DIR, filename)
 
     db.init_app(app)
 
