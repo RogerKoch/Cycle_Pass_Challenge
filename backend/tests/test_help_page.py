@@ -16,6 +16,7 @@ from backend.engine.cycling_zones import FTP_RAMP_TEST_FACTOR
 from backend.engine.nutrition_calc import (
     DEFAULT_DEFICIT_KCAL,
     FAT_G_PER_KG_BODYWEIGHT,
+    ACTIVITY_LEVELS,
     NON_EXERCISE_FACTOR,
     PROTEIN_G_PER_KG_FFM,
     STRENGTH_KCAL_PER_SESSION,
@@ -38,7 +39,7 @@ def test_help_page_and_content_are_served(client):
 
 @pytest.mark.parametrize("text", [
     f"{_de(FTP_RAMP_TEST_FACTOR * 100)} % deiner besten 1-Minuten-Leistung",
-    f"Grundumsatz × {_de(NON_EXERCISE_FACTOR)}",
+    f"(Büro {_de(NON_EXERCISE_FACTOR)})",
     f"{_de(DEFAULT_DEFICIT_KCAL)} kcal in Base/Build 1",
     f"{_de(PROTEIN_G_PER_KG_FFM)} g pro kg FFM",
     f"{_de(FAT_G_PER_KG_BODYWEIGHT)} g pro kg Gewicht",
@@ -52,6 +53,11 @@ def test_help_page_and_content_are_served(client):
 ])
 def test_help_numbers_match_engine_constants(text):
     assert text in CONTENT
+
+
+def test_help_lists_every_activity_level_with_its_factor():
+    for label, factor in ACTIVITY_LEVELS.values():
+        assert f"| {label} | " in CONTENT and f" | {_de(factor)} |" in CONTENT
 
 
 def test_help_phase_lengths_match_phase_sequence():

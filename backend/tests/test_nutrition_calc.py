@@ -93,6 +93,22 @@ def test_daily_kcal_target_composes_components_correctly():
     assert target.maintenance_kcal == pytest.approx(3184.8125)
     assert target.deficit_kcal == pytest.approx(350.0)
     assert target.target_kcal == pytest.approx(2834.8125)
+    assert target.non_exercise_factor == 1.45
+
+
+def test_daily_kcal_target_uses_given_non_exercise_factor():
+    target = calculate_daily_kcal_target(
+        weight_kg=REFERENCE_WEIGHT_KG,
+        height_cm=REFERENCE_HEIGHT_CM,
+        age=REFERENCE_AGE,
+        phase_id="base",
+        cycling_hours=0.0,
+        cycling_intensity=CyclingIntensity.MODERAT_BASE,
+        strength_sessions=0,
+        non_exercise_factor=2.1,
+    )
+    assert target.non_exercise_kcal == pytest.approx(1581.25 * 2.1)
+    assert target.target_kcal == pytest.approx(1581.25 * 2.1 - 350.0)
     # Sanity: liegt in der von der Recherche genannten Groessenordnung (~2830-3030
     # Erhaltung, ~2480 Wochenschnitt-Ziel) - exakter Match ist nicht zu erwarten,
     # da das parametergetriebene Modell bewusst anders periodisiert als die

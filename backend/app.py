@@ -3,11 +3,28 @@
 import logging
 
 from flask import Flask, send_from_directory
+from sqlalchemy import inspect, text
 
 from backend.config import INSTANCE_DIR, REPO_ROOT, Config
 from backend.extensions import db
 
 logger = logging.getLogger(__name__)
+
+# Spalten, die nach dem ersten Deploy dazukamen: create_all() legt sie in bestehenden Tabellen nicht an.
+# (Tabelle, Spalte, DDL-Typ inkl. Default)
+_ADDED_COLUMNS: list[tuple[str, str, str]] = [
+    ("user_profile", "activity_level", "VARCHAR(20) NOT NULL DEFAULT 'buero'"),
+]
+
+
+def add_missing_columns() -> None:
+    """Ergaenzt fehlende Spalten aus _ADDED_COLUMNS in bestehenden Tabellen (idempotent)."""
+    inspector = inspect(db.engine)
+    for table, column, ddl in _ADDED_COLUMNS:
+        if column not in {c["name"] for c in inspector.get_columns(table)}:
+            db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"))
+            logger.info("Spalte %s.%s ergaenzt", table, column)
+    db.session.commit()
 
 FRONTEND_DIR = REPO_ROOT / "frontend" / "dashboard"
 NUTRITION_DIR = REPO_ROOT / "frontend" / "ernaehrung"
@@ -97,5 +114,6 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     if not app.config.get("TESTING"):
         with app.app_context():
             db.create_all()
+            add_missing_columns()
 
     return app

@@ -51,7 +51,17 @@ _CARBS_G_PER_KG_BY_DAYTYPE: dict[DayType, float] = {
 ACTIVE_DEFICIT_PHASES = {"base", "build1"}
 DEFAULT_DEFICIT_KCAL = 350.0  # Mittelwert aus data-model.yaml [300, 400]
 STRENGTH_KCAL_PER_SESSION = 300.0
-NON_EXERCISE_FACTOR = 1.45
+# Alltagsfaktor auf den BMR ohne Sport (Training wird separat addiert). User-Vorgabe 2026-10-05, Werte nach
+# DGE-PAL; 1.45 (Buero) ist der Wert aus ernaehrungsplan.md.
+ACTIVITY_LEVELS: dict[str, tuple[str, float]] = {
+    "sitzend": ("nur sitzend", 1.2),
+    "buero": ("Büro", 1.45),
+    "gemischt": ("gemischt sitzend/stehend", 1.65),
+    "stehend": ("überwiegend stehend/gehend", 1.85),
+    "schwer": ("körperlich schwer", 2.1),
+}
+DEFAULT_ACTIVITY_LEVEL = "buero"
+NON_EXERCISE_FACTOR = ACTIVITY_LEVELS[DEFAULT_ACTIVITY_LEVEL][1]
 PROTEIN_G_PER_KG_FFM = 2.6  # Mittelwert aus data-model.yaml [2.3, 2.9]
 FAT_G_PER_KG_BODYWEIGHT = 0.95  # Mittelwert aus data-model.yaml [0.9, 1.0]
 
@@ -67,6 +77,7 @@ class NutritionTarget:
     maintenance_kcal: float
     deficit_kcal: float
     target_kcal: float
+    non_exercise_factor: float = NON_EXERCISE_FACTOR
 
 
 @dataclass
@@ -167,6 +178,7 @@ def calculate_daily_kcal_target(
     rmr_kcal: float | None = None,
     deficit_kcal: float | None = None,
     cycling_kcal: float | None = None,
+    non_exercise_factor: float = NON_EXERCISE_FACTOR,
 ) -> NutritionTarget:
     """Berechnet das vollstaendige taegliche kcal-Ziel aus den Tagesparametern.
 
@@ -181,12 +193,13 @@ def calculate_daily_kcal_target(
         rmr_kcal: gemessener/aufgeloester Ruheumsatz; ersetzt den Mifflin-St-Jeor-BMR, falls gesetzt.
         deficit_kcal: Defizit nach Review-Anpassungen (engine.plan_adjustments); None = Phasen-Default.
         cycling_kcal: gemessener Rad-Verbrauch (kJ bzw. Garmin, engine.imported_training); None = MET-Schaetzung.
+        non_exercise_factor: Alltagsfaktor auf den BMR (siehe ACTIVITY_LEVELS).
 
     Returns:
         NutritionTarget mit voller Komponenten-Aufschluesselung.
     """
     bmr = rmr_kcal if rmr_kcal is not None else calculate_bmr(weight_kg, height_cm, age)
-    non_exercise = calculate_non_exercise_kcal(bmr)
+    non_exercise = calculate_non_exercise_kcal(bmr, non_exercise_factor)
     if cycling_kcal is not None:
         cycling = cycling_kcal
     else:
@@ -202,6 +215,7 @@ def calculate_daily_kcal_target(
         maintenance_kcal=maintenance,
         deficit_kcal=deficit,
         target_kcal=maintenance - deficit,
+        non_exercise_factor=non_exercise_factor,
     )
 
 
