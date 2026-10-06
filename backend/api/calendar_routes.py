@@ -5,7 +5,7 @@ import math
 from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from backend.engine.cycling_sessions import (
     ALL_SLOTS,
@@ -43,7 +43,9 @@ from backend.engine.week_plan import (
     validate_week,
     week_start,
 )
+from backend.engine.zwo_export import session_to_zwo
 from backend.extensions import db
+from backend.integrations.intervals_icu import IcuError, PushResult, configured_client, push_workouts
 from backend.models.ftp_tests import FtpTest
 from backend.models.intervals import imported_records
 from backend.models.plan_adjustments import adjustment_spans
@@ -57,6 +59,7 @@ calendar_bp = Blueprint("calendar", __name__, url_prefix="/api/calendar")
 MAX_PLANNED_MINUTES = 600
 MAX_NOTE_LENGTH = 200
 SWAPPABLE_STATUSES = frozenset({STATUS_PLANNED, STATUS_SKIPPED})
+PUSH_WINDOW_DAYS = 7  # intervals.icu laedt die Workouts der naechsten Woche zu Zwift
 
 
 @dataclass
@@ -304,6 +307,48 @@ def _serialize_single(profile: UserProfile, day: date) -> dict:
     return serialize_day(row, profile, rows, _latest_ftp())
 
 
+def planned_sessions(profile: UserProfile, today: date, days: int = PUSH_WINDOW_DAYS) -> dict[date, CyclingSession | None]:
+    """Geplante Radeinheiten ab heute fuer den Workout-Push.
+
+    Abgesagte Tage und Tage ohne Rad liefern None (Workout wird entfernt); erledigte Tage und Tage
+    vor Programmstart fehlen (werden nicht angefasst).
+    """
+    spans = adjustment_spans()
+    rows = {r.day_date: r for d in (today, today + timedelta(days=days - 1)) for r in ensure_week(profile, d)}
+    result: dict[date, CyclingSession | None] = {}
+    for offset in range(days):
+        current = today + timedelta(days=offset)
+        row = rows[current]
+        if current < profile.program_start_date or row.status in (STATUS_DONE, STATUS_MODIFIED):
+            continue
+        if row.status == STATUS_SKIPPED:
+            result[current] = None
+            continue
+        phase, week = phase_week(profile.program_start_date, current)
+        result[current] = resolve_cycling(row, phase.phase_id, week, spans)
+    return result
+
+
+def push_planned_workouts(profile: UserProfile) -> PushResult | None:
+    """Schickt die Workouts der naechsten 7 Tage an intervals.icu; None ohne konfigurierten Key.
+
+    Raises:
+        IcuError: bei Fehlern der API.
+    """
+    client = configured_client()
+    if client is None:
+        return None
+    return push_workouts(client, planned_sessions(profile, date.today()))
+
+
+def _push_best_effort(profile: UserProfile) -> None:
+    """Push nach einer Kalender-Aenderung; ein API-Fehler darf die Aenderung nicht scheitern lassen."""
+    try:
+        push_planned_workouts(profile)
+    except IcuError:
+        pass  # in push_workouts geloggt und als last_push_error gespeichert
+
+
 def _parse_date(value: str) -> date:
     return date.fromisoformat(value)
 
@@ -346,6 +391,28 @@ def get_day(day: str):
     return jsonify(_serialize_single(profile, parsed)), 200
 
 
+@calendar_bp.get("/day/<day>/zwo")
+def get_day_zwo(day: str):
+    """Radeinheit des Tages als Zwift-Workout (.zwo) zum Herunterladen."""
+    profile, error = _profile_or_error()
+    if error:
+        return error
+    try:
+        parsed = _parse_date(day)
+    except ValueError:
+        return jsonify({"error": "ungueltiges Datum, erwartet YYYY-MM-DD"}), 400
+    row = next(r for r in ensure_week(profile, parsed) if r.day_date == parsed)
+    phase, week = phase_week(profile.program_start_date, parsed)
+    session = resolve_cycling(row, phase.phase_id, week)
+    if session is None:
+        return jsonify({"error": "an diesem Tag ist keine Radeinheit geplant"}), 404
+    return Response(
+        session_to_zwo(session),
+        mimetype="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{parsed.isoformat()}.zwo"'},
+    )
+
+
 @calendar_bp.post("/swap")
 def swap_days():
     """Tauscht die geplanten Inhalte zweier Tage derselben Woche (Status bleibt beim Datum)."""
@@ -376,6 +443,7 @@ def swap_days():
         setattr(a, field, value_b)
         setattr(b, field, value_a)
     db.session.commit()
+    _push_best_effort(profile)
     return jsonify(_serialize_week(profile, rows)), 200
 
 
@@ -428,6 +496,7 @@ def update_day_plan(day: str):
 
     row.cycling_slot, row.planned_minutes, row.strength_session = slot, minutes, strength
     db.session.commit()
+    _push_best_effort(profile)
     return jsonify(serialize_day(row, profile, rows, _latest_ftp())), 200
 
 
@@ -476,6 +545,8 @@ def update_day_status(day: str):
     else:
         row.actual_minutes = row.actual_intensity = row.actual_strength_done = None
     db.session.commit()
+    if parsed >= date.today():
+        _push_best_effort(profile)
     return jsonify(serialize_day(row, profile, rows, _latest_ftp())), 200
 
 
@@ -498,4 +569,5 @@ def reset_week(day: str):
         row.planned_minutes = row.note = None
         row.status = STATUS_PLANNED
     db.session.commit()
+    _push_best_effort(profile)
     return jsonify(_serialize_week(profile, rows)), 200

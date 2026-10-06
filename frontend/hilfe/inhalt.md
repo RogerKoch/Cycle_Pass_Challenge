@@ -220,6 +220,23 @@ Die Phasen laufen ab dem Programmstart nacheinander ab.
 **FTP-Tests** sind fest eingeplant (jeweils Samstag): Wiedereinstieg Woche 1, Base Woche 8, Build 1 Woche 6,
 Build 2 Woche 5.
 
+<a id="zwift"></a>
+
+### Zwift-Workouts
+Die Radeinheiten der nächsten 7 Tage landen automatisch als Workout in Zwift.
+
+| Schritt | Was passiert |
+|---|---|
+| App → intervals.icu | sofort nach jeder Kalender-Änderung (Tauschen, Anpassen, Absagen) und beim Öffnen der App (max. alle 30 min) |
+| intervals.icu → Zwift | macht intervals.icu selbst; in Zwift unter *Workouts → Custom → Intervals.icu* bzw. auf dem Home-Screen |
+
+- **Einmalig nötig:** intervals.icu → Settings → Zwift → *Connect*.
+- **FTP:** Vorgaben sind % FTP – Zwift rechnet mit seiner eigenen FTP. FTP in Zwift und intervals.icu gleich halten.
+- **%-Bereiche** (z. B. Sweet Spot 88–94 %) werden als Mittelwert vorgegeben (ERG-Modus).
+- Abgesagte Tage werden in intervals.icu wieder entfernt; erledigte Tage bleiben unverändert.
+- **Fallback:** In der Tagesansicht „⬇ Zwift-Workout (.zwo)“ herunterladen und nach
+  `Dokumente\Zwift\Workouts\<Zwift-ID>\` kopieren (nur PC/Mac).
+
 ### Trainings-kcal
 - **Mit Leistungsmesser (Garmin-Import):** 1 kJ Arbeit ≈ 1 kcal Verbrauch.
 - **Ohne Leistung / Planung:** Tabellenwert pro Stunde je nach Intensität, auf dein Gewicht umgerechnet.

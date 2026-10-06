@@ -200,7 +200,9 @@ function cyclingCard(cycling) {
     cycling.message ? el("p", { class: "warning" }, cycling.message) : null,
     el("table", { class: "segments" }, el("tbody", {}, ...rows)),
     cycling.note ? el("p", { class: "hint" }, cycling.note) : null,
-    cycling.zwift_hint ? el("p", { class: "hint" }, `Zwift: ${cycling.zwift_hint}`) : null);
+    cycling.zwift_hint ? el("p", { class: "hint" }, `Zwift: ${cycling.zwift_hint}`) : null,
+    el("p", { class: "hint" }, el("a", { href: `../api/calendar/day/${state.date}/zwo`, download: "" }, "⬇ Zwift-Workout (.zwo)"),
+      " · wird automatisch über intervals.icu an Zwift geschickt ", infoLink("zwift")));
 }
 
 function strengthCard(strength) {
