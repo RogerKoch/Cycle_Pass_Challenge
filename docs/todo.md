@@ -17,7 +17,7 @@ Stand: 2026-10-05
 | 9  | Kapitel Pässe-Planung | **Nicht vor 1.12.2026**, ausser explizit angefragt. Benötigt die Pass-Excel-Dateien. |
 | 10 | FTP eintragen | Ramp-Test Anfang Oktober → FTP erfassen, damit Zonen/Watt freigeschaltet werden. |
 | 11 | Waage/Wellness-Sync | intervals.icu-Wellness inaktiv → keine automatischen Check-ins. Aktivieren oder manuell erfassen. |
-| 12 | DB-Backup Server | War keins vorhanden. Code fertig, **Einrichtung auf dem Server offen**. Neu: `flask backup-db` (30 lokal) + Aufgabe 03:30 + rclone → Google Drive (90 Tage), Runbook `server-infra/docs/3-backup.md`. |
+| 12 | ✅ DB-Backup Server | War keins vorhanden. Eingerichtet und getestet 2026-10-06: `flask backup-db` (30 lokal) + Aufgabe 03:30 + rclone → Google Drive (90 Tage), Runbook `server-infra/docs/3-backup.md`. |
 | 13 | Zwift `.zwo`-Export | Früher als „später“ vereinbart. |
 | 14 | Fokus-Thema (z. B. flacher Bauch) | Wählbarer Fokus steuert Übungsauswahl/Volumen + Ernährungs-/Ausdauer-Akzente. Zusammen mit #1 und #5 umsetzen. |
 | 15 | ✅ Wie wird der Grundumsatz berechnet | Mifflin-St Jeor (10 × kg + 6,25 × cm − 5 × Alter + 5); gemessener RMR ersetzt die Schätzung. Erklärt in `/hilfe/#grundumsatz`. |
