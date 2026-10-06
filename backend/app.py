@@ -105,11 +105,13 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(intervals_bp)
 
     from backend.auth import register_auth
+    from backend.backup import backup_db_command
     from backend.integrations.blv_import import import_blv_command
 
     register_auth(app)
 
     app.cli.add_command(import_blv_command)
+    app.cli.add_command(backup_db_command)
 
     if not app.config.get("TESTING"):
         with app.app_context():
