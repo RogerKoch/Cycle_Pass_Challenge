@@ -10,8 +10,11 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 
 import requests
+from flask import current_app
 
+from backend.engine.cycling_sessions import CyclingSession
 from backend.engine.imported_training import ActivityRecord
+from backend.engine.zwo_export import session_to_zwo
 from backend.extensions import db
 from backend.models.checkins import Checkin
 from backend.models.intervals import IcuActivity, IcuWellness, IntegrationState
@@ -24,6 +27,8 @@ SYNC_WINDOW_DAYS = 14
 STALE_AFTER = timedelta(minutes=30)
 STATE_LAST_SYNC = "last_sync"
 STATE_LAST_ERROR = "last_error"
+STATE_LAST_PUSH_ERROR = "last_push_error"
+EXTERNAL_ID_PREFIX = "cpc-"  # markiert die von der App angelegten Workouts
 ACTIVITY_FIELDS = (
     "id,start_date_local,type,name,moving_time,icu_joules,calories,icu_training_load,"
     "icu_average_watts,icu_weighted_avg_watts,average_heartrate,icu_intensity"
@@ -57,6 +62,14 @@ class SyncResult:
     checkins_created: int = 0
     checkins_updated: int = 0
     notes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class PushResult:
+    """Ergebnis eines Workout-Pushs."""
+
+    upserted: int = 0
+    deleted: int = 0
 
 
 def _number(value: object) -> float | None:
@@ -114,15 +127,19 @@ class IcuClient:
         self._auth = ("API_KEY", api_key)
         self._athlete = athlete_id
 
-    def _get(self, path: str, params: dict) -> list:
+    def _request(self, method: str, path: str, **kwargs) -> requests.Response:
         try:
-            response = requests.get(f"{BASE_URL}{path}", params=params, auth=self._auth, timeout=TIMEOUT_S)
+            response = requests.request(method, f"{BASE_URL}{path}", auth=self._auth, timeout=TIMEOUT_S, **kwargs)
         except requests.RequestException as exc:
             raise IcuError(f"intervals.icu nicht erreichbar: {exc.__class__.__name__}") from exc
         if response.status_code in (401, 403):
             raise IcuError("API-Key ungültig (intervals.icu → Settings → Developer Settings)")
         if response.status_code != 200:
             raise IcuError(f"intervals.icu antwortet mit HTTP {response.status_code}")
+        return response
+
+    def _get(self, path: str, params: dict) -> list:
+        response = self._request("GET", path, params=params)
         try:
             body = response.json()
         except ValueError as exc:
@@ -143,6 +160,22 @@ class IcuClient:
         """Wellness-Tage im Zeitraum (inklusive)."""
         rows = self._get(f"/athlete/{self._athlete}/wellness", {"oldest": oldest.isoformat(), "newest": newest.isoformat()})
         return [w for w in (parse_wellness(r) for r in rows if isinstance(r, dict)) if w is not None]
+
+    def fetch_workout_events(self, oldest: date, newest: date) -> list[dict]:
+        """Geplante Workouts (Kalender-Events) im Zeitraum (inklusive)."""
+        rows = self._get(
+            f"/athlete/{self._athlete}/events",
+            {"oldest": oldest.isoformat(), "newest": newest.isoformat(), "category": "WORKOUT"},
+        )
+        return [r for r in rows if isinstance(r, dict)]
+
+    def upsert_workouts(self, events: list[dict]) -> None:
+        """Legt Workouts an bzw. aktualisiert sie anhand von external_id."""
+        self._request("POST", f"/athlete/{self._athlete}/events/bulk", params={"upsert": "true"}, json=events)
+
+    def delete_event(self, event_id: int | str) -> None:
+        """Loescht ein Kalender-Event."""
+        self._request("DELETE", f"/athlete/{self._athlete}/events/{event_id}")
 
 
 def get_state(key: str) -> str | None:
@@ -272,3 +305,69 @@ def is_stale(now: datetime, max_age: timedelta = STALE_AFTER) -> bool:
     """True, wenn noch nie oder vor mehr als `max_age` synchronisiert wurde."""
     last = get_state(STATE_LAST_SYNC)
     return last is None or now - datetime.fromisoformat(last) > max_age
+
+
+def configured_client() -> "IcuClient | None":
+    """Client aus der App-Konfiguration; INTERVALS_ICU_CLIENT ersetzt ihn in Tests durch einen Fake."""
+    injected = current_app.config.get("INTERVALS_ICU_CLIENT")
+    if injected is not None:
+        return injected
+    api_key = current_app.config.get("INTERVALS_ICU_API_KEY")
+    return IcuClient(api_key) if api_key else None
+
+
+def _external_id(day: date) -> str:
+    return f"{EXTERNAL_ID_PREFIX}{day.isoformat()}"
+
+
+def _workout_event(day: date, session: CyclingSession) -> dict:
+    return {
+        "category": "WORKOUT",
+        "type": "Ride",
+        "start_date_local": f"{day.isoformat()}T00:00:00",
+        "name": session.title,
+        "external_id": _external_id(day),
+        "filename": f"{day.isoformat()}.zwo",
+        "file_contents": session_to_zwo(session),
+    }
+
+
+def push_workouts(client: IcuClient, sessions: dict[date, CyclingSession | None]) -> PushResult:
+    """Gleicht die geplanten Radeinheiten mit dem intervals.icu-Kalender ab (von dort weiter zu Zwift).
+
+    Tage mit Einheit werden angelegt/aktualisiert (Upsert ueber external_id), eigene Workouts an Tagen
+    ohne Einheit geloescht. Fremde Kalender-Eintraege und Tage ausserhalb von `sessions` bleiben unberuehrt.
+
+    Args:
+        client: intervals.icu-Client (in Tests ein Fake mit denselben Methoden).
+        sessions: Tag -> Einheit, None = an diesem Tag kein Workout.
+
+    Returns:
+        PushResult mit Anzahlen.
+
+    Raises:
+        IcuError: bei Fehlern der API; last_push_error wird gespeichert.
+    """
+    result = PushResult()
+    if not sessions:
+        return result
+    events = [_workout_event(day, s) for day, s in sorted(sessions.items()) if s is not None]
+    empty_ids = {_external_id(day) for day, s in sessions.items() if s is None}
+    try:
+        if events:
+            client.upsert_workouts(events)
+        if empty_ids:
+            for event in client.fetch_workout_events(min(sessions), max(sessions)):
+                if event.get("external_id") in empty_ids:
+                    client.delete_event(event["id"])
+                    result.deleted += 1
+    except IcuError as exc:
+        _set_state(STATE_LAST_PUSH_ERROR, str(exc))
+        db.session.commit()
+        logger.warning("Workout-Push zu intervals.icu fehlgeschlagen: %s", exc)
+        raise
+    result.upserted = len(events)
+    _set_state(STATE_LAST_PUSH_ERROR, None)
+    db.session.commit()
+    logger.info("Workout-Push zu intervals.icu: %s", result)
+    return result

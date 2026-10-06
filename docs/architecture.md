@@ -58,12 +58,13 @@ alpenpaesse-app/
 │   │   ├── cycling_sessions.py      # Rad-Einheiten je Phase/Slot/Woche, Watt aus FTP
 │   │   ├── strength_sessions.py     # Übungsbibliothek, Einheiten A/B je Kraftphase, Mobility
 │   │   ├── week_plan.py             # Standardwoche, Kopplungsregeln, Ersatztage
+│   │   ├── zwo_export.py            # Rad-Einheit → Zwift-Workout (.zwo)
 │   │   ├── checkin_triggers.py      # Trigger-Regeln des Check-in-Reviews
 │   │   └── plan_adjustments.py      # Wirkung der Anpassungen (Defizit, Erholungswoche …)
 │   ├── integrations/
 │   │   ├── blv_import.py            # BLV-Nährwertdatenbank → foods (CLI import-blv)
 │   │   ├── open_food_facts.py       # Barcode-Lookup
-│   │   └── intervals_icu.py         # Garmin-Daten via intervals.icu-API (Aktivitäten, Wellness, Auto-Check-ins)
+│   │   └── intervals_icu.py         # Garmin-Daten via intervals.icu-API (Aktivitäten, Wellness, Auto-Check-ins, Workout-Push → Zwift)
 │   └── api/                         # Flask-Endpunkte (REST)
 │       ├── profile_routes.py
 │       ├── checkin_routes.py

@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 import requests
 
+from backend.engine.cycling_sessions import build_cycling_session
 from backend.engine.imported_training import ActivityRecord
 from backend.extensions import db
 from backend.integrations import intervals_icu
@@ -10,9 +11,11 @@ from backend.integrations.intervals_icu import (
     IcuClient,
     IcuError,
     WellnessRecord,
+    get_state,
     is_stale,
     parse_activity,
     parse_wellness,
+    push_workouts,
     sync,
 )
 from backend.models.checkins import Checkin
@@ -24,10 +27,14 @@ TODAY = date(2026, 10, 20)
 class FakeClient:
     """Liefert vorgegebene Daten wie IcuClient."""
 
-    def __init__(self, activities=None, wellness=None, error=None):
+    def __init__(self, activities=None, wellness=None, error=None, events=None, push_error=None):
         self.activities = activities or []
         self.wellness = wellness or []
         self.error = error
+        self.events = events or []  # Kalender-Events in intervals.icu
+        self.push_error = push_error
+        self.upserted = []
+        self.deleted = []
 
     def fetch_activities(self, oldest, newest):
         if self.error:
@@ -36,6 +43,17 @@ class FakeClient:
 
     def fetch_wellness(self, oldest, newest):
         return list(self.wellness)
+
+    def fetch_workout_events(self, oldest, newest):
+        return [e for e in self.events if oldest.isoformat() <= e["start_date_local"][:10] <= newest.isoformat()]
+
+    def upsert_workouts(self, events):
+        if self.push_error:
+            raise self.push_error
+        self.upserted.extend(events)
+
+    def delete_event(self, event_id):
+        self.deleted.append(event_id)
 
 
 def _ride(icu_id="i100", day=TODAY, **kwargs):
@@ -85,13 +103,13 @@ class _Response:
 def test_client_uses_basic_auth_with_api_key_username(monkeypatch):
     calls = {}
 
-    def fake_get(url, params, auth, timeout):
-        calls.update(url=url, params=params, auth=auth)
+    def fake_request(method, url, params, auth, timeout):
+        calls.update(method=method, url=url, params=params, auth=auth)
         return _Response(200, [{"id": "2026-10-19", "weight": 73.4}])
 
-    monkeypatch.setattr(intervals_icu.requests, "get", fake_get)
+    monkeypatch.setattr(intervals_icu.requests, "request", fake_request)
     result = IcuClient("secret").fetch_wellness(date(2026, 10, 1), date(2026, 10, 19))
-    assert calls["auth"] == ("API_KEY", "secret")
+    assert (calls["method"], calls["auth"]) == ("GET", ("API_KEY", "secret"))
     assert calls["url"].endswith("/athlete/0/wellness")
     assert calls["params"] == {"oldest": "2026-10-01", "newest": "2026-10-19"}
     assert result[0].weight_kg == 73.4
@@ -99,7 +117,7 @@ def test_client_uses_basic_auth_with_api_key_username(monkeypatch):
 
 @pytest.mark.parametrize("status,message", [(401, "API-Key"), (500, "HTTP 500")])
 def test_client_raises_readable_errors(monkeypatch, status, message):
-    monkeypatch.setattr(intervals_icu.requests, "get", lambda *a, **k: _Response(status, {}))
+    monkeypatch.setattr(intervals_icu.requests, "request", lambda *a, **k: _Response(status, {}))
     with pytest.raises(IcuError, match=message):
         IcuClient("secret").fetch_activities(date(2026, 10, 1), date(2026, 10, 19))
 
@@ -108,7 +126,7 @@ def test_client_wraps_network_errors(monkeypatch):
     def boom(*args, **kwargs):
         raise requests.ConnectionError("down")
 
-    monkeypatch.setattr(intervals_icu.requests, "get", boom)
+    monkeypatch.setattr(intervals_icu.requests, "request", boom)
     with pytest.raises(IcuError, match="nicht erreichbar"):
         IcuClient("secret").fetch_activities(date(2026, 10, 1), date(2026, 10, 19))
 
@@ -179,3 +197,52 @@ def test_staleness_after_thirty_minutes(app):
     sync(FakeClient(), TODAY)
     assert not is_stale(now + timedelta(minutes=29))
     assert is_stale(now + timedelta(minutes=31))
+
+
+# --- Workout-Push --------------------------------------------------------
+
+
+def test_client_upserts_workouts_via_bulk_endpoint(monkeypatch):
+    calls = {}
+
+    def fake_request(method, url, auth, timeout, **kwargs):
+        calls.update(method=method, url=url, **kwargs)
+        return _Response(200, [])
+
+    monkeypatch.setattr(intervals_icu.requests, "request", fake_request)
+    IcuClient("secret").upsert_workouts([{"external_id": "cpc-2026-10-20"}])
+    assert (calls["method"], calls["params"]) == ("POST", {"upsert": "true"})
+    assert calls["url"].endswith("/athlete/0/events/bulk")
+    assert calls["json"] == [{"external_id": "cpc-2026-10-20"}]
+
+
+def test_push_upserts_planned_days_as_zwo_workouts(app):
+    fake = FakeClient()
+    session = build_cycling_session("schluessel_1", "base", 1)
+    result = push_workouts(fake, {TODAY: session})
+    assert (result.upserted, result.deleted) == (1, 0)
+    event = fake.upserted[0]
+    assert (event["category"], event["type"], event["name"]) == ("WORKOUT", "Ride", "Sweet Spot 3×10 min")
+    assert (event["external_id"], event["start_date_local"]) == ("cpc-2026-10-20", "2026-10-20T00:00:00")
+    assert event["filename"].endswith(".zwo") and "<SteadyState" in event["file_contents"]
+
+
+def test_push_deletes_own_workout_on_day_without_session_but_keeps_foreign_events(app):
+    tomorrow = TODAY + timedelta(days=1)
+    fake = FakeClient(events=[
+        {"id": 1, "external_id": "cpc-2026-10-21", "start_date_local": "2026-10-21T00:00:00"},
+        {"id": 2, "external_id": None, "start_date_local": "2026-10-21T00:00:00"},  # selbst geplant
+        {"id": 3, "external_id": "cpc-2026-10-20", "start_date_local": "2026-10-20T00:00:00"},
+    ])
+    result = push_workouts(fake, {TODAY: build_cycling_session("lang", "base", 1), tomorrow: None})
+    assert fake.deleted == [1]
+    assert (result.upserted, result.deleted) == (1, 1)
+
+
+def test_push_error_is_stored_and_raised(app):
+    fake = FakeClient(push_error=IcuError("intervals.icu antwortet mit HTTP 500"))
+    with pytest.raises(IcuError):
+        push_workouts(fake, {TODAY: build_cycling_session("lang", "base", 1)})
+    assert get_state(intervals_icu.STATE_LAST_PUSH_ERROR) == "intervals.icu antwortet mit HTTP 500"
+    push_workouts(FakeClient(), {TODAY: build_cycling_session("lang", "base", 1)})
+    assert get_state(intervals_icu.STATE_LAST_PUSH_ERROR) is None
