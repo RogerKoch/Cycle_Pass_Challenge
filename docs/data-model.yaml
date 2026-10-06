@@ -106,7 +106,13 @@ nutrition:
   bmr_formula: "10 * weight_kg + 6.25 * height_cm - 5 * age + 5"   # Mifflin-St Jeor
 
   maintenance_formula:
-    non_exercise_factor: 1.45          # auf BMR
+    non_exercise_factor: 1.45          # auf BMR (Büro, Wert aus der Recherche)
+    activity_levels:                   # User-Vorgabe 2026-10-05: Profilfeld Alltag/Beruf, PAL ohne Sport (DGE)
+      sitzend: 1.2
+      buero: 1.45                      # Default
+      gemischt: 1.65
+      stehend: 1.85
+      schwer: 2.1
     cycling_kcal_per_hour:             # MET-basiert (Ainsworth Compendium), @ 74kg Referenz
       leicht_rekom: 503                # 16-19 km/h
       moderat_base: 592                # 19-22 km/h

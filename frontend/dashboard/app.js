@@ -49,9 +49,15 @@ async function loadProfile() {
   const { ok, data } = await api("GET", "/api/profile");
   const form = $("profile-form");
   if (ok) {
+    const level = data.activity_levels.find((l) => l.id === data.activity_level);
     $("profile-view").textContent =
-      `Alter ${data.age}, Grösse ${data.height_cm} cm, Programmstart ${data.program_start_date}`;
-    for (const key of ["age", "height_cm", "program_start_date"]) form.elements[key].value = data[key];
+      `Alter ${data.age}, Grösse ${data.height_cm} cm, Programmstart ${data.program_start_date}, Alltag ${level.label} (× ${level.factor})`;
+    form.elements.activity_level.replaceChildren(...data.activity_levels.map((l) => {
+      const option = el("option", `${l.label} (× ${l.factor})`);
+      option.value = l.id;
+      return option;
+    }));
+    for (const key of ["age", "height_cm", "program_start_date", "activity_level"]) form.elements[key].value = data[key];
   } else {
     $("profile-view").textContent = "Noch kein Profil angelegt.";
   }
@@ -271,7 +277,7 @@ function renderToday(plan) {
   const n = plan.nutrition;
   box.appendChild(makeTable(["kcal", "Wert"], [
     ["Grundumsatz (BMR)", fmt(n.bmr_kcal)],
-    ["Alltag (BMR × 1.45)", fmt(n.non_exercise_kcal)],
+    [`Alltag (BMR × ${n.non_exercise_factor})`, fmt(n.non_exercise_kcal)],
     ["Rad", fmt(n.cycling_kcal)],
     ["Kraft", fmt(n.strength_kcal)],
     ["Erhaltung", fmt(n.maintenance_kcal)],

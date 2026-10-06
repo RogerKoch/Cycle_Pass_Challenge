@@ -167,3 +167,11 @@ def test_today_plan_with_query_params_keeps_manual_mode(client):
     body = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
     assert body["training"] is None
     assert body["day_type"] == "moderater_tag"
+
+
+def test_plan_uses_activity_factor_from_profile(client):
+    _setup_profile_and_checkin(client)
+    client.put("/api/profile", json={"activity_level": "schwer"})
+    nutrition = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()["nutrition"]
+    assert nutrition["non_exercise_factor"] == 2.1
+    assert nutrition["non_exercise_kcal"] == pytest.approx(nutrition["bmr_kcal"] * 2.1)

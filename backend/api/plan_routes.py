@@ -11,6 +11,7 @@ from backend.api.calendar_routes import ensure_week, imported_day, resolve_cycli
 from backend.engine.baseline import calculate_energy_availability
 from backend.engine.cycling_zones import compute_cycling_zones
 from backend.engine.nutrition_calc import (
+    ACTIVITY_LEVELS,
     CyclingIntensity,
     DayType,
     calculate_daily_kcal_target,
@@ -100,6 +101,7 @@ def get_today_plan():
             rmr_kcal=rmr.value,
             deficit_kcal=effective_deficit(today, phase.phase_id, spans),
             cycling_kcal=measured_cycling_kcal,
+            non_exercise_factor=ACTIVITY_LEVELS[profile.activity_level][1],
         )
     except ValueError as exc:
         return jsonify({"error": f"ungueltige Trainingsparameter: {exc}"}), 400

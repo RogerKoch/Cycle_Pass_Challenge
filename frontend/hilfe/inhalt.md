@@ -24,6 +24,23 @@ Trainings aus Garmin (über intervals.icu) zählen als Ist-Werte: sie ersetzen d
 
 ## 2 · Begriffe A–Z
 
+<a id="alltag"></a>
+
+### Alltagsfaktor (Alltag/Beruf)
+- **Was:** wie viel du dich im Alltag bewegst – ohne Sport. Einstellbar im Profil.
+- **Wozu:** Grundumsatz × Alltagsfaktor = Tagesbedarf ohne Training. Das Training rechnet die App separat dazu,
+  darum hier **nicht** mitzählen.
+
+| Stufe | Beispiel | Faktor |
+|---|---|---|
+| nur sitzend | kaum Bewegung, wenig gehen | 1,2 |
+| Büro | sitzend, etwas gehen | 1,45 |
+| gemischt sitzend/stehend | Lehrer, Verkauf mit Sitzanteil | 1,65 |
+| überwiegend stehend/gehend | Handwerk, Pflege, Gastro | 1,85 |
+| körperlich schwer | Bau, Landwirtschaft | 2,1 |
+
+- **Beispiel:** Büro: 1.581 × 1,45 = **2.293 kcal**; körperlich schwer: 1.581 × 2,1 = **3.320 kcal**.
+
 <a id="deload"></a>
 
 ### Deload / Erholungswoche
@@ -254,7 +271,7 @@ Die App rechnet jeden Tag neu – aus dem, was an diesem Tag trainiert wird.
 | Baustein | Berechnung | Beispiel (2 h Grundlage) |
 |---|---|---|
 | Grundumsatz | Mifflin-St Jeor (oder gemessener RMR) | 1.581 |
-| Alltag | Grundumsatz × 1,45 | 2.293 |
+| Alltag | Grundumsatz × [Alltagsfaktor](#alltag) (Büro 1,45) | 2.293 |
 | + Rad | Trainings-kcal (siehe [Rad](#rad)) | + 1.184 |
 | + Kraft | 300 kcal pro Einheit | + 0 |
 | − Defizit | 350 kcal in Base/Build 1 | − 350 |
