@@ -5,7 +5,7 @@ import pytest
 from backend.config import REPO_ROOT
 
 FRONTEND = REPO_ROOT / "frontend"
-PAGES = {"dashboard": "dashboard/index.html", "training": "training/index.html",
+PAGES = {"heute": "heute/index.html", "profil": "profil/index.html", "training": "training/index.html",
          "ernaehrung": "ernaehrung/index.html", "hilfe": "hilfe/index.html"}
 NAV_KEYS = set(re.findall(r'key: "(\w+)"', (FRONTEND / "shared" / "nav.js").read_text(encoding="utf-8")))
 
@@ -25,3 +25,10 @@ def test_every_page_registers_itself_in_the_navigation(key):
 
 def test_every_navigation_entry_has_a_page():
     assert NAV_KEYS == set(PAGES)
+
+
+def test_root_serves_today_and_profile_page_is_served(client):
+    assert b'data-nav="heute"' in client.get("/").data
+    response = client.get("/profil/")
+    assert response.status_code == 200 and b'data-nav="profil"' in response.data
+    assert client.get("/profil/app.js").status_code == 200

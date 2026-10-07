@@ -9,7 +9,7 @@ async function api(method, path, body) {
     options.body = JSON.stringify(body);
   }
   // relativ aufloesen, damit die App auch unter einem Pfad-Praefix (z.B. /cpc/) laeuft
-  const response = await fetch(path.replace(/^\//, ""), options);
+  const response = await fetch(`..${path}`, options);
   const data = await response.json().catch(() => ({}));
   return { ok: response.ok, status: response.status, data };
 }
