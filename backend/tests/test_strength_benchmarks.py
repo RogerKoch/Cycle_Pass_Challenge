@@ -82,3 +82,19 @@ def test_core_benchmark_unlocks_hollow_body_and_pallof_in_phase_1():
     assert "Hollow Body Hold" in names and "Anti-rotatorischer Band-Hold (Pallof)" in names
     plain = [e.name for e in build_strength_session("A", STRENGTH_PHASES[1]).exercises]
     assert "Hollow Body Hold" not in plain
+
+
+def test_combine_keeps_older_partner_value_when_newer_test_has_none():
+    old = BenchmarkResult(DAY - timedelta(weeks=4), pushup_reps=10, pushup_variant="knie")
+    new = BenchmarkResult(DAY, pushup_reps=16)
+    combined = combine([old, new])
+    assert (combined.pushup_reps, combined.pushup_variant) == (16, "knie")
+
+
+def test_standard_milestone_needs_clean_reps_for_harder_variants():
+    def achieved(variant, reps):
+        status = {m.week: m.achieved for m in milestones(BenchmarkResult(DAY, pushup_reps=reps, pushup_variant=variant))}
+        return status[8]
+
+    assert achieved("deficit", 1) is False
+    assert achieved("fuesse_erhoeht", 8) is True

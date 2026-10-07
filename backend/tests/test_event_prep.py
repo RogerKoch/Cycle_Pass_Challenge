@@ -173,3 +173,14 @@ def test_weight_trend_excluded_in_load_and_recovery_window():
     assert weight_trend_excluded(EVENT_DAY + timedelta(days=3), spans)
     assert not weight_trend_excluded(EVENT_DAY - timedelta(days=4), spans)
     assert not weight_trend_excluded(EVENT_DAY + timedelta(days=4), spans)
+
+
+def test_short_event_still_blocks_strength_for_48_h():
+    blocked = [d for d in range(3, -4, -1) if strength_blocked(ctx_at(d, minutes=90))]
+    assert blocked == [2, 1, 0, -1, -2]
+
+
+def test_upcoming_event_wins_over_recovery_of_past_event_on_tie():
+    past = EventSpan(EVENT_DAY - timedelta(days=1), "Gestern", "A", 240)
+    upcoming = EventSpan(EVENT_DAY + timedelta(days=1), "Morgen", "B", 240)
+    assert event_context(EVENT_DAY, [past, upcoming]).span.name == "Morgen"

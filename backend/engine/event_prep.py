@@ -41,6 +41,8 @@ LOAD_FAT_G_PER_KG = 0.8  # T-2/T-1: Fett runter, aber nicht unter 0,8 g/kg
 FULL_DEFICIT_PAUSE_DAYS = 7  # Defizit ab T-7 aus (Prio A/B)
 HALF_DEFICIT_FROM_DAYS = 14  # Prio A: T-14..T-8 halbes Defizit
 RECOVERY_RIDE_MINUTES = 30
+RECOVERY_MIN_DAYS = 2  # Kontextfenster nach dem Event mind. 48 h (Kraftsperre, auch bei kurzen Events)
+WEIGHT_EXCLUDED_AFTER_DAYS = 3  # Check-in-Gewichte bis R+3 verfaelschen den Trend (Wasser)
 RECOVERY_DAYS_SHORT_MIN, RECOVERY_DAYS_LONG_MIN = 120, 240  # <2 h: 1 Tag, <=4 h: 2 Tage, sonst 3
 EVENT_INTENSITY = {KIND_RACE: CyclingIntensity.RENNEN_INTERVALLE, KIND_TOUR: CyclingIntensity.MODERAT_BASE}
 
@@ -62,7 +64,7 @@ class EventContext:
 
     span: EventSpan
     days_to: int
-    phase: str | None  # taper | load | event | recovery; None = Taper-Fenster ohne Ernaehrungsfokus
+    phase: str  # taper | load | event | recovery
 
     @property
     def label(self) -> str:
@@ -83,10 +85,10 @@ def _context_for(day: date, span: EventSpan) -> EventContext | None:
     days_to = (span.event_date - day).days
     if days_to > max(TAPER_DAYS[span.priority], LOAD_DAYS):
         return None
-    if days_to < -recovery_days(span.expected_minutes):
+    if days_to < -max(recovery_days(span.expected_minutes), RECOVERY_MIN_DAYS):
         return None
     if days_to < 0:
-        phase: str | None = PHASE_RECOVERY
+        phase = PHASE_RECOVERY
     elif days_to == 0:
         phase = PHASE_EVENT
     elif days_to <= LOAD_DAYS:
@@ -97,11 +99,12 @@ def _context_for(day: date, span: EventSpan) -> EventContext | None:
 
 
 def event_context(day: date, spans: list[EventSpan]) -> EventContext | None:
-    """Relevanter Event-Kontext eines Tages; bei Ueberlappung gewinnt das naechste, dann das wichtigere Event."""
+    """Relevanter Event-Kontext eines Tages; bei Ueberlappung gewinnt das naechste (bei Gleichstand das kommende
+    vor dem vergangenen), dann das wichtigere Event."""
     contexts = [c for s in spans if (c := _context_for(day, s)) is not None]
     if not contexts:
         return None
-    return min(contexts, key=lambda c: (abs(c.days_to), c.span.priority))
+    return min(contexts, key=lambda c: (abs(c.days_to), c.days_to < 0, c.span.priority))
 
 
 def taper_volume_factor(ctx: EventContext) -> float | None:
@@ -276,6 +279,6 @@ def weight_trend_excluded(day: date, spans: list[EventSpan]) -> bool:
     """True, wenn ein Check-in-Gewicht im Lade-/Eventfenster (T-3 .. R+3) liegt und den Trend verfaelscht."""
     for span in spans:
         days_to = (span.event_date - day).days
-        if -3 <= days_to <= LOAD_DAYS:
+        if -WEIGHT_EXCLUDED_AFTER_DAYS <= days_to <= LOAD_DAYS:
             return True
     return False
