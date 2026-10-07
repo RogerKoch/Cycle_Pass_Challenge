@@ -4,13 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Alpenpässe Dashboard</title>
+  <link rel="stylesheet" href="shared/shared.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <h1>Alpenpässe – Dashboard</h1>
-  <p><a href="training/">Training (mobil)</a> · <a href="ernaehrung/">Ernährungs-Tagebuch (mobil)</a> · <a href="hilfe/">Erklärungen</a></p>
-  <form method="post" action="logout"><button type="submit">Abmelden</button></form>
-
+<body data-nav="dashboard">
+  <script src="shared/nav.js" defer></script>
+  <main>
   <section id="profile">
     <h2>Profil</h2>
     <div id="profile-view"></div>
@@ -131,6 +130,9 @@
     <p class="msg" id="today-msg"></p>
     <div id="today-result"></div>
   </section>
+
+    <form class="mobile-only" method="post" action="logout"><button type="submit">Abmelden</button></form>
+  </main>
 
   <script src="app.js"></script>
 </body>

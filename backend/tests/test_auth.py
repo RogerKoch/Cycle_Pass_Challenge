@@ -113,6 +113,10 @@ def test_help_page_requires_login(auth_client):
     assert auth_client.get("/hilfe/").status_code == 302
 
 
+def test_shared_files_require_login(auth_client):
+    assert auth_client.get("/shared/nav.js").status_code == 302
+
+
 def test_too_many_failed_logins_are_blocked_even_with_correct_password(auth_client):
     for _ in range(auth.FAILED_LOGIN_LIMIT):
         assert login(auth_client, password="falsch").status_code == 401

@@ -108,3 +108,38 @@ dialog.sheet::backdrop { background: rgb(0 0 0 / 0.45); }
 .actions { margin-top: 16px; }
 #scan-video { width: 100%; max-height: 50dvh; border-radius: 12px; background: #000; object-fit: cover; }
 .info { text-decoration: none; margin-left: 0.2em; }
+
+/* App-Shell: Navigation (Sidebar ab 900px, darunter Tab-Leiste unten) */
+.nav { position: fixed; z-index: 10; background: var(--card); border: 0 solid var(--line); }
+.nav-brand { font-weight: 700; color: var(--accent); }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--muted); text-decoration: none;
+}
+.nav-item svg { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav-item[aria-current="page"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.nav-logout button { width: 100%; }
+
+@media (max-width: 899px) {
+  body[data-nav] { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .nav {
+    left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around;
+    border-top-width: 1px; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+  .nav-brand, .nav-logout { display: none; }
+  .nav-item { flex: 1; flex-direction: column; gap: 2px; padding: 4px 0; border-radius: 10px; font-size: 0.7rem; }
+}
+
+@media (min-width: 900px) {
+  body[data-nav] { padding-left: 208px; }
+  body[data-nav] main { max-width: 880px; }
+  body[data-nav] .topbar { padding-inline: max(8px, calc((100% - 880px) / 2 + 8px)); }
+  .nav {
+    top: 0; bottom: 0; left: 0; width: 208px; padding: 16px 10px;
+    display: flex; flex-direction: column; gap: 4px; border-right-width: 1px;
+  }
+  .nav-brand { padding: 4px 10px 14px; font-size: 1.1rem; }
+  .nav-item { padding: 9px 10px; border-radius: 10px; }
+  .nav-logout { margin-top: auto; }
+  .mobile-only { display: none; }
+}
