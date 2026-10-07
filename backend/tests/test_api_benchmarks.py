@@ -70,3 +70,18 @@ def test_profile_validates_benchmark_interval(profile):
     assert profile.put("/api/profile", json={"benchmark_interval_weeks": 1}).status_code == 400
     assert profile.put("/api/profile", json={"benchmark_interval_weeks": 9}).status_code == 400
     assert profile.put("/api/profile", json={"benchmark_interval_weeks": 3}).get_json()["benchmark_interval_weeks"] == 3
+
+
+@pytest.mark.parametrize("value", [1e999, 12.7])
+def test_non_integer_values_are_rejected_with_400(profile, value):
+    response = profile.post("/api/strength-benchmarks", json={"plank_s": value})
+    assert response.status_code == 400
+    assert profile.put("/api/profile", json={"benchmark_interval_weeks": value}).status_code == 400
+
+
+def test_same_day_retest_replaces_earlier_value(profile):
+    profile.post("/api/strength-benchmarks", json={"plank_s": 60})
+    profile.post("/api/strength-benchmarks", json={"plank_s": 90})
+    body = profile.get("/api/strength-benchmarks").get_json()
+    assert body["current"]["plank_s"] == 90
+    assert [t["plank_s"] for t in body["tests"]] == [90, 60]

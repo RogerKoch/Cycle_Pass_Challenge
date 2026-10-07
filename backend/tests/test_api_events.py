@@ -203,3 +203,9 @@ def test_event_window_weights_do_not_trigger_weight_loss_finding(profile):
     profile.post("/api/events", json={**EVENT, "event_date": (TODAY - timedelta(days=1)).isoformat()})
     triggers = {f["trigger_id"] for f in profile.get("/api/review").get_json()["findings"]}
     assert "weight_loss_too_fast" not in triggers
+
+
+def test_prep_of_short_event_covers_48_h_recovery(client):
+    event_id = client.post("/api/events", json={**EVENT, "expected_minutes": 90}).get_json()["id"]
+    labels = [d["label"] for d in client.get(f"/api/events/{event_id}/prep").get_json()["days"]]
+    assert labels[-1] == "R+2"

@@ -81,11 +81,16 @@ def recovery_days(expected_minutes: float) -> int:
     return 2 if expected_minutes <= RECOVERY_DAYS_LONG_MIN else 3
 
 
+def recovery_window_days(expected_minutes: float) -> int:
+    """Tage nach dem Event mit Kontext (Recovery-Plan, Kraftsperre): mindestens 48 h."""
+    return max(recovery_days(expected_minutes), RECOVERY_MIN_DAYS)
+
+
 def _context_for(day: date, span: EventSpan) -> EventContext | None:
     days_to = (span.event_date - day).days
     if days_to > max(TAPER_DAYS[span.priority], LOAD_DAYS):
         return None
-    if days_to < -max(recovery_days(span.expected_minutes), RECOVERY_MIN_DAYS):
+    if days_to < -recovery_window_days(span.expected_minutes):
         return None
     if days_to < 0:
         phase = PHASE_RECOVERY

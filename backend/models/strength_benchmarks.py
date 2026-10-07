@@ -36,6 +36,16 @@ class StrengthBenchmark(db.Model):
         )
 
 
-def current_benchmark() -> BenchmarkResult | None:
-    """Neuester Wert je Test ueber alle Termine (siehe engine.strength_benchmarks.combine)."""
-    return combine([b.to_result() for b in StrengthBenchmark.query.all()])
+def all_benchmarks() -> list[StrengthBenchmark]:
+    """Alle Termine aufsteigend nach Datum, bei gleichem Datum nach Anlage (neuester zuletzt)."""
+    return StrengthBenchmark.query.order_by(StrengthBenchmark.test_date, StrengthBenchmark.id).all()
+
+
+def current_benchmark(benchmarks: list[StrengthBenchmark] | None = None) -> BenchmarkResult | None:
+    """Neuester Wert je Test ueber alle Termine (siehe engine.strength_benchmarks.combine).
+
+    Args:
+        benchmarks: bereits geladene Termine (aufsteigend, siehe all_benchmarks); None = aus der DB laden.
+    """
+    benchmarks = all_benchmarks() if benchmarks is None else benchmarks
+    return combine([b.to_result() for b in benchmarks])

@@ -14,7 +14,7 @@ from backend.engine.strength_benchmarks import (
     next_due,
 )
 from backend.extensions import db
-from backend.models.strength_benchmarks import StrengthBenchmark, current_benchmark
+from backend.models.strength_benchmarks import StrengthBenchmark, all_benchmarks, current_benchmark
 from backend.models.user_profile import UserProfile
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,8 @@ def _int_value(body: dict, key: str, maximum: int) -> int | None:
         return None
     if isinstance(value, bool):
         raise ValueError(f"{key} muss eine Zahl sein")
+    if isinstance(value, float) and not value.is_integer():  # auch inf/nan
+        raise ValueError(f"{key} muss eine ganze Zahl sein")
     number = int(value)
     if not 0 <= number <= maximum:
         raise ValueError(f"{key} muss zwischen 0 und {maximum} liegen")
@@ -51,17 +53,17 @@ def _int_value(body: dict, key: str, maximum: int) -> int | None:
 @benchmarks_bp.get("")
 def get_benchmarks():
     """Alle Tests (neueste zuerst), aktuelle Werte, Stufen je Uebung, Meilensteine und naechster Termin."""
-    tests = StrengthBenchmark.query.order_by(StrengthBenchmark.test_date.desc(), StrengthBenchmark.id.desc()).all()
-    current = current_benchmark()
+    tests = all_benchmarks()
+    current = current_benchmark(tests)
     profile = UserProfile.query.first()
     interval = profile.benchmark_interval_weeks if profile else DEFAULT_INTERVAL_WEEKS
     return jsonify({
-        "tests": [_serialize(t) for t in tests],
+        "tests": [_serialize(t) for t in reversed(tests)],
         "current": {**asdict(current), "test_date": current.test_date.isoformat()} if current else None,
         "stages": asdict(exercise_stages(current)),
         "milestones": [asdict(m) for m in milestones(current)],
         "interval_weeks": interval,
-        "next_due": next_due(tests[0].test_date if tests else None, interval, date.today()).isoformat(),
+        "next_due": next_due(tests[-1].test_date if tests else None, interval, date.today()).isoformat(),
         "pushup_variants": [{"id": key, "label": label} for key, label in PUSHUP_VARIANTS.items()],
     }), 200
 
