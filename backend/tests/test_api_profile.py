@@ -51,3 +51,15 @@ def test_rejects_unknown_activity_level(client):
     assert client.post("/api/profile", json={**base, "activity_level": "astronaut"}).status_code == 400
     client.post("/api/profile", json=base)
     assert client.put("/api/profile", json={"activity_level": "astronaut"}).status_code == 400
+
+
+def test_strength_focus_defaults_to_none_and_lists_options(client):
+    body = client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"}).get_json()
+    assert body["strength_focus"] == "none"
+    assert {"id": "core", "label": "Bauch/Core"} in body["focus_options"]
+
+
+def test_updates_and_validates_strength_focus(client):
+    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"})
+    assert client.put("/api/profile", json={"strength_focus": "legs"}).get_json()["strength_focus"] == "legs"
+    assert client.put("/api/profile", json={"strength_focus": "arme"}).status_code == 400

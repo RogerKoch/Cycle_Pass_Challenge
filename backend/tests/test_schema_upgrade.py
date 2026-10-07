@@ -21,3 +21,4 @@ def test_adds_missing_activity_level_column_to_existing_db(app):
 
     assert "activity_level" in {c["name"] for c in inspect(db.engine).get_columns("user_profile")}
     assert db.session.execute(text("SELECT activity_level FROM user_profile")).scalar() == "buero"
+    assert db.session.execute(text("SELECT strength_focus FROM user_profile")).scalar() == "none"

@@ -6,6 +6,7 @@ from datetime import date
 from flask import Blueprint, jsonify, request
 
 from backend.engine.nutrition_calc import ACTIVITY_LEVELS, DEFAULT_ACTIVITY_LEVEL
+from backend.engine.strength_sessions import FOCUS_NONE, FOCUS_OPTIONS
 from backend.extensions import db
 from backend.models.user_profile import UserProfile
 
@@ -21,6 +22,13 @@ def _activity_level(value: object) -> str:
     return value
 
 
+def _strength_focus(value: object) -> str:
+    """Prueft den Kraft-Fokus gegen FOCUS_OPTIONS."""
+    if value not in FOCUS_OPTIONS:
+        raise ValueError(f"unbekannter Kraft-Fokus: {value}")
+    return value
+
+
 def _serialize(profile: UserProfile) -> dict:
     return {
         "id": profile.id,
@@ -31,6 +39,8 @@ def _serialize(profile: UserProfile) -> dict:
         "activity_levels": [
             {"id": key, "label": label, "factor": factor} for key, (label, factor) in ACTIVITY_LEVELS.items()
         ],
+        "strength_focus": profile.strength_focus,
+        "focus_options": [{"id": key, "label": label} for key, label in FOCUS_OPTIONS.items()],
         "created_at": profile.created_at.isoformat(),
         "updated_at": profile.updated_at.isoformat(),
     }
@@ -58,6 +68,7 @@ def create_profile():
             height_cm=float(body["height_cm"]),
             program_start_date=date.fromisoformat(body["program_start_date"]),
             activity_level=_activity_level(body.get("activity_level", DEFAULT_ACTIVITY_LEVEL)),
+            strength_focus=_strength_focus(body.get("strength_focus", FOCUS_NONE)),
         )
     except (KeyError, TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
@@ -84,6 +95,8 @@ def update_profile():
             profile.program_start_date = date.fromisoformat(body["program_start_date"])
         if "activity_level" in body:
             profile.activity_level = _activity_level(body["activity_level"])
+        if "strength_focus" in body:
+            profile.strength_focus = _strength_focus(body["strength_focus"])
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 

@@ -275,6 +275,24 @@ Die Kraftphase folgt der Rad-Phase (Tabelle [Phasen](#phasen)). Neue Übungen ko
 - **Beine platt** (Regel): Beinübungen fallen weg, je Übung 1 Satz weniger (≈ −20 %).
 - **Rücken** (Regel): McGill Big 3 (Curl-Up, Side Plank, Bird Dog) täglich mit der Mobility.
 
+<a id="kraft-fokus"></a>
+
+### Kraft-Fokus
+Im Profil wählbar. Der Fokus kommt **obendrauf** (ca. +10 min pro Einheit), der Rest bleibt wie geplant.
+
+| Fokus | Krafteinheiten | Mobility |
+|---|---|---|
+| Kein Fokus | wie geplant | wie geplant |
+| Bauch/Core | +1 Satz auf Core-Übungen · A: Plank · B: Plank (Phase 1) bzw. Reverse Crunch/Leg Raises (ab Phase 2) | + McGill Big 3 täglich |
+| Oberkörper | +1 Satz auf Zug/Druck/Schulter · A: Scapular Push-ups · B: Band Pull-Aparts (Phase 1) | – |
+| Beine/Gesäss | +1 Satz auf Bein-/Gesäss-Übungen · A: Clamshells · B: Step-ups · immer 2–3 Wdh. in Reserve | – |
+| Mobility | – | +1 Satz je Drill, Pigeon fest |
+
+- **Beine schonen:** Der Bein-Fokus pausiert in Peak/Taper, in der Passsaison und solange „Beine platt“ aktiv ist –
+  dann zählt das Radtraining.
+- **Flacher Bauch:** Gezielter Fettabbau am Bauch (Spot Reduction) funktioniert nicht. Der Bauch wird flacher über
+  das Kaloriendefizit (Fettabbau) plus Core-Training (Spannung, Haltung). Der Core-Fokus verstärkt den zweiten Teil.
+
 <a id="ernaehrung"></a>
 
 ## 5 · Ernährung

@@ -26,7 +26,7 @@ from backend.engine.plan_adjustments import (
     apply_deload,
     is_forced_deload,
 )
-from backend.engine.strength_sessions import MCGILL_BIG_3, MOBILITY_ROUTINE
+from backend.engine.strength_sessions import mobility_routine
 from backend.engine.week_plan import (
     STATUS_DONE,
     STATUS_MODIFIED,
@@ -255,7 +255,9 @@ def serialize_day(
     started = row.day_date >= profile.program_start_date
     session = resolve_cycling(row, phase.phase_id, week, spans)
     strength = (
-        resolve_strength(row.strength_session, phase.phase_id, week, KIND_STRENGTH_REDUCED in kinds)
+        resolve_strength(
+            row.strength_session, phase.phase_id, week, KIND_STRENGTH_REDUCED in kinds, profile.strength_focus
+        )
         if row.strength_session
         else None
     )
@@ -282,7 +284,7 @@ def serialize_day(
         ],
     }
     if full:
-        mobility = MOBILITY_ROUTINE + (MCGILL_BIG_3 if KIND_CORE_DAILY in kinds else [])
+        mobility = mobility_routine(profile.strength_focus, KIND_CORE_DAILY in kinds)
         result["mobility"] = [asdict(e) for e in mobility]
         result["slot_options"] = _slot_options(phase.phase_id, week) if started else []
         result["reschedule_options"] = (

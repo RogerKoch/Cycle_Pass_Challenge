@@ -22,7 +22,16 @@ from backend.engine.cycling_sessions import (
     SLOT_Z2_OR_REKOM,
     build_cycling_session,
 )
-from backend.engine.strength_sessions import StrengthSession, build_strength_session, strength_phase_for
+from backend.engine.strength_sessions import (
+    FOCUS_EXTRA_MINUTES,
+    FOCUS_NONE,
+    GROUP_LEGS,
+    STRENGTH_FOCUSES,
+    StrengthSession,
+    build_strength_session,
+    shift_numbers,
+    strength_phase_for,
+)
 from backend.engine.training_phase import PhaseInfo, get_current_phase
 
 logger = logging.getLogger(__name__)
@@ -31,6 +40,9 @@ STATUS_PLANNED = "planned"
 STATUS_DONE = "done"
 STATUS_MODIFIED = "modified"
 STATUS_SKIPPED = "skipped"
+
+# Bein-Fokus pausiert, wenn Radleistung Vorrang hat (Kraft-Recherche: "Beine schonen")
+LEG_FOCUS_PAUSED_PHASES: frozenset[str] = frozenset({"peak_taper", "passsaison"})
 STATUSES: tuple[str, ...] = (STATUS_PLANNED, STATUS_DONE, STATUS_MODIFIED, STATUS_SKIPPED)
 
 # Wochentag (0 = Montag) -> (Rad-Slot, Krafteinheit)
@@ -113,23 +125,36 @@ def default_day_plan(program_start_date: date, day: date) -> tuple[str | None, s
     return slot, strength
 
 
-def resolve_strength(session_id: str, phase_id: str, week_in_phase: int, reduced: bool = False) -> StrengthSession:
+def resolve_strength(
+    session_id: str, phase_id: str, week_in_phase: int, reduced: bool = False, focus: str = FOCUS_NONE
+) -> StrengthSession:
     """Krafteinheit fuer Phase und Woche, im Taper mit Reduktionshinweis.
+
+    Der Bein-Fokus pausiert in Peak/Taper/Passsaison und bei reduzierter Kraft (Kraft-Recherche:
+    "Beine schonen" – Beinarbeit darf das Radtraining nicht beeintraechtigen).
 
     Args:
         session_id: "A" oder "B".
         phase_id: Trainingsphase.
         week_in_phase: Woche in der Phase.
         reduced: reduzierte Einheit aus dem Check-in-Review (Beine platt).
+        focus: Kraft-Fokus aus dem Profil.
 
     Returns:
         StrengthSession der zugehoerigen Kraftphase.
     """
-    note = None
+    notes = []
     if phase_id == "peak_taper" and week_in_phase > PEAK_SPECIFIC_WEEKS:
-        note = "Taper: Erhalt, reduziert auf ~40 min."
-    session = build_strength_session(session_id, strength_phase_for(phase_id), note, reduced)
-    return replace(session, duration_minutes="40") if note else session
+        notes.append("Taper: Erhalt, reduziert auf ~40 min.")
+    taper = bool(notes)
+    if focus == GROUP_LEGS and (reduced or phase_id in LEG_FOCUS_PAUSED_PHASES):
+        notes.append("Bein-Fokus pausiert (Beine schonen fürs Radtraining).")
+        focus = FOCUS_NONE
+    session = build_strength_session(session_id, strength_phase_for(phase_id), " ".join(notes) or None, reduced, focus)
+    if not taper:
+        return session
+    extra = FOCUS_EXTRA_MINUTES if session.focus in STRENGTH_FOCUSES else 0
+    return replace(session, duration_minutes=shift_numbers("40", extra))
 
 
 def _is_hard(day: DayPlan) -> bool:
