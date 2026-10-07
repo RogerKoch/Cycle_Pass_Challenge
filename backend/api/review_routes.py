@@ -33,6 +33,7 @@ from backend.models.ftp_tests import FtpTest
 from backend.models.intake import IntakeDay
 from backend.models.intervals import IcuWellness
 from backend.models.plan_adjustments import PlanAdjustment, ReviewDecision, adjustment_spans
+from backend.models.strength_benchmarks import StrengthBenchmark
 from backend.models.training_days import TrainingDay
 from backend.models.user_profile import UserProfile
 from backend.models.wellbeing import WellbeingSignal
@@ -181,6 +182,8 @@ def _review_state(profile: UserProfile, today: date) -> tuple[list[Finding], dic
             WellnessPoint(w.day, w.resting_hr, w.hrv)
             for w in IcuWellness.query.filter(IcuWellness.day >= today - timedelta(days=WELLNESS_WINDOW_DAYS)).all()
         ],
+        last_strength_benchmark=db.session.query(db.func.max(StrengthBenchmark.test_date)).scalar(),
+        benchmark_interval_weeks=profile.benchmark_interval_weeks,
     )
     decided = {d.finding_key for d in ReviewDecision.query.all()}
     findings = [f for f in evaluate(inputs) if f.key not in decided]

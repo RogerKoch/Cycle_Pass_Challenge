@@ -145,6 +145,8 @@ class TriggerInputs:
     target_weight_kg: float | None = None
     planned_ftp_tests: list[date] = field(default_factory=list)
     wellness: list[WellnessPoint] = field(default_factory=list)
+    last_strength_benchmark: date | None = None
+    benchmark_interval_weeks: int = 4
 
 
 @dataclass
@@ -471,6 +473,19 @@ def _due_findings(inputs: TriggerInputs) -> list[Finding]:
             title="Fragebogen fällig",
             detail="Schlaf, Beine, Hunger, Rücken, Anstrengung kurz bewerten (wöchentlich).",
             source="Check-in-Review",
+        ))
+    last_benchmark = inputs.last_strength_benchmark
+    if last_benchmark is None or inputs.today >= last_benchmark + timedelta(weeks=inputs.benchmark_interval_weeks):
+        findings.append(Finding(
+            key=f"strength_benchmark_due:{last_benchmark.isoformat() if last_benchmark else 'none'}",
+            trigger_id="strength_benchmark_due",
+            severity=SEVERITY_INFO,
+            title="Kraft-Benchmark fällig",
+            detail=(
+                "Plank, Side Plank, Single-Leg Glute Bridge, Liegestütze und Inverted Rows testen "
+                f"(alle {inputs.benchmark_interval_weeks} Wochen) – passt die Stufen der Übungen an."
+            ),
+            source="Trainingsplan Kraft: Fortschrittsmessung, Recommendations 5",
         ))
     return findings
 

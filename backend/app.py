@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "activity_level", "VARCHAR(20) NOT NULL DEFAULT 'buero'"),
     ("user_profile", "strength_focus", "VARCHAR(20) NOT NULL DEFAULT 'none'"),
+    ("user_profile", "benchmark_interval_weeks", "INTEGER NOT NULL DEFAULT 4"),
 ]
 
 
@@ -82,6 +83,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     db.init_app(app)
 
     from backend.api.baseline_routes import baseline_bp
+    from backend.api.benchmark_routes import benchmarks_bp
     from backend.api.calendar_routes import calendar_bp
     from backend.api.checkin_routes import checkins_bp
     from backend.api.food_log_routes import food_log_bp
@@ -104,6 +106,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(calendar_bp)
     app.register_blueprint(review_bp)
     app.register_blueprint(intervals_bp)
+    app.register_blueprint(benchmarks_bp)
 
     from backend.auth import register_auth
     from backend.backup import backup_db_command

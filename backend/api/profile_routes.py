@@ -6,6 +6,7 @@ from datetime import date
 from flask import Blueprint, jsonify, request
 
 from backend.engine.nutrition_calc import ACTIVITY_LEVELS, DEFAULT_ACTIVITY_LEVEL
+from backend.engine.strength_benchmarks import DEFAULT_INTERVAL_WEEKS, MAX_INTERVAL_WEEKS, MIN_INTERVAL_WEEKS
 from backend.engine.strength_sessions import FOCUS_NONE, FOCUS_OPTIONS
 from backend.extensions import db
 from backend.models.user_profile import UserProfile
@@ -29,6 +30,16 @@ def _strength_focus(value: object) -> str:
     return value
 
 
+def _interval_weeks(value: object) -> int:
+    """Prueft das Benchmark-Intervall (Wochen)."""
+    if isinstance(value, bool):
+        raise ValueError("benchmark_interval_weeks muss eine Zahl sein")
+    weeks = int(value)
+    if not MIN_INTERVAL_WEEKS <= weeks <= MAX_INTERVAL_WEEKS:
+        raise ValueError(f"benchmark_interval_weeks muss zwischen {MIN_INTERVAL_WEEKS} und {MAX_INTERVAL_WEEKS} liegen")
+    return weeks
+
+
 def _serialize(profile: UserProfile) -> dict:
     return {
         "id": profile.id,
@@ -40,6 +51,7 @@ def _serialize(profile: UserProfile) -> dict:
             {"id": key, "label": label, "factor": factor} for key, (label, factor) in ACTIVITY_LEVELS.items()
         ],
         "strength_focus": profile.strength_focus,
+        "benchmark_interval_weeks": profile.benchmark_interval_weeks,
         "focus_options": [{"id": key, "label": label} for key, label in FOCUS_OPTIONS.items()],
         "created_at": profile.created_at.isoformat(),
         "updated_at": profile.updated_at.isoformat(),
@@ -69,6 +81,7 @@ def create_profile():
             program_start_date=date.fromisoformat(body["program_start_date"]),
             activity_level=_activity_level(body.get("activity_level", DEFAULT_ACTIVITY_LEVEL)),
             strength_focus=_strength_focus(body.get("strength_focus", FOCUS_NONE)),
+            benchmark_interval_weeks=_interval_weeks(body.get("benchmark_interval_weeks", DEFAULT_INTERVAL_WEEKS)),
         )
     except (KeyError, TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
@@ -97,6 +110,8 @@ def update_profile():
             profile.activity_level = _activity_level(body["activity_level"])
         if "strength_focus" in body:
             profile.strength_focus = _strength_focus(body["strength_focus"])
+        if "benchmark_interval_weeks" in body:
+            profile.benchmark_interval_weeks = _interval_weeks(body["benchmark_interval_weeks"])
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 

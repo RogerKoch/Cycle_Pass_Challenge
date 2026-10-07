@@ -63,7 +63,7 @@ async function loadProfile() {
       option.value = f.id;
       return option;
     }));
-    for (const key of ["age", "height_cm", "program_start_date", "activity_level", "strength_focus"]) {
+    for (const key of ["age", "height_cm", "program_start_date", "activity_level", "strength_focus", "benchmark_interval_weeks"]) {
       form.elements[key].value = data[key];
     }
   } else {
@@ -78,7 +78,7 @@ async function saveProfile(event) {
   const method = form.dataset.exists ? "PUT" : "POST";
   const { ok, data } = await api(method, "/api/profile", formToObject(form));
   setMsg("profile-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadProfile(), loadBaseline()]);
+  if (ok) await Promise.all([loadProfile(), loadBaseline(), loadBenchmark()]);
 }
 
 async function loadCheckins() {
@@ -212,6 +212,59 @@ function localToday() {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+const STAGE_TEXT = {
+  rows_feet_elevated: (v) => `Rows: ${v ? "Füsse erhöht" : "Füsse am Boden"}`,
+  side_plank_straight: (v) => `Side Plank: ${v ? "gestreckt" : "Knie gebeugt"}`,
+  glute_bridge_single_leg: (v) => `Glute Bridge: ${v ? "einbeinig" : "beidbeinig"}`,
+};
+
+async function loadBenchmark() {
+  const { ok, data } = await api("GET", "/api/strength-benchmarks");
+  if (!ok) return;
+  const form = $("benchmark-form");
+  if (!form.elements.pushup_variant.options.length) {
+    form.elements.pushup_variant.replaceChildren(...data.pushup_variants.map((v) => {
+      const option = el("option", v.label);
+      option.value = v.id;
+      return option;
+    }));
+    form.elements.pushup_variant.value = "knie";
+  }
+  const variants = Object.fromEntries(data.pushup_variants.map((v) => [v.id, v.label]));
+  const stages = [];
+  if (data.stages.pushup_variant) stages.push(`Liegestütz: ${variants[data.stages.pushup_variant]}`);
+  for (const [key, text] of Object.entries(STAGE_TEXT)) {
+    if (data.stages[key] !== null) stages.push(text(data.stages[key]));
+  }
+  if (data.stages.core_advanced) stages.push("Hollow Body/Pallof freigeschaltet");
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const due = data.next_due <= today ? "fällig" : `nächster Test ${data.next_due}`;
+  $("benchmark-view").textContent = data.current
+    ? `Letzter Test ${data.current.test_date} · ${due} (alle ${data.interval_weeks} Wochen) · Stufen: ${stages.join(", ") || "–"}`
+    : `Noch kein Test – Woche-0-Baseline ${due}.`;
+  const mark = { true: "✓", false: "offen", null: "–" };
+  const table = makeTable(["Woche", "Meilenstein", "Status"],
+    data.milestones.map((m) => [`W${m.week}`, m.text, mark[m.achieved]]));
+  $("benchmark-milestones").replaceChildren(table);
+}
+
+async function saveBenchmark(event) {
+  event.preventDefault();
+  const body = formToObject(event.target);
+  if (!body.pushup_reps) delete body.pushup_variant;
+  if (body.side_plank_s) body.side_plank_straight = body.side_plank_straight === "true";
+  else delete body.side_plank_straight;
+  const { ok, data } = await api("POST", "/api/strength-benchmarks", body);
+  setMsg("benchmark-msg", ok ? "" : data.error);
+  if (ok) {
+    const variant = event.target.elements.pushup_variant.value;
+    event.target.reset();
+    event.target.elements.pushup_variant.value = variant;
+    await Promise.all([loadBenchmark(), loadReview()]);
+  }
+}
+
 async function loadBaseline() {
   const { ok, data } = await api("GET", "/api/baseline");
   const view = $("baseline-view");
@@ -342,6 +395,7 @@ $("profile-form").addEventListener("submit", saveProfile);
 $("checkin-form").addEventListener("submit", saveCheckin);
 $("signals-form").addEventListener("submit", saveSignals);
 $("ftp-form").addEventListener("submit", saveFtp);
+$("benchmark-form").addEventListener("submit", saveBenchmark);
 $("today-refresh").addEventListener("click", loadToday);
 $("baseline-form").addEventListener("submit", saveBaseline);
 $("intake-form").addEventListener("submit", saveIntake);
@@ -351,6 +405,7 @@ function loadAll() {
   loadProfile();
   loadCheckins();
   loadFtp();
+  loadBenchmark();
   loadBaseline();
   loadIntake();
   loadToday();

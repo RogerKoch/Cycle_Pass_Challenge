@@ -10,7 +10,7 @@ Stand: 2026-10-05
 | 2  | ✅ Benutzer-Dokumentation | Alle Werte, Abkürzungen (FTP, FFM, Z2, Sweet Spot …) und Formeln laienverständlich erklären. Vorschlag akzeptiert: Erklär-Seite in der App (Markdown im Repo), ⓘ-Links aus dem UI, Kapitel 1–7, Begriffe nach Schema Was/Wozu/Berechnung/Beispiel. |
 | 3  | ✅ Dehnen am Schluss ersetzen | „Auslaufen/Stretch 5 min“ in A/B durch die Mobility-Routine am Schluss ersetzen (`backend/engine/strength_sessions.py`). Entschieden 2026-10-05. |
 | 4  | ✅ Trainingszonen erklären | Coggan-7-Zonen in % FTP; FTP = 75 % der besten 1-min-Leistung im Zwift-Ramp-Test. In Doku (#2) aufnehmen. |
-| 5  | Kraft-Level pro User | Entschieden 2026-10-06: kein globales Level, sondern Kraft-Benchmarks (Woche-0-Tests der Recherche) → Stufe je Übung + Meilensteine. Intervall einstellbar (Standard 4 Wochen, z. B. 2). Folgt als eigener PR. |
+| 5  | ✅ Kraft-Level pro User | Umgesetzt 2026-10-07 als Kraft-Benchmarks (Woche-0-Tests der Recherche) → Stufe je Übung, Core-Freischaltung, Meilensteine; Intervall im Profil 2–8 Wochen (Standard 4), Erinnerung im Review. |
 | 6  | Mehrere User | Entschieden: eigene Instanz pro User (eigene DB/Passwort/Pfad, gleicher Code). Server-Setup pro neuem User. |
 | 7  | ✅ Barcode-Scanner iPhone | Scan soll automatisch erkennen (kein Auslöser). Auf iPhone kein Ergebnis – Symptome klären, dann debuggen (`frontend/ernaehrung/app.js`, ZXing). |
 | 8  | Kapitel UI/Navigation | Gesamt-Navigation, Gruppierung der Seiten. Eigenes Kapitel. |

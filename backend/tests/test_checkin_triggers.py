@@ -189,6 +189,14 @@ def test_due_reminders_when_checkin_or_questionnaire_older_than_a_week():
     assert "checkin_due" in _ids(evaluate(_inputs(checkins=[])))
 
 
+def test_strength_benchmark_due_after_interval():
+    assert "strength_benchmark_due" in _ids(evaluate(_inputs()))
+    three_weeks_ago = TODAY - timedelta(weeks=3)
+    assert "strength_benchmark_due" not in _ids(evaluate(_inputs(last_strength_benchmark=three_weeks_ago)))
+    every_two_weeks = _inputs(last_strength_benchmark=three_weeks_ago, benchmark_interval_weeks=2)
+    assert "strength_benchmark_due" in _ids(evaluate(every_two_weeks))
+
+
 def test_findings_are_sorted_by_severity():
     findings = evaluate(_inputs(checkins=[], signals=[_signal(sleep=3, back=2)]))
     assert [f.severity for f in findings] == sorted([f.severity for f in findings], key=["alert", "warn", "info"].index)

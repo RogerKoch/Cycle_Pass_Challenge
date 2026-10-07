@@ -18,6 +18,8 @@ class UserProfile(db.Model):
     activity_level: str = db.Column(db.String(20), nullable=False, default="buero", server_default="buero")
     # Kraft-Fokus, Schluessel aus engine.strength_sessions.FOCUS_OPTIONS
     strength_focus: str = db.Column(db.String(20), nullable=False, default="none", server_default="none")
+    # Kraft-Benchmark alle N Wochen (engine.strength_benchmarks, Standard 4)
+    benchmark_interval_weeks: int = db.Column(db.Integer, nullable=False, default=4, server_default="4")
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,

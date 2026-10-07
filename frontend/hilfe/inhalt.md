@@ -290,6 +290,26 @@ Im Profil wählbar. Der Fokus kommt **obendrauf** (ca. +10 min pro Einheit), der
 
 - **Beine schonen:** Der Bein-Fokus pausiert in Peak/Taper, in der Passsaison und solange „Beine platt“ aktiv ist –
   dann zählt das Radtraining.
+<a id="kraft-benchmark"></a>
+
+### Kraft-Benchmark
+Kurzer Test (ca. 10 min) im Dashboard erfassen – Standard alle 4 Wochen, im Profil auf 2–8 Wochen einstellbar.
+Ist er fällig, erinnert das Check-in-Review. Teiltests sind erlaubt; es zählt der neueste Wert je Test.
+
+| Test | So testen | Was die App daraus macht |
+|---|---|---|
+| Liegestütze am Stück | saubere Wdh. in deiner Variante | ab 15 Wdh. → nächste Variante (Wand → Inkline → Knie → Standard → Füsse erhöht → Deficit) |
+| Inverted Rows am Stück | saubere Wdh. | ab 15 → Füsse erhöht |
+| Side Plank | Sekunden, schwächere Seite, Knie/gestreckt | Knie ab 20 s → gestreckt |
+| Single-Leg Glute Bridge | Halten in s, schwächere Seite | ab 60 s → einbeinig, sonst beidbeinig |
+| Plank | Halten in s | Plank ≥ 2 min **und** Side Plank gestreckt ≥ 30 s → Hollow Body/Pallof schon vor ihrer Phase |
+
+In der Krafteinheit steht dann „Deine Stufe: …“ statt der ganzen Progressionsliste.
+Die Schwelle 15 Wdh. ist eine Annahme (oberes Ende des Rep-Bereichs); Reihenfolgen und Zielwerte stammen aus der Kraft-Recherche.
+
+**Meilensteine** (Kraft-Recherche): W8 Standard-Liegestütz sauber · W12 Single-Leg Glute Bridge 60 s, Side Plank
+gestreckt 30 s · W16 Bulgarian Split Squat 3× 10 · W20 Plank 2 min · W24 Re-Test aller Werte.
+
 - **Flacher Bauch:** Gezielter Fettabbau am Bauch (Spot Reduction) funktioniert nicht. Der Bauch wird flacher über
   das Kaloriendefizit (Fettabbau) plus Core-Training (Spannung, Haltung). Der Core-Fokus verstärkt den zweiten Teil.
 
