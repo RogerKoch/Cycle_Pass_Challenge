@@ -1,49 +1,6 @@
 "use strict";
 
-const $ = (id) => document.getElementById(id);
-
-async function api(method, path, body) {
-  const options = { method, headers: {} };
-  if (body !== undefined) {
-    options.headers["Content-Type"] = "application/json";
-    options.body = JSON.stringify(body);
-  }
-  // relativ aufloesen, damit die App auch unter einem Pfad-Praefix (z.B. /cpc/) laeuft
-  const response = await fetch(`..${path}`, options);
-  const data = await response.json().catch(() => ({}));
-  return { ok: response.ok, status: response.status, data };
-}
-
-function formToObject(form) {
-  const result = {};
-  for (const [key, value] of new FormData(form)) {
-    if (value !== "") result[key] = value;
-  }
-  return result;
-}
-
-function fmt(value, digits = 0) {
-  return Number(value).toFixed(digits);
-}
-
-function setMsg(id, text) {
-  $(id).textContent = text || "";
-}
-
-function makeTable(headers, rows) {
-  const table = document.createElement("table");
-  const head = table.insertRow();
-  for (const h of headers) {
-    const th = document.createElement("th");
-    th.textContent = h;
-    head.appendChild(th);
-  }
-  for (const row of rows) {
-    const tr = table.insertRow();
-    for (const cell of row) tr.insertCell().textContent = cell;
-  }
-  return table;
-}
+const SOURCE_LABEL = { measured: "gemessen", estimated: "geschätzt" };
 
 async function loadProfile() {
   const { ok, data } = await api("GET", "/api/profile");
@@ -78,191 +35,7 @@ async function saveProfile(event) {
   const method = form.dataset.exists ? "PUT" : "POST";
   const { ok, data } = await api(method, "/api/profile", formToObject(form));
   setMsg("profile-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadProfile(), loadBaseline(), loadBenchmark()]);
-}
-
-async function loadCheckins() {
-  const { data } = await api("GET", "/api/checkins");
-  const rows = (data || []).map((c) => [
-    c.checkin_date, fmt(c.weight_kg, 1), fmt(c.bodyfat_pct, 1), fmt(c.muscle_kg, 1), fmt(c.ffm_kg, 1),
-    c.source === "intervals" ? "Garmin" : "manuell",
-  ]);
-  const table = makeTable(["Datum", "Gewicht kg", "KF %", "Muskel kg", "FFM kg", "Quelle"], rows);
-  table.id = "checkin-table";
-  $("checkin-table").replaceWith(table);
-}
-
-async function saveCheckin(event) {
-  event.preventDefault();
-  const { ok, data } = await api("POST", "/api/checkins", formToObject(event.target));
-  setMsg("checkin-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadCheckins(), loadBaseline(), loadReview(), loadToday()]);
-}
-
-async function loadSignals() {
-  const { data } = await api("GET", "/api/signals");
-  const latest = (data || [])[0];
-  $("signals-view").textContent = latest
-    ? `Letzter Fragebogen: ${latest.date} (Schlaf ${latest.sleep}, Beine ${latest.legs}, Hunger ${latest.hunger}, `
-      + `Rücken ${latest.back}, Anstrengung ${latest.effort}${latest.resting_hr ? `, Ruhe-HF ${latest.resting_hr}` : ""})`
-    : "Noch kein Fragebogen erfasst.";
-}
-
-async function saveSignals(event) {
-  event.preventDefault();
-  const body = {};
-  for (const [key, value] of new FormData(event.target)) if (value !== "") body[key] = Number(value);
-  const { ok, data } = await api("POST", "/api/signals", body);
-  setMsg("signals-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadSignals(), loadReview()]);
-}
-
-const SEVERITY_LABEL = { alert: "Dringend", warn: "Achtung", info: "Hinweis" };
-
-// ⓘ-Link auf einen Abschnitt der Erklaer-Seite
-function infoLink(anchor) {
-  const link = el("a", "ⓘ", "info");
-  link.href = `hilfe/#${anchor}`;
-  link.setAttribute("aria-label", "Erklärung");
-  return link;
-}
-
-function el(tag, text, className) {
-  const node = document.createElement(tag);
-  if (text !== undefined) node.textContent = text;
-  if (className) node.className = className;
-  return node;
-}
-
-async function loadReview() {
-  const { ok, data } = await api("GET", "/api/review");
-  if (!ok) {
-    setMsg("review-msg", data.error);
-    return;
-  }
-  setMsg("review-msg", "");
-  const s = data.summary;
-  const num = (v, d = 0, unit = "") => (v === null || v === undefined ? "–" : `${fmt(v, d)}${unit}`);
-  $("review-summary").replaceChildren(makeTable(["Kennzahl", "Wert"], [
-    ["Gewicht / Ziel", `${num(s.weight_kg, 1, " kg")} / ${num(s.target_weight_kg, 1, " kg")}`],
-    ["Trend (2 Wochen)", s.trend_kg_per_week === null ? "–" : `${num(s.trend_kg_per_week, 2, " kg")}/Woche (${num(s.trend_pct_per_week, 2, " %")})`],
-    ["FTP / W/kg", `${num(s.ftp_watts, 0, " W")} / ${num(s.watts_per_kg, 2)}`],
-    ["Defizit heute", num(s.deficit_kcal, 0, " kcal")],
-    ["Ø Energy Availability 7 Tage", num(s.energy_availability_avg, 1, " kcal/kg FFM")],
-  ]));
-
-  const findings = data.findings.map((f) => {
-    const box = el("div", undefined, `finding ${f.severity}`);
-    box.append(el("strong", `${SEVERITY_LABEL[f.severity]}: ${f.title}`), el("p", f.detail), el("p", `Quelle: ${f.source}`, "source"));
-    if (f.action) {
-      const accept = el("button", `Übernehmen: ${f.action.label}`);
-      accept.addEventListener("click", () => decide(f.key, "accepted"));
-      box.append(accept);
-    }
-    const dismiss = el("button", f.action ? "Verwerfen" : "Erledigt");
-    dismiss.addEventListener("click", () => decide(f.key, "dismissed"));
-    box.append(dismiss);
-    return box;
-  });
-  $("review-findings").replaceChildren(...(findings.length ? findings : [el("p", "Keine offenen Befunde.")]));
-
-  const rows = data.adjustments.map((a) => {
-    const row = el("div");
-    const period = a.end_date ? `${a.start_date} bis ${a.end_date}` : `ab ${a.start_date}`;
-    row.append(el("span", `${a.active ? "● aktiv" : "○ beendet"} · ${a.label} (${period}) `));
-    const undo = el("button", "Rückgängig");
-    undo.addEventListener("click", () => undoAdjustment(a.id));
-    row.append(undo);
-    return row;
-  });
-  $("review-adjustments").replaceChildren(...(rows.length ? rows : [el("p", "Keine Anpassungen.")]));
-}
-
-async function decide(key, decision) {
-  const { ok, data } = await api("POST", "/api/review/decisions", { key, decision });
-  setMsg("review-msg", ok ? "" : data.error);
-  await Promise.all([loadReview(), loadToday()]);
-}
-
-async function undoAdjustment(id) {
-  const { ok, data } = await api("DELETE", `/api/adjustments/${id}`);
-  setMsg("review-msg", ok ? "" : data.error);
-  await Promise.all([loadReview(), loadToday()]);
-}
-
-async function loadFtp() {
-  const { ok, data } = await api("GET", "/api/checkins/ftp-tests/latest");
-  $("ftp-view").textContent = ok
-    ? `Aktuelle FTP: ${data.ftp_watts} W (Test ${data.test_date})`
-    : "FTP noch nicht getestet (Zwift-Ramp-Test steht aus).";
-}
-
-async function saveFtp(event) {
-  event.preventDefault();
-  const { ok, data } = await api("POST", "/api/checkins/ftp-tests", formToObject(event.target));
-  setMsg("ftp-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadFtp(), loadReview()]);
-}
-
-const SOURCE_LABEL = { measured: "gemessen", estimated: "geschätzt" };
-
-function localToday() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-const STAGE_TEXT = {
-  rows_feet_elevated: (v) => `Rows: ${v ? "Füsse erhöht" : "Füsse am Boden"}`,
-  side_plank_straight: (v) => `Side Plank: ${v ? "gestreckt" : "Knie gebeugt"}`,
-  glute_bridge_single_leg: (v) => `Glute Bridge: ${v ? "einbeinig" : "beidbeinig"}`,
-};
-
-async function loadBenchmark() {
-  const { ok, data } = await api("GET", "/api/strength-benchmarks");
-  if (!ok) return;
-  const form = $("benchmark-form");
-  if (!form.elements.pushup_variant.options.length) {
-    form.elements.pushup_variant.replaceChildren(...data.pushup_variants.map((v) => {
-      const option = el("option", v.label);
-      option.value = v.id;
-      return option;
-    }));
-    form.elements.pushup_variant.value = "knie";
-  }
-  const variants = Object.fromEntries(data.pushup_variants.map((v) => [v.id, v.label]));
-  const stages = [];
-  if (data.stages.pushup_variant) stages.push(`Liegestütz: ${variants[data.stages.pushup_variant]}`);
-  for (const [key, text] of Object.entries(STAGE_TEXT)) {
-    if (data.stages[key] !== null) stages.push(text(data.stages[key]));
-  }
-  if (data.stages.core_advanced) stages.push("Hollow Body/Pallof freigeschaltet");
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const due = data.next_due <= today ? "fällig" : `nächster Test ${data.next_due}`;
-  $("benchmark-view").textContent = data.current
-    ? `Letzter Test ${data.current.test_date} · ${due} (alle ${data.interval_weeks} Wochen) · Stufen: ${stages.join(", ") || "–"}`
-    : `Noch kein Test – Woche-0-Baseline ${due}.`;
-  const mark = { true: "✓", false: "offen", null: "–" };
-  const table = makeTable(["Woche", "Meilenstein", "Status"],
-    data.milestones.map((m) => [`W${m.week}`, m.text, mark[m.achieved]]));
-  $("benchmark-milestones").replaceChildren(table);
-}
-
-async function saveBenchmark(event) {
-  event.preventDefault();
-  const body = formToObject(event.target);
-  if (!body.pushup_reps) delete body.pushup_variant;
-  if (body.side_plank_s) body.side_plank_straight = body.side_plank_straight === "true";
-  else delete body.side_plank_straight;
-  const { ok, data } = await api("POST", "/api/strength-benchmarks", body);
-  setMsg("benchmark-msg", ok ? "" : data.error);
-  if (ok) {
-    const variant = event.target.elements.pushup_variant.value;
-    event.target.reset();
-    event.target.elements.pushup_variant.value = variant;
-    await Promise.all([loadBenchmark(), loadReview()]);
-  }
+  if (ok) await Promise.all([loadProfile(), loadBaseline(), loadToday()]);
 }
 
 async function loadBaseline() {
@@ -293,22 +66,7 @@ async function saveBaseline(event) {
     value: Number(form.elements.value.value),
   });
   setMsg("baseline-msg", ok ? "" : data.error);
-  if (ok) await loadBaseline();
-}
-
-async function loadIntake() {
-  const { ok, data } = await api("GET", `/api/intake/${localToday()}`);
-  $("intake-view").textContent = ok
-    ? `${fmt(data.kcal)} kcal, P ${fmt(data.protein_g)} g, KH ${fmt(data.carbs_g)} g, F ${fmt(data.fat_g)} g`
-    : "Heute noch nichts erfasst.";
-}
-
-async function saveIntake(event) {
-  event.preventDefault();
-  const body = Object.fromEntries(Object.entries(formToObject(event.target)).map(([k, v]) => [k, Number(v)]));
-  const { ok, data } = await api("PUT", `/api/intake/${localToday()}`, body);
-  setMsg("intake-msg", ok ? "" : data.error);
-  if (ok) await loadIntake();
+  if (ok) await Promise.all([loadBaseline(), loadToday()]);
 }
 
 function renderToday(plan) {
@@ -392,25 +150,18 @@ async function loadToday() {
 }
 
 $("profile-form").addEventListener("submit", saveProfile);
-$("checkin-form").addEventListener("submit", saveCheckin);
-$("signals-form").addEventListener("submit", saveSignals);
-$("ftp-form").addEventListener("submit", saveFtp);
-$("benchmark-form").addEventListener("submit", saveBenchmark);
 $("today-refresh").addEventListener("click", loadToday);
 $("baseline-form").addEventListener("submit", saveBaseline);
-$("intake-form").addEventListener("submit", saveIntake);
 $("intervals-sync").addEventListener("click", () => syncIntervals(false));
 
+// Startwerte: Formulare nur, solange noch kein Test existiert; ein neuer FTP aendert die Zonen
+const startwerte = { startOnly: true, onSaved: loadToday };
 function loadAll() {
   loadProfile();
-  loadCheckins();
-  loadFtp();
-  loadBenchmark();
   loadBaseline();
-  loadIntake();
   loadToday();
-  loadSignals();
-  loadReview();
+  mountFtp($("ftp-box"), startwerte);
+  mountBenchmark($("benchmark-box"), startwerte);
 }
 
 async function loadIntervalsStatus() {

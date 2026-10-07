@@ -30,6 +30,7 @@ def add_missing_columns() -> None:
 
 FRONTEND_DIR = REPO_ROOT / "frontend" / "heute"
 PROFILE_DIR = REPO_ROOT / "frontend" / "profil"
+CHECKINS_DIR = REPO_ROOT / "frontend" / "checkins"
 NUTRITION_DIR = REPO_ROOT / "frontend" / "ernaehrung"
 TRAINING_DIR = REPO_ROOT / "frontend" / "training"
 HELP_DIR = REPO_ROOT / "frontend" / "hilfe"
@@ -67,8 +68,14 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     @app.get("/profil/")
     @app.get("/profil/<path:filename>")
     def profile_page(filename: str = "index.html"):
-        """Liefert die Profil-Seite (Profil, Check-in, Review, FTP, Benchmark, Messwerte)."""
+        """Liefert die Profil-Seite (Profil, intervals.icu, Startwerte, Messwerte)."""
         return send_from_directory(PROFILE_DIR, filename)
+
+    @app.get("/checkins/")
+    @app.get("/checkins/<path:filename>")
+    def checkins_page(filename: str = "index.html"):
+        """Liefert die Check-in-Seite (Check-in, Fragebogen, Review, FTP-Test, Kraft-Benchmark)."""
+        return send_from_directory(CHECKINS_DIR, filename)
 
     @app.get("/ernaehrung/")
     @app.get("/ernaehrung/<path:filename>")

@@ -5,7 +5,7 @@ import pytest
 from backend.config import REPO_ROOT
 
 FRONTEND = REPO_ROOT / "frontend"
-PAGES = {"heute": "heute/index.html", "profil": "profil/index.html", "training": "training/index.html",
+PAGES = {"heute": "heute/index.html", "profil": "profil/index.html", "checkins": "checkins/index.html", "training": "training/index.html",
          "ernaehrung": "ernaehrung/index.html", "hilfe": "hilfe/index.html"}
 NAV_KEYS = set(re.findall(r'key: "(\w+)"', (FRONTEND / "shared" / "nav.js").read_text(encoding="utf-8")))
 
@@ -32,3 +32,10 @@ def test_root_serves_today_and_profile_page_is_served(client):
     response = client.get("/profil/")
     assert response.status_code == 200 and b'data-nav="profil"' in response.data
     assert client.get("/profil/app.js").status_code == 200
+
+
+def test_checkins_page_and_script_are_served(client):
+    assert client.get("/checkins/").status_code == 200
+    assert client.get("/checkins/app.js").status_code == 200
+    for filename in ("ui.js", "test-forms.js", "forms.css"):
+        assert client.get(f"/shared/{filename}").status_code == 200

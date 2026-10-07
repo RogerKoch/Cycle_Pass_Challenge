@@ -117,6 +117,10 @@ def test_profile_page_requires_login(auth_client):
     assert auth_client.get("/profil/").status_code == 302
 
 
+def test_checkins_page_requires_login(auth_client):
+    assert auth_client.get("/checkins/").status_code == 302
+
+
 def test_shared_files_require_login(auth_client):
     assert auth_client.get("/shared/nav.js").status_code == 302
 

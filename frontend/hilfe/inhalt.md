@@ -293,7 +293,7 @@ Im Profil wählbar. Der Fokus kommt **obendrauf** (ca. +10 min pro Einheit), der
 <a id="kraft-benchmark"></a>
 
 ### Kraft-Benchmark
-Kurzer Test (ca. 10 min) im Dashboard erfassen – Standard alle 4 Wochen, im Profil auf 2–8 Wochen einstellbar.
+Kurzer Test (ca. 10 min) unter Check-ins erfassen – Standard alle 4 Wochen, im Profil auf 2–8 Wochen einstellbar.
 Ist er fällig, erinnert das Check-in-Review. Teiltests sind erlaubt; es zählt der neueste Wert je Test.
 
 | Test | So testen | Was die App daraus macht |
