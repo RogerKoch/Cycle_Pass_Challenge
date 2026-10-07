@@ -34,15 +34,22 @@ def backup_database(db_path: Path, target_dir: Path, keep: int = DEFAULT_KEEP) -
         Pfad der neuen Backup-Datei.
     """
     target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / f"{BACKUP_PREFIX}{datetime.now():%Y-%m-%d_%H%M%S}.db"
-    source = sqlite3.connect(db_path)
-    destination = sqlite3.connect(target)
+    target = target_dir / f"{BACKUP_PREFIX}{datetime.now():%Y-%m-%d_%H%M%S_%f}.db"
+    partial = target.with_suffix(".db.part")  # passt nicht auf das Rotations-Muster *.db
+    # read-only per URI: connect() legt sonst bei falschem Pfad still eine leere DB an
+    source = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+    destination = sqlite3.connect(partial)
     try:
         with destination:
             source.backup(destination)
-    finally:
+    except BaseException:
         destination.close()
         source.close()
+        partial.unlink(missing_ok=True)
+        raise
+    destination.close()
+    source.close()
+    partial.replace(target)
 
     # Zeitstempel im Namen -> alphabetisch = chronologisch
     for old in sorted(target_dir.glob(f"{BACKUP_PREFIX}*.db"))[:-keep]:

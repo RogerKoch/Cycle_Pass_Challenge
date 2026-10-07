@@ -1,7 +1,9 @@
 """Einzel-Login (ein Passwort, Session-Cookie). Aktiv nur, wenn PASSWORD_HASH konfiguriert ist."""
 
 import logging
+import threading
 import time
+from collections import defaultdict, deque
 
 import click
 from flask import Blueprint, Flask, current_app, jsonify, redirect, render_template_string, request, session, url_for
@@ -11,7 +13,10 @@ logger = logging.getLogger(__name__)
 
 auth_bp = Blueprint("auth", __name__)
 
-FAILED_LOGIN_DELAY_S = 1.0
+FAILED_LOGIN_LIMIT = 5  # Fehlversuche je IP im Zeitfenster, danach 429 (ohne den Worker zu blockieren)
+FAILED_LOGIN_WINDOW_S = 900.0
+_failed_logins: defaultdict[str, deque[float]] = defaultdict(deque)  # pro Prozess
+_failed_logins_lock = threading.Lock()
 # iOS/Android laden Manifest und Icon ohne Cookie
 PUBLIC_PWA_FILES: frozenset[str] = frozenset({"manifest.webmanifest", "icon.svg"})
 PWA_ENDPOINTS: frozenset[str] = frozenset({"nutrition", "training"})
@@ -40,6 +45,22 @@ LOGIN_PAGE = """<!doctype html>
 </html>"""
 
 
+def _login_blocked(ip: str, now: float) -> bool:
+    """True, wenn die IP das Fehlversuch-Limit im Zeitfenster erreicht hat."""
+    with _failed_logins_lock:
+        attempts = _failed_logins[ip]
+        while attempts and now - attempts[0] > FAILED_LOGIN_WINDOW_S:
+            attempts.popleft()
+        if not attempts:
+            _failed_logins.pop(ip, None)
+        return len(attempts) >= FAILED_LOGIN_LIMIT
+
+
+def _record_failed_login(ip: str, now: float) -> None:
+    with _failed_logins_lock:
+        _failed_logins[ip].append(now)
+
+
 def _safe_next(target: str | None) -> str:
     """Nur relative Pfade innerhalb der App zulassen (kein Open Redirect)."""
     if not target or not target.startswith("/") or target.startswith("//") or "\\" in target:
@@ -52,13 +73,19 @@ def login():
     """Login-Formular; bei Erfolg permanente Session und Redirect auf `next`."""
     if request.method == "GET":
         return render_template_string(LOGIN_PAGE, error=None)
+    ip, now = request.remote_addr or "?", time.monotonic()
+    if _login_blocked(ip, now):
+        logger.warning("Login gesperrt (zu viele Fehlversuche) von %s", ip)
+        return render_template_string(LOGIN_PAGE, error="Zu viele Fehlversuche, später erneut versuchen"), 429
     if check_password_hash(current_app.config["PASSWORD_HASH"] or "", request.form.get("password", "")):
+        with _failed_logins_lock:
+            _failed_logins.pop(ip, None)
         session.clear()
         session["logged_in"] = True
         session.permanent = True
         return redirect(request.script_root + _safe_next(request.args.get("next")))
-    logger.warning("Fehlgeschlagener Login von %s", request.remote_addr)
-    time.sleep(FAILED_LOGIN_DELAY_S)
+    logger.warning("Fehlgeschlagener Login von %s", ip)
+    _record_failed_login(ip, now)
     return render_template_string(LOGIN_PAGE, error="Falsches Passwort"), 401
 
 

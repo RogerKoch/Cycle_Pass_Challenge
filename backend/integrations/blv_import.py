@@ -13,6 +13,7 @@ from flask.cli import with_appcontext
 
 from backend.engine.food_calc import normalize_search
 from backend.extensions import db
+from backend.integrations.numbers import finite_number
 from backend.models.food import Food
 
 logger = logging.getLogger(__name__)
@@ -33,10 +34,10 @@ NUTRIENT_FIELDS: tuple[str, ...] = ("kcal_100g", "protein_100g", "carbs_100g", "
 
 
 def _to_number(value: object) -> float:
-    """BLV-Zellwert als Zahl; 'Sp.' (Spuren), '<0.5' und leere Zellen zaehlen als 0."""
-    if isinstance(value, (int, float)):
-        return float(value)
-    return 0.0
+    """BLV-Zellwert als Zahl; Text-Zahlen ('12,5') werden gelesen, 'Sp.' (Spuren), '<0.5' und leere Zellen zaehlen als 0."""
+    if isinstance(value, str):
+        value = value.strip().replace(",", ".")
+    return finite_number(value) or 0.0
 
 
 def read_blv_rows(path: Path) -> list[dict]:
@@ -54,6 +55,8 @@ def read_blv_rows(path: Path) -> list[dict]:
     workbook = openpyxl.load_workbook(path, read_only=True)
     rows: list[dict] = []
     for sheet_name in SHEETS:
+        if sheet_name not in workbook.sheetnames:
+            raise ValueError(f"Sheet '{sheet_name}' fehlt")
         sheet_rows = workbook[sheet_name].iter_rows(min_row=HEADER_ROW, values_only=True)
         header = list(next(sheet_rows, ()))
         missing = [col for col in COLUMNS if col not in header]
@@ -85,7 +88,9 @@ def import_blv(path: Path) -> tuple[int, int]:
         row["search_name"] = normalize_search(f"{row['name']} {synonyms}")
         food = existing.get(row["source_id"])
         if food is None:
-            db.session.add(Food(source="blv", **row))
+            food = Food(source="blv", **row)
+            db.session.add(food)
+            existing[row["source_id"]] = food  # doppelte IDs in der Datei aktualisieren statt neu anlegen
             created += 1
         else:
             for key, value in row.items():

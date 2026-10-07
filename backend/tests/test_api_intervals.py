@@ -109,3 +109,16 @@ def test_ride_without_power_is_estimated_with_met_not_garmin_calories(app, profi
     profile.post("/api/intervals/sync")
     body = profile.get("/api/plan/today").get_json()
     assert body["nutrition"]["cycling_kcal"] == pytest.approx(592 * 3)
+
+
+def test_parallel_sync_is_rejected_as_busy(app, profile):
+    from backend.api import intervals_routes
+
+    _use_fake(app)
+    assert intervals_routes._sync_lock.acquire(blocking=False)
+    try:
+        body = profile.post("/api/intervals/sync").get_json()
+    finally:
+        intervals_routes._sync_lock.release()
+    assert (body["synced"], body["busy"]) == (False, True)
+    assert profile.post("/api/intervals/sync").get_json()["synced"] is True
