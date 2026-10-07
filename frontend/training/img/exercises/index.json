@@ -29,5 +29,9 @@
   "BWS-Extension über Foam Roller": { "img": "bws-extension-foam-roller.svg", "video": "thoracic extension foam roller" },
   "Wall Angels / Wall Slides": { "img": "wall-angels.svg", "video": "wall angels" },
   "Pigeon (Glute-Stretch)": { "img": "pigeon.svg", "video": "pigeon stretch" },
-  "Clamshells": { "img": "clamshell.svg", "video": "clamshell exercise mini band" }
+  "Clamshells": { "img": "clamshell.svg", "video": "clamshell exercise mini band" },
+  "Plank (Unterarmstütz)": { "img": "plank.svg", "video": "forearm plank" },
+  "Reverse Crunch / Leg Raises": { "img": "reverse-crunch.svg", "video": "reverse crunch" },
+  "Scapular Push-ups": { "img": "scapular-pushup.svg", "video": "scapular push up" },
+  "Step-ups": { "img": "step-up.svg", "video": "step up exercise low step" }
 }

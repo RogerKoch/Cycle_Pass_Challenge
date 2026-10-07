@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # (Tabelle, Spalte, DDL-Typ inkl. Default)
 _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "activity_level", "VARCHAR(20) NOT NULL DEFAULT 'buero'"),
+    ("user_profile", "strength_focus", "VARCHAR(20) NOT NULL DEFAULT 'none'"),
 ]
 
 

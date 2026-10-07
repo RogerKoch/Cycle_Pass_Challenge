@@ -177,3 +177,11 @@ def test_days_before_program_start_are_empty(profile):
     before = (PROGRAM_START - timedelta(days=1)).isoformat()
     body = profile.get(f"/api/calendar/day/{before}").get_json()
     assert (body["started"], body["cycling"], body["strength"], body["slot_options"]) == (False, None, None, [])
+
+
+def test_day_applies_strength_focus_from_profile(profile):
+    profile.put("/api/profile", json={"strength_focus": "core"})
+    monday = profile.get(f"/api/calendar/day/{_day(0)}").get_json()
+    assert monday["strength"]["focus"] == "core"
+    assert any(e["name"] == "Plank (Unterarmstütz)" for e in monday["strength"]["exercises"])
+    assert any(e["name"] == "McGill Curl-Up" for e in monday["mobility"])  # Core taeglich

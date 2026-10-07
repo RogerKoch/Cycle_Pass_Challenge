@@ -16,6 +16,8 @@ class UserProfile(db.Model):
     program_start_date: date = db.Column(db.Date, nullable=False)
     # Alltags-/Beruf-Stufe, Schluessel aus engine.nutrition_calc.ACTIVITY_LEVELS
     activity_level: str = db.Column(db.String(20), nullable=False, default="buero", server_default="buero")
+    # Kraft-Fokus, Schluessel aus engine.strength_sessions.FOCUS_OPTIONS
+    strength_focus: str = db.Column(db.String(20), nullable=False, default="none", server_default="none")
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,

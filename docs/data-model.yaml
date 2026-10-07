@@ -98,6 +98,20 @@ strength_constraints:
   min_hours_gap_to_hard_cycling_intervals: 6
   excluded_exercises: ["hochvolumige schwere Kniebeugen bis Versagen"]
 
+# User-Vorgabe 2026-10-06 (Todo #1/#14): waehlbarer Kraft-Fokus, kommt obendrauf (+10 min/Einheit).
+# Gruppen = Uebungsbibliothek A–D der Kraft-Recherche; Zusatzuebungen nur aus der Bibliothek.
+strength_focus:
+  options: [none, core, upper, legs, mobility]
+  extra_sets_on_focus_group: 1
+  extra_minutes_per_session: 10
+  extras:                       # Zuordnung A/B = Annahme
+    core:  { A: ["Plank"], B: ["Plank (Phase 1)", "Reverse Crunch/Leg Raises (ab Phase 2)"] }
+    upper: { A: ["Scapular Push-ups"], B: ["Band Pull-Aparts + Face Pulls (Phase 1)"] }
+    legs:  { A: ["Clamshells"], B: ["Step-ups"] }
+    mobility: { routine: "+1 Satz je Drill, Pigeon fest" }
+  core_focus_daily_mcgill: true   # Kraft-Recherche: Core profitiert von hoher Frequenz
+  legs_paused_in: [peak_taper, passsaison, strength_reduced]   # "Beine schonen"
+
 # ---------------------------------------------------------------------------
 # ERNÄHRUNGS-ENGINE
 # Quelle: docs/research/ernaehrungsplan.md

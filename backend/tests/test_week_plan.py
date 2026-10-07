@@ -146,3 +146,17 @@ def test_reduced_strength_session_drops_leg_exercises():
     assert "Bulgarian Split Squat" not in names
     assert "Lateral Band Walks" not in names
     assert "Volumen" in session.note
+
+
+def test_leg_focus_is_paused_in_taper_season_and_when_reduced():
+    active = resolve_strength("B", "build1", 1, focus="legs")
+    assert active.focus == "legs" and any(e.name == "Step-ups" for e in active.exercises)
+    for phase_id, week, reduced in (("peak_taper", 1, False), ("passsaison", 1, False), ("build1", 1, True)):
+        paused = resolve_strength("B", phase_id, week, reduced=reduced, focus="legs")
+        assert paused.focus == "none"
+        assert "Bein-Fokus pausiert" in paused.note
+
+
+def test_focus_adds_ten_minutes_to_taper_session():
+    assert resolve_strength("A", "peak_taper", 4).duration_minutes == "40"
+    assert resolve_strength("A", "peak_taper", 4, focus="core").duration_minutes == "50"
