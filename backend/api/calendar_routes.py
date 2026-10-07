@@ -26,6 +26,7 @@ from backend.engine.plan_adjustments import (
     apply_deload,
     is_forced_deload,
 )
+from backend.engine.strength_benchmarks import ExerciseStages, exercise_stages
 from backend.engine.strength_sessions import mobility_routine
 from backend.engine.week_plan import (
     STATUS_DONE,
@@ -49,6 +50,7 @@ from backend.integrations.intervals_icu import IcuError, PushResult, configured_
 from backend.models.ftp_tests import FtpTest
 from backend.models.intervals import imported_records
 from backend.models.plan_adjustments import adjustment_spans
+from backend.models.strength_benchmarks import current_benchmark
 from backend.models.training_days import TrainingDay
 from backend.models.user_profile import UserProfile
 
@@ -247,16 +249,18 @@ def serialize_day(
     ftp_watts: int | None,
     full: bool = True,
     spans: list[AdjustmentSpan] | None = None,
+    stages: ExerciseStages | None = None,
 ) -> dict:
     """Kalendertag als JSON; `full` ergaenzt Mobility, Slot-Auswahl und Ersatztage."""
     spans = adjustment_spans() if spans is None else spans
+    stages = exercise_stages(current_benchmark()) if stages is None else stages
     kinds = active_kinds(row.day_date, spans)
     phase, week = phase_week(profile.program_start_date, row.day_date)
     started = row.day_date >= profile.program_start_date
     session = resolve_cycling(row, phase.phase_id, week, spans)
     strength = (
         resolve_strength(
-            row.strength_session, phase.phase_id, week, KIND_STRENGTH_REDUCED in kinds, profile.strength_focus
+            row.strength_session, phase.phase_id, week, KIND_STRENGTH_REDUCED in kinds, profile.strength_focus, stages
         )
         if row.strength_session
         else None
@@ -296,10 +300,10 @@ def serialize_day(
 
 
 def _serialize_week(profile: UserProfile, rows: list[TrainingDay]) -> dict:
-    ftp_watts, spans = _latest_ftp(), adjustment_spans()
+    ftp_watts, spans, stages = _latest_ftp(), adjustment_spans(), exercise_stages(current_benchmark())
     return {
         "week_start": rows[0].day_date.isoformat(),
-        "days": [serialize_day(r, profile, rows, ftp_watts, full=False, spans=spans) for r in rows],
+        "days": [serialize_day(r, profile, rows, ftp_watts, full=False, spans=spans, stages=stages) for r in rows],
     }
 
 

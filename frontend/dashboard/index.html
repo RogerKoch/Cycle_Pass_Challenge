@@ -22,6 +22,7 @@
         <select name="activity_level"><option value="buero">Büro</option></select></label>
       <label>Kraft-Fokus <a class="info" href="hilfe/#kraft-fokus" aria-label="Erklärung">ⓘ</a>
         <select name="strength_focus"><option value="none">Kein Fokus</option></select></label>
+      <label>Kraft-Benchmark alle (Wochen) <input name="benchmark_interval_weeks" type="number" min="2" max="8" step="1"></label>
       <button type="submit">Speichern</button>
     </form>
     <p class="msg" id="profile-msg"></p>
@@ -78,6 +79,24 @@
       <button type="submit">Erfassen</button>
     </form>
     <p class="msg" id="ftp-msg"></p>
+  </section>
+
+  <section id="benchmark">
+    <h2>Kraft-Benchmark <a class="info" href="hilfe/#kraft-benchmark" aria-label="Erklärung">ⓘ</a></h2>
+    <div id="benchmark-view"></div>
+    <form id="benchmark-form">
+      <label>Liegestütze am Stück <input name="pushup_reps" type="number" min="0" step="1"></label>
+      <label>Variante <select name="pushup_variant"></select></label>
+      <label>Inverted Rows am Stück <input name="row_reps" type="number" min="0" step="1"></label>
+      <label>Side Plank (s, schwächere Seite) <input name="side_plank_s" type="number" min="0" step="1"></label>
+      <label>Side Plank Ausführung <select name="side_plank_straight">
+        <option value="false">Knie gebeugt</option><option value="true">Beine gestreckt</option></select></label>
+      <label>Single-Leg Glute Bridge (s, schwächere Seite) <input name="sl_bridge_s" type="number" min="0" step="1"></label>
+      <label>Plank (s) <input name="plank_s" type="number" min="0" step="1"></label>
+      <button type="submit">Erfassen</button>
+    </form>
+    <p class="msg" id="benchmark-msg"></p>
+    <div id="benchmark-milestones"></div>
   </section>
 
   <section id="baseline">

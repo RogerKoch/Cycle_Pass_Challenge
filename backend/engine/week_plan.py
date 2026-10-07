@@ -22,6 +22,7 @@ from backend.engine.cycling_sessions import (
     SLOT_Z2_OR_REKOM,
     build_cycling_session,
 )
+from backend.engine.strength_benchmarks import ExerciseStages
 from backend.engine.strength_sessions import (
     FOCUS_EXTRA_MINUTES,
     FOCUS_NONE,
@@ -126,7 +127,12 @@ def default_day_plan(program_start_date: date, day: date) -> tuple[str | None, s
 
 
 def resolve_strength(
-    session_id: str, phase_id: str, week_in_phase: int, reduced: bool = False, focus: str = FOCUS_NONE
+    session_id: str,
+    phase_id: str,
+    week_in_phase: int,
+    reduced: bool = False,
+    focus: str = FOCUS_NONE,
+    stages: ExerciseStages | None = None,
 ) -> StrengthSession:
     """Krafteinheit fuer Phase und Woche, im Taper mit Reduktionshinweis.
 
@@ -139,6 +145,7 @@ def resolve_strength(
         week_in_phase: Woche in der Phase.
         reduced: reduzierte Einheit aus dem Check-in-Review (Beine platt).
         focus: Kraft-Fokus aus dem Profil.
+        stages: Stufen aus dem Kraft-Benchmark.
 
     Returns:
         StrengthSession der zugehoerigen Kraftphase.
@@ -150,7 +157,9 @@ def resolve_strength(
     if focus == GROUP_LEGS and (reduced or phase_id in LEG_FOCUS_PAUSED_PHASES):
         notes.append("Bein-Fokus pausiert (Beine schonen fürs Radtraining).")
         focus = FOCUS_NONE
-    session = build_strength_session(session_id, strength_phase_for(phase_id), " ".join(notes) or None, reduced, focus)
+    session = build_strength_session(
+        session_id, strength_phase_for(phase_id), " ".join(notes) or None, reduced, focus, stages
+    )
     if not taper:
         return session
     extra = FOCUS_EXTRA_MINUTES if session.focus in STRENGTH_FOCUSES else 0

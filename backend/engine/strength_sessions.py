@@ -15,6 +15,8 @@ import logging
 import re
 from dataclasses import dataclass, replace
 
+from backend.engine.strength_benchmarks import PUSHUP_VARIANTS, ExerciseStages
+
 logger = logging.getLogger(__name__)
 
 SESSION_IDS: tuple[str, ...] = ("A", "B")
@@ -177,6 +179,9 @@ MCGILL_BIG_3: list[Exercise] = [
     Exercise("Bird Dog", "2", "6 je Seite, 3–5 s halten", note="Core täglich"),
 ]
 
+# Core-Benchmarks uebertroffen -> diese Uebungen vor ihrer Phase (Kraft-Recherche, Recommendations 5)
+CORE_ADVANCED_UNLOCKS: frozenset[str] = frozenset({"Hollow Body Hold", "Anti-rotatorischer Band-Hold (Pallof)"})
+
 REDUCED_NOTE = "Reduziert (Beine platt): Beinübungen entfallen, Volumen ~20 % runter (je Übung 1 Satz weniger)."
 
 
@@ -213,6 +218,21 @@ def mobility_routine(focus: str = FOCUS_NONE, core_daily: bool = False) -> list[
     return routine
 
 
+def _stage_note(exercise: Exercise, stages: ExerciseStages) -> str | None:
+    """Stufe aus dem Kraft-Benchmark fuer eine Uebung; None = keine Aussage."""
+    if exercise.name == "Liegestütz-Progression" and stages.pushup_variant:
+        return f"Deine Stufe: {PUSHUP_VARIANTS[stages.pushup_variant]} · 2 s runter / 1 s hoch"
+    if exercise.name == "Inverted Rows (Tischkanten-Rudern)" and stages.rows_feet_elevated is not None:
+        return "Deine Stufe: Füsse erhöht" if stages.rows_feet_elevated else "Deine Stufe: Füsse am Boden"
+    if exercise.name == "Side Plank" and stages.side_plank_straight is not None:
+        return "Deine Stufe: Beine gestreckt" if stages.side_plank_straight else "Deine Stufe: Knie gebeugt"
+    if exercise.name == "Glute Bridge (Progression → Single-Leg)" and stages.glute_bridge_single_leg is not None:
+        return "Deine Stufe: einbeinig" if stages.glute_bridge_single_leg else "Deine Stufe: beidbeinig"
+    if exercise.name in CORE_ADVANCED_UNLOCKS and stages.core_advanced:
+        return "Freigeschaltet durch deinen Core-Benchmark"
+    return None
+
+
 def strength_phase_for(cycling_phase_id: str) -> StrengthPhase:
     """Kraftphase, die laut sync_rules zur Rad-Phase gehoert.
 
@@ -236,6 +256,7 @@ def build_strength_session(
     note: str | None = None,
     reduced: bool = False,
     focus: str = FOCUS_NONE,
+    stages: ExerciseStages | None = None,
 ) -> StrengthSession:
     """Stellt Einheit A oder B fuer eine Kraftphase zusammen.
 
@@ -250,6 +271,7 @@ def build_strength_session(
             "Beine chronisch platt -> Volumen -20 %").
         focus: Kraft-Fokus (siehe FOCUS_OPTIONS). Core/Oberkoerper/Beine: +1 Satz auf die Gruppe,
             Zusatzuebung, Dauer +FOCUS_EXTRA_MINUTES. Mobility wirkt nur auf mobility_routine.
+        stages: Stufen aus dem Kraft-Benchmark (Hinweis „Deine Stufe“, Core-Freischaltung).
 
     Returns:
         StrengthSession mit den Uebungen der Phase.
@@ -266,9 +288,15 @@ def build_strength_session(
     if strength_focus:
         library = library + _FOCUS_EXTRAS[focus][session_id]
     exercises = []
+    stages = stages or ExerciseStages()
     for exercise in library:
-        if not exercise.min_phase <= phase.number <= exercise.max_phase or (reduced and exercise.leg):
+        unlocked = stages.core_advanced and exercise.name in CORE_ADVANCED_UNLOCKS
+        in_phase = exercise.min_phase <= phase.number <= exercise.max_phase or unlocked
+        if not in_phase or (reduced and exercise.leg):
             continue
+        stage_note = _stage_note(exercise, stages)
+        if stage_note:
+            exercise = replace(exercise, note=stage_note)
         if exercise.scaled:
             exercise = replace(exercise, sets=phase.sets or exercise.sets, reps=phase.reps, rest=phase.rest)
         if strength_focus and exercise.group == focus:

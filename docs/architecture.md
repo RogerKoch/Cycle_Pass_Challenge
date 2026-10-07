@@ -50,13 +50,15 @@ alpenpaesse-app/
 │   │   ├── ftp_tests.py
 │   │   ├── training_days.py         # Trainingskalender, 1 Zeile pro Tag
 │   │   ├── wellbeing.py             # wöchentlicher Kurz-Fragebogen
+│   │   ├── strength_benchmarks.py   # Kraft-Benchmark-Tests
 │   │   └── plan_adjustments.py      # übernommene Anpassungen + Review-Entscheidungen
 │   ├── engine/                      # reine Berechnungslogik, ungekoppelt von Flask
 │   │   ├── cycling_zones.py         # Coggan-Zonen aus FTP
 │   │   ├── nutrition_calc.py        # BMR, kcal-Ziel, Makros
 │   │   ├── training_phase.py        # Phase aus Programmstart + Datum
 │   │   ├── cycling_sessions.py      # Rad-Einheiten je Phase/Slot/Woche, Watt aus FTP
-│   │   ├── strength_sessions.py     # Übungsbibliothek, Einheiten A/B je Kraftphase, Mobility
+│   │   ├── strength_sessions.py     # Übungsbibliothek, Einheiten A/B je Kraftphase, Mobility, Kraft-Fokus
+│   │   ├── strength_benchmarks.py   # Stufen je Übung + Meilensteine aus Kraft-Benchmarks
 │   │   ├── week_plan.py             # Standardwoche, Kopplungsregeln, Ersatztage
 │   │   ├── zwo_export.py            # Rad-Einheit → Zwift-Workout (.zwo)
 │   │   ├── checkin_triggers.py      # Trigger-Regeln des Check-in-Reviews

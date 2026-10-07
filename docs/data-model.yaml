@@ -112,6 +112,18 @@ strength_focus:
   core_focus_daily_mcgill: true   # Kraft-Recherche: Core profitiert von hoher Frequenz
   legs_paused_in: [peak_taper, passsaison, strength_reduced]   # "Beine schonen"
 
+# Todo #5 (2026-10-07): Kraft-Benchmarks statt globalem Level. Quelle: Kraft-Recherche „Fortschrittsmessung“.
+strength_benchmarks:
+  interval_weeks: { default: 4, min: 2, max: 8 }   # Profilfeld, Erinnerung im Check-in-Review
+  tests: [pushup_reps+variant, row_reps, side_plank_s+straight, sl_bridge_s, plank_s]
+  stages:
+    pushups: "ab 15 Wdh. -> naechste Variante (wand, inkline, knie, standard, fuesse_erhoeht, deficit)"   # 15 = Annahme
+    rows: "ab 15 Wdh. -> Fuesse erhoeht"
+    side_plank: "Knie ab 20 s -> gestreckt"
+    glute_bridge: "SL-Halt ab 60 s -> einbeinig"
+    core_advanced: "Plank >= 120 s und Side Plank gestreckt >= 30 s -> Hollow Body/Pallof vor ihrer Phase"
+  milestones: { W8: "Standard-Liegestuetz", W12: ["SL Glute Bridge 60 s", "Side Plank gestreckt 30 s"], W16: "BSS 3x10", W20: "Plank 2 min", W24: "Re-Test" }
+
 # ---------------------------------------------------------------------------
 # ERNÄHRUNGS-ENGINE
 # Quelle: docs/research/ernaehrungsplan.md
