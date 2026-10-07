@@ -1,0 +1,21 @@
+/* Ergaenzt shared/shared.css */
+h1 { font-size: 1.3rem; margin: 20px 0 4px; }
+.today-grid { display: grid; gap: 0 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 900px) { .today-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card-sub { color: var(--muted); font-size: 0.85rem; margin: 2px 0 8px; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.8rem; font-weight: 600; }
+.badge.muted { background: var(--line); color: var(--muted); }
+.badge.warn { background: none; border: 1px solid var(--warn); color: var(--warn); }
+.kcal-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; }
+.kcal-big { font-size: 1.6rem; font-weight: 700; }
+.macro { display: grid; grid-template-columns: 4.5rem 1fr 6.5rem; gap: 8px; align-items: center; font-size: 0.85rem; margin: 6px 0; }
+.macro .num { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meal-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.meal-buttons a { flex: 1 1 6rem; display: flex; align-items: center; justify-content: center; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; background: var(--card); }
+.week-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.week-strip a { text-align: center; padding: 8px 0; border-radius: 10px; background: var(--bg); color: var(--text); text-decoration: none; font-size: 0.85rem; }
+.week-strip a.done { background: var(--accent-soft); color: var(--accent); }
+.week-strip a.skipped { color: var(--muted); text-decoration: line-through; }
+.week-strip a.today { outline: 2px solid var(--accent); font-weight: 600; }
+.week-strip .mark { display: block; font-size: 0.75rem; min-height: 1.1em; }
+.action-link { display: inline-block; margin-top: 8px; }

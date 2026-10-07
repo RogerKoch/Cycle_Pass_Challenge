@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Alpenpässe Dashboard</title>
-  <link rel="stylesheet" href="shared/shared.css">
+  <title>Profil</title>
+  <link rel="stylesheet" href="../shared/shared.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body data-nav="dashboard">
-  <script src="shared/nav.js" defer></script>
+<body data-nav="profil">
+  <script src="../shared/nav.js" defer></script>
   <main>
   <section id="profile">
     <h2>Profil</h2>
@@ -17,9 +17,9 @@
       <label>Alter <input name="age" type="number" min="1" required></label>
       <label>Grösse (cm) <input name="height_cm" type="number" step="0.1" required></label>
       <label>Programmstart <input name="program_start_date" type="date" required></label>
-      <label>Alltag/Beruf <a class="info" href="hilfe/#alltag" aria-label="Erklärung">ⓘ</a>
+      <label>Alltag/Beruf <a class="info" href="../hilfe/#alltag" aria-label="Erklärung">ⓘ</a>
         <select name="activity_level"><option value="buero">Büro</option></select></label>
-      <label>Kraft-Fokus <a class="info" href="hilfe/#kraft-fokus" aria-label="Erklärung">ⓘ</a>
+      <label>Kraft-Fokus <a class="info" href="../hilfe/#kraft-fokus" aria-label="Erklärung">ⓘ</a>
         <select name="strength_focus"><option value="none">Kein Fokus</option></select></label>
       <label>Kraft-Benchmark alle (Wochen) <input name="benchmark_interval_weeks" type="number" min="2" max="8" step="1"></label>
       <button type="submit">Speichern</button>
@@ -28,7 +28,7 @@
   </section>
 
   <section id="checkin">
-    <h2>Check-in <a class="info" href="hilfe/#ffm" aria-label="Erklärung">ⓘ</a></h2>
+    <h2>Check-in <a class="info" href="../hilfe/#ffm" aria-label="Erklärung">ⓘ</a></h2>
     <form id="checkin-form">
       <label>Gewicht (kg) <input name="weight_kg" type="number" step="0.1" required></label>
       <label>Körperfett (%) <input name="bodyfat_pct" type="number" step="0.1" required></label>
@@ -39,7 +39,7 @@
     <table id="checkin-table"></table>
 
     <h3>Fragebogen (wöchentlich)</h3>
-    <p>Problem-Score der letzten Woche: 0 = kein, 1 = leicht, 2 = deutlich, 3 = stark. <a class="info" href="hilfe/#skala" aria-label="Erklärung">ⓘ</a></p>
+    <p>Problem-Score der letzten Woche: 0 = kein, 1 = leicht, 2 = deutlich, 3 = stark. <a class="info" href="../hilfe/#skala" aria-label="Erklärung">ⓘ</a></p>
     <form id="signals-form">
       <label>Schlaf schlecht <select name="sleep"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
       <label>Beine platt <select name="legs"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
@@ -61,7 +61,7 @@
   </section>
 
   <section id="review">
-    <h2>Check-in-Review <a class="info" href="hilfe/#regeln" aria-label="Erklärung">ⓘ</a></h2>
+    <h2>Check-in-Review <a class="info" href="../hilfe/#regeln" aria-label="Erklärung">ⓘ</a></h2>
     <div id="review-summary"></div>
     <div id="review-findings"></div>
     <h3>Anpassungen</h3>
@@ -70,7 +70,7 @@
   </section>
 
   <section id="ftp">
-    <h2>FTP-Test <a class="info" href="hilfe/#ftp" aria-label="Erklärung">ⓘ</a></h2>
+    <h2>FTP-Test <a class="info" href="../hilfe/#ftp" aria-label="Erklärung">ⓘ</a></h2>
     <div id="ftp-view"></div>
     <form id="ftp-form">
       <label>Beste 1-Min-Leistung (W) <input name="best_1min_power_watts" type="number" step="1" required></label>
@@ -81,7 +81,7 @@
   </section>
 
   <section id="benchmark">
-    <h2>Kraft-Benchmark <a class="info" href="hilfe/#kraft-benchmark" aria-label="Erklärung">ⓘ</a></h2>
+    <h2>Kraft-Benchmark <a class="info" href="../hilfe/#kraft-benchmark" aria-label="Erklärung">ⓘ</a></h2>
     <div id="benchmark-view"></div>
     <form id="benchmark-form">
       <label>Liegestütze am Stück <input name="pushup_reps" type="number" min="0" step="1"></label>
@@ -99,7 +99,7 @@
   </section>
 
   <section id="baseline">
-    <h2>Messwerte (Diagnostik) <a class="info" href="hilfe/#grundumsatz" aria-label="Erklärung">ⓘ</a></h2>
+    <h2>Messwerte (Diagnostik) <a class="info" href="../hilfe/#grundumsatz" aria-label="Erklärung">ⓘ</a></h2>
     <p class="hint">Bis zur Messung gelten Schätzwerte aus den Berechnungen.</p>
     <div id="baseline-view"></div>
     <form id="baseline-form">
@@ -125,13 +125,13 @@
 
   <section id="today">
     <h2>Heute</h2>
-    <p>Aus dem Trainingskalender. Tagesplan, Anpassen und Rückmeldung: <a href="training/">Training</a></p>
+    <p>Aus dem Trainingskalender. Tagesplan, Anpassen und Rückmeldung: <a href="../training/">Training</a></p>
     <button id="today-refresh" type="button">Aktualisieren</button>
     <p class="msg" id="today-msg"></p>
     <div id="today-result"></div>
   </section>
 
-    <form class="mobile-only" method="post" action="logout"><button type="submit">Abmelden</button></form>
+    <form class="mobile-only" method="post" action="../logout"><button type="submit">Abmelden</button></form>
   </main>
 
   <script src="app.js"></script>

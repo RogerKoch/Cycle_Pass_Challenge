@@ -517,4 +517,8 @@ function setGramsFromInput() {
 }
 
 bindEvents();
-loadTarget().then(loadDay);
+loadTarget().then(loadDay).then(() => {
+  // Einsprung von der Heute-Seite: ?add=<mahlzeit> oeffnet direkt die Suche
+  const meal = new URLSearchParams(location.search).get("add");
+  if (meal in MEAL_NAMES) openSearch(meal);
+});

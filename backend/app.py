@@ -28,7 +28,8 @@ def add_missing_columns() -> None:
             logger.info("Spalte %s.%s ergaenzt", table, column)
     db.session.commit()
 
-FRONTEND_DIR = REPO_ROOT / "frontend" / "dashboard"
+FRONTEND_DIR = REPO_ROOT / "frontend" / "heute"
+PROFILE_DIR = REPO_ROOT / "frontend" / "profil"
 NUTRITION_DIR = REPO_ROOT / "frontend" / "ernaehrung"
 TRAINING_DIR = REPO_ROOT / "frontend" / "training"
 HELP_DIR = REPO_ROOT / "frontend" / "hilfe"
@@ -60,8 +61,14 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     @app.get("/")
     def index():
-        """Liefert das Dashboard."""
+        """Liefert die Startseite Heute."""
         return send_from_directory(FRONTEND_DIR, "index.html")
+
+    @app.get("/profil/")
+    @app.get("/profil/<path:filename>")
+    def profile_page(filename: str = "index.html"):
+        """Liefert die Profil-Seite (Profil, Check-in, Review, FTP, Benchmark, Messwerte)."""
+        return send_from_directory(PROFILE_DIR, filename)
 
     @app.get("/ernaehrung/")
     @app.get("/ernaehrung/<path:filename>")

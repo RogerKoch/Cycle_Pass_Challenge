@@ -75,7 +75,9 @@ alpenpaesse-app/
 │       └── plan_routes.py
 │
 ├── frontend/
-│   ├── dashboard/                   # Profil, Check-in, FTP, Messwerte
+│   ├── heute/                       # Startseite Heute
+│   ├── profil/                      # Profil, Check-in, FTP, Messwerte (wird in Etappe 3/4 aufgeteilt)
+│   ├── shared/                      # shared.css (Design-System), nav.js (Navigation)
 │   ├── training/                    # mobil: Tagesplan (Rad/Kraft/Mobility/Ernährung) + Woche
 │   ├── ernaehrung/                  # mobil: Ernährungs-Tagebuch
 │   └── passuebersicht/              # Pass-Datenbank durchsuchbar/filterbar
