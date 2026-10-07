@@ -14,3 +14,15 @@ th:first-child, td:first-child { text-align: left; }
 .finding.info { border-color: var(--accent); }
 .finding .source { color: var(--muted); font-size: 0.85rem; }
 .finding button { margin-right: 8px; }
+
+/* Reiter-Umschalter und Charts */
+.seg { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--card); margin: 12px 0; }
+.seg a { flex: 1; text-align: center; padding: 10px 8px; color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+.seg a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.chart { margin: 8px 0; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart .grid { stroke: var(--line); }
+.chart .target { stroke: var(--muted); stroke-dasharray: 4 4; }
+.chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.chart .dot { fill: var(--accent); }
+.chart text { fill: var(--muted); font-size: 11px; }

@@ -37,5 +37,5 @@ def test_root_serves_today_and_profile_page_is_served(client):
 def test_checkins_page_and_script_are_served(client):
     assert client.get("/checkins/").status_code == 200
     assert client.get("/checkins/app.js").status_code == 200
-    for filename in ("ui.js", "test-forms.js", "forms.css"):
+    for filename in ("ui.js", "test-forms.js", "forms.css", "chart.js"):
         assert client.get(f"/shared/{filename}").status_code == 200

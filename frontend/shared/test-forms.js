@@ -1,21 +1,28 @@
 "use strict";
 
-// FTP-Test und Kraft-Benchmark (Erfassung + Anzeige), gebraucht auf Check-ins und Profil (Startwerte).
-// Braucht ui.js. Optionen: { startOnly, onSaved }
+// FTP-Test und Kraft-Benchmark (Erfassen + Anzeige), gebraucht auf Check-ins und Profil (Startwerte).
+// Braucht ui.js; mit history zusaetzlich chart.js. Optionen: { startOnly, history, onSaved }
 //   startOnly: Formular nur zeigen, solange noch kein Test existiert (Startwerte im Profil).
+//   history:   Chart und Verlaufstabelle anzeigen (Check-ins).
 //   onSaved:   wird nach erfolgreichem Speichern aufgerufen (z.B. Review neu laden).
 
 const FTP_HTML = `
   <div data-view></div>
+  <div class="chart" data-chart hidden></div>
   <form data-form>
     <label>Beste 1-Min-Leistung (W) <input name="best_1min_power_watts" type="number" step="1" required></label>
     <label>Manuelle Korrektur (%) <input name="manual_correction_pct" type="number" step="0.5" placeholder="z.B. -3"></label>
     <button type="submit">Erfassen</button>
   </form>
-  <p class="msg" data-msg></p>`;
+  <p class="msg" data-msg></p>
+  <div data-history hidden></div>`;
 
 const BENCHMARK_HTML = `
   <div data-view></div>
+  <div data-chart-box hidden>
+    <label>Übung <select data-metric></select></label>
+    <div class="chart" data-chart></div>
+  </div>
   <form data-form>
     <label>Liegestütze am Stück <input name="pushup_reps" type="number" min="0" step="1"></label>
     <label>Variante <select name="pushup_variant"></select></label>
@@ -28,6 +35,7 @@ const BENCHMARK_HTML = `
     <button type="submit">Erfassen</button>
   </form>
   <p class="msg" data-msg></p>
+  <div data-history hidden></div>
   <div data-milestones></div>`;
 
 const STAGE_TEXT = {
@@ -36,26 +44,47 @@ const STAGE_TEXT = {
   glute_bridge_single_leg: (v) => `Glute Bridge: ${v ? "einbeinig" : "beidbeinig"}`,
 };
 
+const BENCHMARK_METRICS = [
+  ["pushup_reps", "Liegestütze", "Wdh."],
+  ["row_reps", "Inverted Rows", "Wdh."],
+  ["side_plank_s", "Side Plank", "s"],
+  ["sl_bridge_s", "Single-Leg Glute Bridge", "s"],
+  ["plank_s", "Plank", "s"],
+];
+
 function checkinsLink(text) {
   const link = el("a", text);
   link.href = "../checkins/";
   return link;
 }
 
-function mountFtp(box, { startOnly = false, onSaved = async () => {} } = {}) {
+const cell = (value, digits = 0) => (value === null || value === undefined ? "–" : fmt(value, digits));
+
+function mountFtp(box, { startOnly = false, history = false, onSaved = async () => {} } = {}) {
   box.innerHTML = FTP_HTML;
   const view = box.querySelector("[data-view]");
   const form = box.querySelector("[data-form]");
   const msg = box.querySelector("[data-msg]");
+  const chart = box.querySelector("[data-chart]");
+  const table = box.querySelector("[data-history]");
 
   async function load() {
-    const { ok, data } = await api("GET", "/api/checkins/ftp-tests/latest");
-    view.textContent = ok
-      ? `Aktuelle FTP: ${data.ftp_watts} W (Test ${data.test_date})`
-      : "FTP noch nicht getestet (Zwift-Ramp-Test steht aus).";
+    const { ok, data } = await api("GET", "/api/checkins/ftp-tests");
+    const tests = ok ? data : [];
+    const latest = tests[0];
+    view.textContent = latest
+      ? `Aktuelle FTP: ${latest.ftp_watts} W (Test ${latest.test_date})`
+      : "FTP noch nicht getestet (Zwift-Ramp-Test steht aus), Zonen sind bis dahin gesperrt.";
     if (startOnly) {
-      form.hidden = ok;
-      if (ok) view.append(" · weitere Tests unter ", checkinsLink("Check-ins"));
+      form.hidden = Boolean(latest);
+      if (latest) view.append(" · weitere Tests unter ", checkinsLink("Check-ins"));
+    }
+    if (history) {
+      chart.hidden = table.hidden = false;
+      lineChart(chart, [...tests].reverse().map((t) => ({ date: t.test_date, value: t.ftp_watts })),
+        { unit: "W", decimals: 0, label: "FTP" });
+      table.replaceChildren(makeTable(["Datum", "Beste 1 Min W", "Korrektur %", "FTP W"],
+        tests.map((t) => [t.test_date, cell(t.best_1min_power_watts), cell(t.manual_correction_pct, 1), cell(t.ftp_watts)])));
     }
   }
 
@@ -63,21 +92,44 @@ function mountFtp(box, { startOnly = false, onSaved = async () => {} } = {}) {
     event.preventDefault();
     const { ok, data } = await api("POST", "/api/checkins/ftp-tests", formToObject(form));
     msg.textContent = ok ? "" : data.error;
-    if (ok) await Promise.all([load(), onSaved()]);
+    if (ok) {
+      form.reset();
+      await Promise.all([load(), onSaved()]);
+    }
   });
   return load();
 }
 
-function mountBenchmark(box, { startOnly = false, onSaved = async () => {} } = {}) {
+function mountBenchmark(box, { startOnly = false, history = false, onSaved = async () => {} } = {}) {
   box.innerHTML = BENCHMARK_HTML;
   const view = box.querySelector("[data-view]");
   const form = box.querySelector("[data-form]");
   const msg = box.querySelector("[data-msg]");
   const milestones = box.querySelector("[data-milestones]");
+  const chartBox = box.querySelector("[data-chart-box]");
+  const chart = box.querySelector("[data-chart]");
+  const metric = box.querySelector("[data-metric]");
+  const table = box.querySelector("[data-history]");
+  let tests = [];
+
+  metric.replaceChildren(...BENCHMARK_METRICS.map(([key, label]) => {
+    const option = el("option", label);
+    option.value = key;
+    return option;
+  }));
+
+  function renderChart() {
+    const [key, label, unit] = BENCHMARK_METRICS.find(([k]) => k === metric.value);
+    const points = [...tests].reverse().filter((t) => t[key] !== null && t[key] !== undefined)
+      .map((t) => ({ date: t.test_date, value: t[key] }));
+    lineChart(chart, points, { unit, decimals: 0, label });
+  }
+  metric.addEventListener("change", renderChart);
 
   async function load() {
     const { ok, data } = await api("GET", "/api/strength-benchmarks");
     if (!ok) return;
+    tests = data.tests;
     if (!form.elements.pushup_variant.options.length) {
       form.elements.pushup_variant.replaceChildren(...data.pushup_variants.map((v) => {
         const option = el("option", v.label);
@@ -102,6 +154,12 @@ function mountBenchmark(box, { startOnly = false, onSaved = async () => {} } = {
       milestones.hidden = true;
       if (data.current) view.append(" · weitere Tests unter ", checkinsLink("Check-ins"));
       return;
+    }
+    if (history) {
+      chartBox.hidden = table.hidden = false;
+      renderChart();
+      table.replaceChildren(makeTable(["Datum", "Liegestütze", "Rows", "Side Plank s", "SL-Bridge s", "Plank s"],
+        tests.map((t) => [t.test_date, cell(t.pushup_reps), cell(t.row_reps), cell(t.side_plank_s), cell(t.sl_bridge_s), cell(t.plank_s)])));
     }
     const mark = { true: "✓", false: "offen", null: "–" };
     milestones.replaceChildren(makeTable(["Woche", "Meilenstein", "Status"],

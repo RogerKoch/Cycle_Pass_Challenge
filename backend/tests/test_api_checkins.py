@@ -48,3 +48,12 @@ def test_ftp_test_applies_manual_correction(client):
 def test_latest_ftp_test_returns_404_when_none_exist(client):
     response = client.get("/api/checkins/ftp-tests/latest")
     assert response.status_code == 404
+
+
+def test_lists_ftp_tests_newest_first(client):
+    assert client.get("/api/checkins/ftp-tests").get_json() == []
+    client.post("/api/checkins/ftp-tests", json={"best_1min_power_watts": 280, "test_date": "2026-10-01"})
+    client.post("/api/checkins/ftp-tests", json={"best_1min_power_watts": 300, "test_date": "2026-11-01"})
+    body = client.get("/api/checkins/ftp-tests").get_json()
+    assert [t["test_date"] for t in body] == ["2026-11-01", "2026-10-01"]
+    assert body[0]["ftp_watts"] == 225
