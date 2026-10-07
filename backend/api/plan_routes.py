@@ -84,14 +84,14 @@ def get_today_plan():
         week_rows = ensure_week(profile, today)
         row = next(r for r in week_rows if r.day_date == today)
         today_phase, week = phase_week(profile.program_start_date, today)
-        params = training_params(row, resolve_cycling(row, today_phase.phase_id, week, spans), imported_day(today, checkin.weight_kg))
+        params = training_params(row, resolve_cycling(row, today_phase.phase_id, week, spans, events), imported_day(today, checkin.weight_kg))
         measured_cycling_kcal = params.cycling_kcal
         cycling_hours = params.cycling_minutes / 60
         # ohne Rad ist die Intensitaet fuer die kcal irrelevant (0 h)
         cycling_intensity = params.cycling_intensity or CyclingIntensity.LEICHT_REKOM
         strength_sessions = 0 if strength_blocked(event_ctx) else params.strength_sessions
         day_type = derive_day_type(params.cycling_minutes, params.cycling_intensity, strength_sessions)
-        training = serialize_day(row, profile, week_rows, ftp_test.ftp_watts if ftp_test else None, spans=spans)
+        training = serialize_day(row, profile, week_rows, ftp_test.ftp_watts if ftp_test else None, spans=spans, events=events)
 
     if event_ctx is not None and event_ctx.phase == PHASE_EVENT:
         day_type = DayType.LANGER_HARTER_TAG

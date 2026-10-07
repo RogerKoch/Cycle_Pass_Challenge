@@ -126,13 +126,14 @@ def _ea_days(profile: UserProfile, checkin: Checkin, ffm_kg: float, spans: list[
     start = today - timedelta(days=EA_LOOKBACK_DAYS)
     intake_days = IntakeDay.query.filter(IntakeDay.intake_date >= start, IntakeDay.intake_date < today).all()
     rows: dict[date, TrainingDay] = {}
+    events = event_spans()
     result = []
     for intake in intake_days:
         if intake.intake_date not in rows:
             rows.update({r.day_date: r for r in ensure_week(profile, intake.intake_date)})
         row = rows[intake.intake_date]
         phase, week = phase_week(profile.program_start_date, row.day_date)
-        params = training_params(row, resolve_cycling(row, phase.phase_id, week, spans), imported_day(row.day_date, checkin.weight_kg))
+        params = training_params(row, resolve_cycling(row, phase.phase_id, week, spans, events), imported_day(row.day_date, checkin.weight_kg))
         if params.cycling_kcal is not None:
             cycling = params.cycling_kcal
         elif params.cycling_intensity:

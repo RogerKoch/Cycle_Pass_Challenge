@@ -16,7 +16,7 @@ from backend.engine.event_prep import (
     deficit_factor,
     event_context,
     event_hints,
-    recovery_days,
+    recovery_window_days,
     strength_blocked,
     taper_volume_factor,
 )
@@ -155,7 +155,7 @@ def event_prep(event_id: int):
     weight = checkin.weight_kg if checkin else DEFAULT_WEIGHT_KG
     span: EventSpan = event.to_span()
     first = -max(TAPER_DAYS[span.priority], LOAD_DAYS)
-    last = recovery_days(span.expected_minutes)
+    last = recovery_window_days(span.expected_minutes)
     days = []
     for offset in range(first, last + 1):
         day = span.event_date + timedelta(days=offset)

@@ -34,6 +34,8 @@ def _interval_weeks(value: object) -> int:
     """Prueft das Benchmark-Intervall (Wochen)."""
     if isinstance(value, bool):
         raise ValueError("benchmark_interval_weeks muss eine Zahl sein")
+    if isinstance(value, float) and not value.is_integer():  # auch inf/nan
+        raise ValueError("benchmark_interval_weeks muss eine ganze Zahl sein")
     weeks = int(value)
     if not MIN_INTERVAL_WEEKS <= weeks <= MAX_INTERVAL_WEEKS:
         raise ValueError(f"benchmark_interval_weeks muss zwischen {MIN_INTERVAL_WEEKS} und {MAX_INTERVAL_WEEKS} liegen")
