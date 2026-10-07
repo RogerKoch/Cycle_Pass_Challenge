@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 import requests
 
+from backend.integrations.numbers import finite_number as _number
+
 logger = logging.getLogger(__name__)
 
 PRODUCT_URL = "https://world.openfoodfacts.org/api/v2/product/{ean}"
@@ -32,13 +34,6 @@ class OffProduct:
     def complete(self) -> bool:
         """True, wenn alle vier Naehrwerte vorhanden sind."""
         return None not in (self.kcal_100g, self.protein_100g, self.carbs_100g, self.fat_100g)
-
-
-def _number(value: object) -> float | None:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def lookup_product(ean: str) -> OffProduct | None:
@@ -70,11 +65,15 @@ def lookup_product(ean: str) -> OffProduct | None:
         body = response.json()
     except ValueError as exc:
         raise OffUnavailableError("keine gueltige JSON-Antwort") from exc
+    if not isinstance(body, dict):
+        raise OffUnavailableError("unerwartete Antwort")
     if body.get("status") != 1:
         return None
 
-    product = body.get("product") or {}
-    nutriments = product.get("nutriments") or {}
+    product = body.get("product")
+    product = product if isinstance(product, dict) else {}
+    nutriments = product.get("nutriments")
+    nutriments = nutriments if isinstance(nutriments, dict) else {}
     name = product.get("product_name_de") or product.get("product_name") or f"Produkt {ean}"
     brand = (product.get("brands") or "").split(",")[0].strip()
     if brand and brand.casefold() not in name.casefold():

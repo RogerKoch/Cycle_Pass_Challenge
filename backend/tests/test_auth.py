@@ -16,8 +16,8 @@ class AuthTestConfig(TestConfig):
 
 
 @pytest.fixture()
-def auth_app(monkeypatch):
-    monkeypatch.setattr(auth, "FAILED_LOGIN_DELAY_S", 0)
+def auth_app():
+    auth._failed_logins.clear()
     application = create_app(AuthTestConfig)
     application.wsgi_app = ProxyFix(application.wsgi_app, x_prefix=1)
     with application.app_context():
@@ -111,3 +111,17 @@ def test_password_hash_without_secret_key_fails_fast():
 
 def test_help_page_requires_login(auth_client):
     assert auth_client.get("/hilfe/").status_code == 302
+
+
+def test_too_many_failed_logins_are_blocked_even_with_correct_password(auth_client):
+    for _ in range(auth.FAILED_LOGIN_LIMIT):
+        assert login(auth_client, password="falsch").status_code == 401
+    assert login(auth_client, password="falsch").status_code == 429
+    assert login(auth_client).status_code == 429
+
+
+def test_failed_logins_expire_after_the_window(auth_client, monkeypatch):
+    for _ in range(auth.FAILED_LOGIN_LIMIT):
+        login(auth_client, password="falsch")
+    monkeypatch.setattr(auth, "FAILED_LOGIN_WINDOW_S", -1.0)
+    assert login(auth_client).status_code == 302

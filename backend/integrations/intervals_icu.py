@@ -11,11 +11,13 @@ from datetime import date, datetime, timedelta, timezone
 
 import requests
 from flask import current_app
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.engine.cycling_sessions import CyclingSession
 from backend.engine.imported_training import ActivityRecord
 from backend.engine.zwo_export import session_to_zwo
 from backend.extensions import db
+from backend.integrations.numbers import finite_number as _number
 from backend.models.checkins import Checkin
 from backend.models.intervals import IcuActivity, IcuWellness, IntegrationState
 
@@ -70,15 +72,6 @@ class PushResult:
 
     upserted: int = 0
     deleted: int = 0
-
-
-def _number(value: object) -> float | None:
-    if value is None or isinstance(value, bool):
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def parse_activity(data: dict) -> ActivityRecord | None:
@@ -148,18 +141,26 @@ class IcuClient:
             raise IcuError("unerwartete Antwort von intervals.icu")
         return body
 
+    @staticmethod
+    def _parsed(parser, row: dict):
+        """Parst einen Eintrag; ein kaputtes Feld (Datum, Zahl) wird zu IcuError statt zu einem 500."""
+        try:
+            return parser(row)
+        except (ValueError, OverflowError) as exc:
+            raise IcuError("unerwartete Felder in der Antwort von intervals.icu") from exc
+
     def fetch_activities(self, oldest: date, newest: date) -> list[ActivityRecord]:
         """Aktivitaeten im Zeitraum (inklusive)."""
         rows = self._get(
             f"/athlete/{self._athlete}/activities",
             {"oldest": oldest.isoformat(), "newest": newest.isoformat(), "fields": ACTIVITY_FIELDS},
         )
-        return [a for a in (parse_activity(r) for r in rows if isinstance(r, dict)) if a is not None]
+        return [a for a in (self._parsed(parse_activity, r) for r in rows if isinstance(r, dict)) if a is not None]
 
     def fetch_wellness(self, oldest: date, newest: date) -> list[WellnessRecord]:
         """Wellness-Tage im Zeitraum (inklusive)."""
         rows = self._get(f"/athlete/{self._athlete}/wellness", {"oldest": oldest.isoformat(), "newest": newest.isoformat()})
-        return [w for w in (parse_wellness(r) for r in rows if isinstance(r, dict)) if w is not None]
+        return [w for w in (self._parsed(parse_wellness, r) for r in rows if isinstance(r, dict)) if w is not None]
 
     def fetch_workout_events(self, oldest: date, newest: date) -> list[dict]:
         """Geplante Workouts (Kalender-Events) im Zeitraum (inklusive)."""
@@ -213,11 +214,17 @@ def _upsert_activities(records: list[ActivityRecord], oldest: date, newest: date
             result.activities_removed += 1
 
 
-def _auto_checkin(row: IcuWellness, linked_ids: set[int], result: SyncResult) -> None:
-    """Legt aus dem Wiegewert einen Check-in an bzw. aktualisiert den verknuepften."""
+def _auto_checkin(row: IcuWellness, linked_ids: set[int], result: SyncResult, fresh: bool) -> None:
+    """Legt aus dem Wiegewert einen Check-in an bzw. aktualisiert den verknuepften.
+
+    `fresh`: der Wert hat sich seit dem letzten Sync geaendert; nur dann wird ein verknuepfter Check-in
+    ueberschrieben, damit manuelle Korrekturen nicht bei jedem Sync verloren gehen.
+    """
     if row.checkin_id is not None:
         checkin = db.session.get(Checkin, row.checkin_id)
         if checkin is not None:
+            if not fresh:
+                return
             changed = checkin.weight_kg != row.weight_kg or (
                 row.body_fat_pct is not None and checkin.bodyfat_pct != row.body_fat_pct
             )
@@ -259,12 +266,13 @@ def _upsert_wellness(records: list[WellnessRecord], result: SyncResult) -> None:
         if row is None:
             row = IcuWellness(day=record.day)
             db.session.add(row)
+        fresh = (row.weight_kg, row.body_fat_pct) != (record.weight_kg, record.body_fat_pct)
         for name in ("resting_hr", "hrv", "weight_kg", "body_fat_pct", "sleep_secs", "sleep_score"):
             setattr(row, name, getattr(record, name))
         result.wellness_days += 1
         if row.weight_kg:
             db.session.flush()
-            _auto_checkin(row, linked_ids, result)
+            _auto_checkin(row, linked_ids, result, fresh)
 
 
 def sync(client: IcuClient, today: date, days: int = SYNC_WINDOW_DAYS) -> SyncResult:
@@ -286,17 +294,18 @@ def sync(client: IcuClient, today: date, days: int = SYNC_WINDOW_DAYS) -> SyncRe
     try:
         activities = client.fetch_activities(oldest, today)
         wellness = client.fetch_wellness(oldest, today)
-    except IcuError as exc:
+        _upsert_activities(activities, oldest, today, result)
+        _upsert_wellness(wellness, result)
+        _set_state(STATE_LAST_SYNC, datetime.now(timezone.utc).isoformat())
+        _set_state(STATE_LAST_ERROR, None)
+        db.session.commit()
+    except (IcuError, SQLAlchemyError) as exc:
         db.session.rollback()
-        _set_state(STATE_LAST_ERROR, str(exc))
+        error = exc if isinstance(exc, IcuError) else IcuError("Datenbankfehler beim Sync")
+        _set_state(STATE_LAST_ERROR, str(error))
         db.session.commit()
         logger.warning("intervals.icu-Sync fehlgeschlagen: %s", exc)
-        raise
-    _upsert_activities(activities, oldest, today, result)
-    _upsert_wellness(wellness, result)
-    _set_state(STATE_LAST_SYNC, datetime.now(timezone.utc).isoformat())
-    _set_state(STATE_LAST_ERROR, None)
-    db.session.commit()
+        raise error from exc
     logger.info("intervals.icu-Sync: %s", result)
     return result
 

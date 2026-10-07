@@ -1,6 +1,7 @@
 """API-Endpunkte fuer den intervals.icu-Import (Status, Sync)."""
 
 import logging
+import threading
 from dataclasses import asdict
 from datetime import date, datetime, timezone
 
@@ -22,6 +23,9 @@ from backend.models.user_profile import UserProfile
 logger = logging.getLogger(__name__)
 
 intervals_bp = Blueprint("intervals", __name__, url_prefix="/api/intervals")
+
+# verhindert parallele Syncs im selben Prozess (doppelte Zeilen/Check-ins)
+_sync_lock = threading.Lock()
 
 
 @intervals_bp.get("/status")
@@ -47,21 +51,26 @@ def run_sync():
         return jsonify({"synced": False, "error": "intervals.icu nicht konfiguriert (INTERVALS_ICU_API_KEY)"}), 409
     if request.args.get("if_stale") and not is_stale(datetime.now(timezone.utc)):
         return jsonify({"synced": False, "error": None}), 200
+    if not _sync_lock.acquire(blocking=False):
+        return jsonify({"synced": False, "error": None, "busy": True}), 200
     try:
-        result = sync(client, date.today())
-    except IcuError as exc:
-        return jsonify({"synced": False, "error": str(exc)}), 502
-    pushed, push_error = None, None
-    profile = UserProfile.query.first()
-    if profile is not None:
         try:
-            pushed = push_planned_workouts(profile)
+            result = sync(client, date.today())
         except IcuError as exc:
-            push_error = str(exc)
-    return jsonify({
-        "synced": True,
-        "error": None,
-        **asdict(result),
-        "workouts_pushed": pushed.upserted if pushed else 0,
-        "push_error": push_error,
-    }), 200
+            return jsonify({"synced": False, "error": str(exc)}), 502
+        pushed, push_error = None, None
+        profile = UserProfile.query.first()
+        if profile is not None:
+            try:
+                pushed = push_planned_workouts(profile)
+            except IcuError as exc:
+                push_error = str(exc)
+        return jsonify({
+            "synced": True,
+            "error": None,
+            **asdict(result),
+            "workouts_pushed": pushed.upserted if pushed else 0,
+            "push_error": push_error,
+        }), 200
+    finally:
+        _sync_lock.release()

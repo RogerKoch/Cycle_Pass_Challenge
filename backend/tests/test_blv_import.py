@@ -59,3 +59,33 @@ def test_rejects_file_with_missing_column(app, tmp_path):
     workbook.save(path)
     with pytest.raises(ValueError):
         import_blv(path)
+
+
+def test_text_numbers_are_read_and_duplicate_ids_update(app, tmp_path):
+    workbook = openpyxl.Workbook()
+    generic = workbook.active
+    generic.title = "Generische Lebensmittel"
+    brands = workbook.create_sheet("Markenprodukte")
+    for sheet in (generic, brands):
+        sheet.append(["Schweizer Nährwertdatenbank"])
+        sheet.append([])
+        sheet.append(HEADER)
+    generic.append([1, "Quark", None, "Milch", "12,5", "x", 0.2, 3.0, 12.0])
+    brands.append([1, "Quark", None, "Milch", 70, "x", 0.2, 3.0, 12.0])
+    path = tmp_path / "dup.xlsx"
+    workbook.save(path)
+    assert import_blv(path) == (1, 1)
+    assert Food.query.filter_by(source_id="1").one().kcal_100g == 70
+
+
+def test_missing_sheet_raises_value_error(app, tmp_path):
+    workbook = openpyxl.Workbook()
+    generic = workbook.active
+    generic.title = "Generische Lebensmittel"
+    generic.append(["Schweizer Nährwertdatenbank"])
+    generic.append([])
+    generic.append(HEADER)
+    path = tmp_path / "missing.xlsx"
+    workbook.save(path)
+    with pytest.raises(ValueError, match="Markenprodukte"):
+        import_blv(path)

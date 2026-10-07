@@ -246,3 +246,32 @@ def test_push_error_is_stored_and_raised(app):
     assert get_state(intervals_icu.STATE_LAST_PUSH_ERROR) == "intervals.icu antwortet mit HTTP 500"
     push_workouts(FakeClient(), {TODAY: build_cycling_session("lang", "base", 1)})
     assert get_state(intervals_icu.STATE_LAST_PUSH_ERROR) is None
+
+
+def test_malformed_api_fields_become_icu_error(monkeypatch):
+    rows = [{"id": "i1", "start_date_local": "abcdefghij"}]
+    monkeypatch.setattr(intervals_icu.requests, "request", lambda *a, **k: _Response(200, rows))
+    with pytest.raises(IcuError, match="unerwartete Felder"):
+        IcuClient("secret").fetch_activities(date(2026, 10, 1), date(2026, 10, 19))
+
+
+def test_database_error_during_sync_is_rolled_back_and_stored(app, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    def boom(*args, **kwargs):
+        raise IntegrityError("stmt", {}, Exception("unique"))
+
+    monkeypatch.setattr(intervals_icu, "_upsert_activities", boom)
+    with pytest.raises(IcuError, match="Datenbankfehler"):
+        sync(FakeClient(), TODAY)
+    assert intervals_icu.get_state("last_error") == "Datenbankfehler beim Sync"
+
+
+def test_unchanged_weigh_in_keeps_manual_correction_of_linked_checkin(app):
+    _manual_checkin(TODAY - timedelta(days=10))
+    sync(FakeClient(wellness=[WellnessRecord(TODAY, weight_kg=73.2)]), TODAY)
+    checkin = Checkin.query.filter_by(checkin_date=TODAY).one()
+    checkin.weight_kg = 72.0  # manuelle Korrektur
+    db.session.commit()
+    sync(FakeClient(wellness=[WellnessRecord(TODAY, weight_kg=73.2)]), TODAY)
+    assert Checkin.query.filter_by(checkin_date=TODAY).one().weight_kg == 72.0
