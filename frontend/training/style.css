@@ -48,3 +48,34 @@ label.check input { width: auto; min-height: 0; }
 
 .banner { display: block; text-decoration: none; color: var(--text); border-color: var(--warn); }
 .banner.alert { border-color: var(--danger); }
+
+/* Kalender: Layout, Monatsraster, Zustaende (gemacht/abweichend/geplant/nicht erfasst/abgesagt) */
+.cal-layout { display: grid; gap: 0 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 900px) { .cal-layout.has-side { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); } }
+.month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.month-grid .dh { font-size: 0.75rem; color: var(--muted); text-align: center; }
+.cell {
+  display: block; width: 100%; min-height: 58px; padding: 3px 4px; border-radius: 8px; text-align: left;
+  border: 1px dashed transparent; background: var(--bg); color: var(--text); font-size: 0.72rem; line-height: 1.25;
+}
+.cell .num { display: block; font-weight: 600; font-size: 0.8rem; }
+.cell .line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell.out { opacity: 0.45; }
+.cell.done { background: var(--accent-soft); color: var(--accent); }
+.cell.modified { background: color-mix(in srgb, var(--warn) 18%, var(--card)); color: var(--warn); }
+.cell.planned { background: transparent; border-color: var(--muted); }
+.cell.open { background: transparent; border-color: var(--line); color: var(--muted); }
+.cell.skipped { color: var(--muted); text-decoration: line-through; }
+.cell.today { outline: 2px solid var(--accent); outline-offset: -1px; }
+.cell.sel { border: 2px solid var(--text); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; font-size: 0.75rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; border: 1px dashed transparent; }
+.legend .done { background: var(--accent-soft); border-color: var(--accent); }
+.legend .modified { background: color-mix(in srgb, var(--warn) 30%, var(--card)); }
+.legend .planned { border-color: var(--muted); }
+.legend .open { border-color: var(--line); }
+.legend .skipped { background: var(--line); }
+#week-list li.done .kcal { color: var(--accent); }
+#week-list li.modified .kcal { color: var(--warn); }
+#week-list li.open .name { color: var(--muted); }
+#week-list li.current .name { font-weight: 700; }

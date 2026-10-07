@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from backend.extensions import db
 from backend.models.training_days import TrainingDay
@@ -185,3 +186,56 @@ def test_day_applies_strength_focus_from_profile(profile):
     assert monday["strength"]["focus"] == "core"
     assert any(e["name"] == "Plank (Unterarmstütz)" for e in monday["strength"]["exercises"])
     assert any(e["name"] == "McGill Curl-Up" for e in monday["mobility"])  # Core taeglich
+
+
+def _month_days(body):
+    return [d for week in body["weeks"] for d in week["days"]]
+
+
+def test_month_returns_full_weeks_and_writes_nothing(profile, app):
+    month = (NEXT_MONDAY + timedelta(weeks=8)).strftime("%Y-%m")
+    days = _month_days(profile.get(f"/api/calendar/month/{month}").get_json())
+    assert len(days) % 7 == 0
+    assert date.fromisoformat(days[0]["date"]).weekday() == 0
+    assert date.fromisoformat(days[-1]["date"]).weekday() == 6
+    first = date.fromisoformat(f"{month}-01")
+    in_month = {d["date"] for d in days if d["date"].startswith(month)}
+    days_in_month = ((first + timedelta(days=31)).replace(day=1) - first).days
+    assert len(in_month) == days_in_month
+    assert TrainingDay.query.count() == 0
+
+
+def test_month_shows_persisted_status(profile):
+    profile.patch(f"/api/calendar/day/{_day(1)}", json={"status": "skipped"})
+    month = NEXT_MONDAY.strftime("%Y-%m")
+    by_date = {d["date"]: d for d in _month_days(profile.get(f"/api/calendar/month/{month}").get_json())}
+    assert by_date[_day(1)]["status"] == "skipped"
+    assert by_date[_day(2)]["status"] == "planned"
+
+
+def test_month_requires_profile_and_valid_month(client, profile):
+    assert profile.get("/api/calendar/month/2026-13").status_code == 400
+    assert profile.get("/api/calendar/month/abc").status_code == 400
+
+
+def test_month_without_profile_is_404(client):
+    assert client.get("/api/calendar/month/2026-10").status_code == 404
+
+
+def test_week_survives_parallel_creation_of_the_same_days(profile, app, monkeypatch):
+    real_commit = db.session.commit
+    calls = []
+
+    def racing_commit():
+        calls.append(1)
+        if len(calls) == 1:  # ein zweiter Request legt dieselbe Woche zuerst an
+            db.session.rollback()
+            for offset in range(7):
+                db.session.add(TrainingDay(day_date=NEXT_MONDAY + timedelta(days=offset)))
+            real_commit()
+            raise IntegrityError("INSERT", {}, Exception("UNIQUE constraint failed: training_days.day_date"))
+        real_commit()
+
+    monkeypatch.setattr(db.session, "commit", racing_commit)
+    assert profile.get(f"/api/calendar/week/{_day(0)}").status_code == 200
+    assert TrainingDay.query.count() == 7

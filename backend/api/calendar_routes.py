@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 
 from flask import Blueprint, Response, jsonify, request
+from sqlalchemy.exc import IntegrityError
 
 from backend.engine.cycling_sessions import (
     ALL_SLOTS,
@@ -109,8 +110,32 @@ def ensure_week(profile: UserProfile, day: date) -> list[TrainingDay]:
             db.session.add(rows[current])
             created = True
     if created:
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:  # paralleler Request (Tag + Woche) hat dieselben Tage gerade angelegt
+            db.session.rollback()
+            return ensure_week(profile, day)
     return [rows[monday + timedelta(days=offset)] for offset in range(7)]
+
+
+def peek_week(profile: UserProfile, day: date) -> list[TrainingDay]:
+    """Wie ensure_week, schreibt aber nichts: fehlende Tage sind transiente Standardtage (nicht in der Session).
+
+    Fuer reine Anzeigen (Monatsuebersicht), damit Blaettern keine fernen Wochen in der DB festschreibt.
+    """
+    monday = week_start(day)
+    rows = {
+        r.day_date: r
+        for r in TrainingDay.query.filter(TrainingDay.day_date >= monday, TrainingDay.day_date <= monday + timedelta(days=6)).all()
+    }
+    week = []
+    for offset in range(7):
+        current = monday + timedelta(days=offset)
+        if current not in rows:
+            slot, strength = default_day_plan(profile.program_start_date, current)
+            rows[current] = TrainingDay(day_date=current, cycling_slot=slot, strength_session=strength, status=STATUS_PLANNED)
+        week.append(rows[current])
+    return week
 
 
 def _day_plan(row: TrainingDay) -> DayPlan:
@@ -421,6 +446,25 @@ def get_week(day: str):
     except ValueError:
         return jsonify({"error": "ungueltiges Datum, erwartet YYYY-MM-DD"}), 400
     return jsonify(_serialize_week(profile, ensure_week(profile, parsed))), 200
+
+
+@calendar_bp.get("/month/<month>")
+def get_month(month: str):
+    """Monat als volle Wochen (Mo–So), je Tag wie in /week; schreibgeschuetzt (keine Tage werden angelegt)."""
+    profile, error = _profile_or_error()
+    if error:
+        return error
+    try:
+        first = date.fromisoformat(f"{month}-01")
+    except ValueError:
+        return jsonify({"error": "ungueltiger Monat, erwartet YYYY-MM"}), 400
+    last = (first + timedelta(days=31)).replace(day=1) - timedelta(days=1)
+    weeks = []
+    monday = week_start(first)
+    while monday <= last:
+        weeks.append(_serialize_week(profile, peek_week(profile, monday)))
+        monday += timedelta(weeks=1)
+    return jsonify({"month": month, "weeks": weeks}), 200
 
 
 @calendar_bp.get("/day/<day>")

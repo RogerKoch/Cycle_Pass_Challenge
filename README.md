@@ -90,6 +90,7 @@ Ohne FTP-Test zeigt "Heute" statt der Zonen einen Hinweis.
 | POST | `/api/meal-templates/<id>/apply` | `{date, meal?}` → Einträge anlegen |
 | GET | `/api/plan/today` | Ohne Query: aus dem Trainingskalender (inkl. `training`, `meals`, `fueling`, `timing_hints`). Mit Query (alle Pflicht): `cycling_hours`, `cycling_intensity`, `strength_sessions`, `day_type` |
 | GET | `/api/calendar/week/<YYYY-MM-DD>` | Woche Mo–So, fehlende Tage werden aus der Standardwoche erzeugt |
+| GET | `/api/calendar/month/<YYYY-MM>` | Monat als volle Wochen Mo–So; schreibgeschützt (legt keine Tage an) |
 | GET | `/api/calendar/day/<YYYY-MM-DD>` | Tag aufgelöst: Rad (Abschnitte, Watt), Kraft, Mobility, Hinweise, `slot_options`, `reschedule_options` |
 | POST | `/api/calendar/swap` | `{date_a, date_b}` gleiche Woche, ab heute; Regelverstoss → 409 |
 | PUT | `/api/calendar/day/<YYYY-MM-DD>/plan` | `cycling_slot`, `planned_minutes` (nur Ausdauerfahrten), `strength_session`; Regelverstoss → 409 |

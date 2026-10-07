@@ -22,9 +22,23 @@
   <main>
     <p class="msg" id="page-msg"></p>
     <a id="review-banner" class="card banner" href="../checkins/#review" hidden></a>
-    <div id="day"></div>
+    <nav class="seg" id="view-seg" aria-label="Ansicht">
+      <a href="#tag" data-view="tag">Tag</a>
+      <a href="#woche" data-view="woche">Woche</a>
+      <a href="#monat" data-view="monat">Monat</a>
+    </nav>
 
-    <section class="card" id="week">
+    <div class="cal-layout" id="cal-layout">
+    <div class="cal-side">
+    <section class="card" id="month" hidden>
+      <div class="month-grid" id="month-grid"></div>
+      <div class="legend">
+        <span><i class="done"></i>gemacht</span><span><i class="modified"></i>abweichend</span>
+        <span><i class="planned"></i>geplant</span><span><i class="open"></i>nicht erfasst</span><span><i class="skipped"></i>abgesagt</span>
+      </div>
+    </section>
+
+    <section class="card" id="week" hidden>
       <div class="meal-head">
         <h2>Woche</h2>
         <button id="swap-toggle">Tauschen</button>
@@ -34,6 +48,9 @@
       <p class="msg" id="week-msg"></p>
       <button id="week-reset" class="danger">Woche auf Standard zurücksetzen</button>
     </section>
+    </div>
+    <div id="day"></div>
+    </div>
 
     <section class="card" id="events">
       <div class="meal-head">
