@@ -86,6 +86,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     from backend.api.benchmark_routes import benchmarks_bp
     from backend.api.calendar_routes import calendar_bp
     from backend.api.checkin_routes import checkins_bp
+    from backend.api.event_routes import events_bp
     from backend.api.food_log_routes import food_log_bp
     from backend.api.food_routes import foods_bp
     from backend.api.intake_routes import intake_bp
@@ -107,6 +108,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(review_bp)
     app.register_blueprint(intervals_bp)
     app.register_blueprint(benchmarks_bp)
+    app.register_blueprint(events_bp)
 
     from backend.auth import register_auth
     from backend.backup import backup_db_command

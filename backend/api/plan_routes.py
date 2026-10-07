@@ -1,15 +1,23 @@
 """API-Endpunkt fuer das tagesaktuelle Rad-/Ernaehrungs-Ziel."""
 
 import logging
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date
 
 from flask import Blueprint, jsonify, request
 
 from backend.api.baseline_routes import resolve_baseline
-from backend.api.calendar_routes import ensure_week, imported_day, resolve_cycling, serialize_day, training_params
+from backend.api.calendar_routes import (
+    _serialize_event,
+    ensure_week,
+    imported_day,
+    resolve_cycling,
+    serialize_day,
+    training_params,
+)
 from backend.engine.baseline import calculate_energy_availability
 from backend.engine.cycling_zones import compute_cycling_zones
+from backend.engine.event_prep import PHASE_EVENT, event_context, event_nutrition, strength_blocked
 from backend.engine.nutrition_calc import (
     ACTIVITY_LEVELS,
     CyclingIntensity,
@@ -25,6 +33,7 @@ from backend.engine.plan_adjustments import active_kinds, effective_deficit
 from backend.engine.training_phase import get_current_phase
 from backend.engine.week_plan import phase_week
 from backend.models.checkins import Checkin
+from backend.models.events import event_spans
 from backend.models.ftp_tests import FtpTest
 from backend.models.intake import IntakeDay
 from backend.models.plan_adjustments import adjustment_spans
@@ -61,6 +70,8 @@ def get_today_plan():
     training = None
     measured_cycling_kcal = None
     spans = adjustment_spans()
+    events = event_spans()
+    event_ctx = event_context(today, events)
     if request.args:
         try:
             cycling_hours = float(request.args["cycling_hours"])
@@ -78,15 +89,18 @@ def get_today_plan():
         cycling_hours = params.cycling_minutes / 60
         # ohne Rad ist die Intensitaet fuer die kcal irrelevant (0 h)
         cycling_intensity = params.cycling_intensity or CyclingIntensity.LEICHT_REKOM
-        strength_sessions = params.strength_sessions
+        strength_sessions = 0 if strength_blocked(event_ctx) else params.strength_sessions
         day_type = derive_day_type(params.cycling_minutes, params.cycling_intensity, strength_sessions)
         training = serialize_day(row, profile, week_rows, ftp_test.ftp_watts if ftp_test else None, spans=spans)
 
+    if event_ctx is not None and event_ctx.phase == PHASE_EVENT:
+        day_type = DayType.LANGER_HARTER_TAG
     phase = get_current_phase(profile.program_start_date, today)
     zones = compute_cycling_zones(ftp_test.ftp_watts if ftp_test else None)
 
     baseline = resolve_baseline(profile, checkin)
     rmr, ffm = baseline["rmr_kcal"][0], baseline["ffm_kg"][0]
+    event_nut = event_nutrition(event_ctx, checkin.weight_kg) if event_ctx is not None else None
     targets_source = "measured" if "measured" in (rmr.source, ffm.source) else "estimated"
 
     try:
@@ -99,7 +113,7 @@ def get_today_plan():
             cycling_intensity=cycling_intensity,
             strength_sessions=strength_sessions,
             rmr_kcal=rmr.value,
-            deficit_kcal=effective_deficit(today, phase.phase_id, spans),
+            deficit_kcal=effective_deficit(today, phase.phase_id, spans) * (event_nut.deficit_factor if event_nut else 1.0),
             cycling_kcal=measured_cycling_kcal,
             non_exercise_factor=ACTIVITY_LEVELS[profile.activity_level][1],
         )
@@ -107,8 +121,17 @@ def get_today_plan():
         return jsonify({"error": f"ungueltige Trainingsparameter: {exc}"}), 400
 
     macros = calculate_macro_targets(
-        weight_kg=checkin.weight_kg, ffm_kg=ffm.value, day_type=day_type, target_kcal=nutrition.target_kcal
+        weight_kg=checkin.weight_kg,
+        ffm_kg=ffm.value,
+        day_type=day_type,
+        target_kcal=nutrition.target_kcal,
+        carbs_g_per_kg=event_nut.carbs_g_per_kg if event_nut else None,
+        fat_g_per_kg=event_nut.fat_g_per_kg if event_nut else None,
     )
+    if event_nut is not None and event_nut.carbs_g_per_kg is not None:
+        # Carb-Loading: das kcal-Ziel folgt den Makros (sonst passen 9-10 g/kg KH nicht ins Tagesziel)
+        macro_kcal = (macros.protein_g + macros.carbs_g) * 4 + macros.fat_g * 9
+        nutrition = replace(nutrition, target_kcal=max(nutrition.target_kcal, macro_kcal))
 
     fueling = intra_fueling(cycling_hours * 60, cycling_intensity)
     intake_today = IntakeDay.query.filter_by(intake_date=today).first()
@@ -144,7 +167,11 @@ def get_today_plan():
             "day_type": day_type.value,
             "meals": [asdict(m) for m in distribute_meals(nutrition.target_kcal, macros.protein_g)],
             "fueling": asdict(fueling) if fueling else None,
-            "timing_hints": nutrition_timing_hints(cycling_hours > 0, strength_sessions > 0, checkin.weight_kg),
+            "timing_hints": [
+                *(event_nut.hints if event_nut else []),
+                *nutrition_timing_hints(cycling_hours > 0, strength_sessions > 0, checkin.weight_kg),
+            ],
+            "event": _serialize_event(event_ctx),
             "training": training,
             "adjustments": sorted(active_kinds(today, spans)),
             "targets_source": targets_source,

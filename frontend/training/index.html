@@ -34,6 +34,16 @@
       <button id="week-reset" class="danger">Woche auf Standard zurücksetzen</button>
     </section>
 
+    <section class="card" id="events">
+      <div class="meal-head">
+        <h2>🏁 Events</h2>
+        <button id="event-add">Event hinzufügen</button>
+      </div>
+      <p class="hint">Rennen oder Touren eintragen: Die App plant Taper, Carb-Loading, Event-Tag und Recovery automatisch ein. <a class="info" href="../hilfe/#events" aria-label="Erklärung">ⓘ</a></p>
+      <ul id="event-list" class="list"></ul>
+      <p class="msg" id="event-list-msg"></p>
+    </section>
+
     <p class="footer"><a href="../ernaehrung/">Ernährung</a> · <a href="../">Dashboard</a> · <a href="../hilfe/">Erklärungen</a></p>
   </main>
 
@@ -92,6 +102,43 @@
       <button type="submit" class="primary full">Absagen</button>
     </form>
     <p class="msg" id="cancel-msg"></p>
+  </dialog>
+
+  <!-- Event anlegen -->
+  <dialog id="event-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2>Event hinzufügen</h2>
+    </div>
+    <form id="event-form" class="grid">
+      <label class="full">Name<input name="name" maxlength="120" required placeholder="z.B. Gran Fondo"></label>
+      <label>Datum<input name="event_date" type="date" required></label>
+      <label>Dauer (min)<input name="expected_minutes" type="number" min="30" max="900" step="5" inputmode="numeric" required value="180"></label>
+      <label>Priorität
+        <select name="priority">
+          <option value="A">A – Hauptevent (Taper 14 Tage)</option>
+          <option value="B" selected>B – wichtig (Taper 7 Tage)</option>
+          <option value="C">C – Test (Taper 2 Tage)</option>
+        </select>
+      </label>
+      <label>Art
+        <select name="kind">
+          <option value="rennen" selected>Rennen (hart)</option>
+          <option value="tour">Tour/Mehrfachpass (moderat)</option>
+        </select>
+      </label>
+      <button type="submit" class="primary full">Speichern</button>
+    </form>
+    <p class="msg" id="event-msg"></p>
+  </dialog>
+
+  <!-- Event-Countdown -->
+  <dialog id="event-prep-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2 id="event-prep-title">Countdown</h2>
+    </div>
+    <div id="event-prep-body"></div>
   </dialog>
 
   <script src="app.js"></script>

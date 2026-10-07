@@ -12,12 +12,14 @@ const PHASE_NAMES = {
 };
 const STATUS_NAMES = { planned: "geplant", done: "erledigt", modified: "angepasst", skipped: "abgesagt" };
 const STATUS_ICONS = { planned: "", done: "✓", modified: "✎", skipped: "✗" };
+const EVENT_PHASE_NAMES = { taper: "Taper", load: "Carb-Loading", event: "Eventtag", recovery: "Recovery" };
 
 const state = {
   date: localIso(new Date()),
   day: null,
   week: null,
   plan: null, // /api/plan/today, nur fuer heute
+  events: [], // kommende Events
   swapMode: false,
   swapFirst: null, // im Tauschmodus der zuerst angetippte Tag
 };
@@ -101,6 +103,8 @@ async function load() {
   state.week = week.data;
   state.plan = null;
   loadReviewBanner();
+  const events = await api("GET", "/api/events");
+  state.events = events.ok ? events.data : [];
   if (state.date === today()) {
     const plan = await api("GET", "/api/plan/today");
     state.plan = plan.ok ? plan.data : { error: plan.data.error };
@@ -113,6 +117,7 @@ function render() {
   $("date-label").textContent = state.date === today() ? `Heute, ${label}` : label;
   renderDay();
   renderWeek();
+  renderEvents();
 }
 
 async function loadReviewBanner() {
@@ -136,6 +141,7 @@ function renderDay() {
     $("day").replaceChildren(...cards);
     return;
   }
+  if (day.event) cards.push(eventCard(day.event));
   for (const warning of day.warnings) cards.push(el("p", { class: "warning" }, `⚠ ${warning.message}`));
   if (day.note) cards.push(el("p", { class: "hint" }, `Notiz: ${day.note}`));
   if (day.imported.length) cards.push(importedCard(day.imported));
@@ -148,6 +154,15 @@ function renderDay() {
   cards.push(actionsCard(day));
   if (state.plan) cards.push(nutritionCard(state.plan));
   $("day").replaceChildren(...cards);
+}
+
+function eventCard(event) {
+  const phase = EVENT_PHASE_NAMES[event.phase] || event.phase;
+  const upcoming = state.events.find((e) => e.name === event.name && e.event_date === event.event_date);
+  return el("section", { class: "card banner" },
+    el("h2", {}, `🏁 ${event.name} · ${event.label}`),
+    el("p", { class: "card-sub" }, `${phase} · Priorität ${event.priority} · ${fmtDate(event.event_date)} `, infoLink("events")),
+    upcoming ? el("button", { onclick: () => openEventPrep(upcoming) }, "Countdown anzeigen") : null);
 }
 
 function phaseLine(day) {
@@ -415,6 +430,7 @@ function renderWeek() {
   $("swap-hint").hidden = !state.swapMode;
   const items = state.week.days.map((d) => {
     const parts = [];
+    if (d.event) parts.push(`🏁 ${d.event.label}`);
     if (d.cycling) parts.push(`🚴 ${d.cycling.title} · ${fmtMinutes(d.cycling.minutes)}`);
     if (d.strength) parts.push(`💪 Kraft ${d.strength.session_id}`);
     const classes = [
@@ -429,6 +445,80 @@ function renderWeek() {
       el("span", { class: "kcal" }, STATUS_ICONS[d.status]));
   });
   $("week-list").replaceChildren(...items);
+}
+
+// ---------------------------------------------------------------- Events
+
+function renderEvents() {
+  const items = state.events.map((e) => el("li", { onclick: () => openEventPrep(e) },
+    el("span", { class: "day-tag" }, fmtDate(e.event_date, { day: "numeric", month: "short" })),
+    el("span", { class: "name" }, `${e.priority} · ${e.name}`,
+      el("span", { class: "sub" }, `${fmtMinutes(e.expected_minutes)} · ${e.kind === "rennen" ? "Rennen" : "Tour"}`)),
+    el("span", { class: "kcal" }, "›")));
+  $("event-list").replaceChildren(...(items.length ? items : [el("li", {}, el("span", { class: "name" }, "Keine kommenden Events."))]));
+}
+
+function openEventDialog() {
+  const form = $("event-form");
+  form.reset();
+  form.elements.event_date.value = state.date;
+  $("event-msg").textContent = "";
+  openDialog("event-dialog");
+}
+
+async function submitEvent(submitEvt) {
+  submitEvt.preventDefault();
+  const form = new FormData(submitEvt.target);
+  const body = {
+    name: form.get("name"),
+    event_date: form.get("event_date"),
+    expected_minutes: Number(form.get("expected_minutes")),
+    priority: form.get("priority"),
+    kind: form.get("kind"),
+  };
+  const { ok, data } = await api("POST", "/api/events", body);
+  if (!ok) {
+    $("event-msg").textContent = data.error;
+    return;
+  }
+  $("event-dialog").close();
+  await load();
+}
+
+async function openEventPrep(event) {
+  $("event-prep-title").textContent = `${event.name} · ${fmtDate(event.event_date)}`;
+  const { ok, data } = await api("GET", `/api/events/${event.id}/prep`);
+  const body = $("event-prep-body");
+  if (!ok) {
+    body.replaceChildren(el("p", { class: "warning" }, data.error || "Laden fehlgeschlagen"));
+    openDialog("event-prep-dialog");
+    return;
+  }
+  const rows = data.days.map((d) => el("li", {},
+    el("span", { class: "day-tag" }, `${d.label} · ${fmtDate(d.date, { weekday: "short", day: "numeric" })}`),
+    el("span", { class: "name" },
+      [EVENT_PHASE_NAMES[d.phase],
+        d.volume_pct !== null ? `Volumen ${d.volume_pct} %` : null,
+        d.carbs_g ? `KH ${d.carbs_g} g (${d.carbs_g_per_kg} g/kg)` : null,
+        d.deficit_factor < 1 ? (d.deficit_factor === 0 ? "kein Defizit" : "halbes Defizit") : null,
+        d.strength_blocked ? "keine Kraft" : null].filter(Boolean).join(" · "),
+      ...d.hints.map((hint) => el("span", { class: "sub" }, hint)))));
+  body.replaceChildren(
+    el("ul", { class: "list" }, ...rows),
+    el("p", { class: "hint" }, `KH-Mengen für ${data.weight_kg} kg (letzter Check-in).`),
+    el("button", { class: "danger", onclick: () => deleteEvent(event) }, "Event löschen"));
+  openDialog("event-prep-dialog");
+}
+
+async function deleteEvent(event) {
+  if (!confirm(`Event „${event.name}“ löschen? Der Plan fällt auf den Standard zurück.`)) return;
+  const { ok, data } = await api("DELETE", `/api/events/${event.id}`);
+  if (!ok) {
+    $("event-list-msg").textContent = data.error;
+    return;
+  }
+  $("event-prep-dialog").close();
+  await load();
 }
 
 async function onWeekDay(iso) {
@@ -477,6 +567,8 @@ function bindEvents() {
   $("plan-slot").addEventListener("change", updateMinutesField);
   $("plan-form").addEventListener("submit", submitPlan);
   $("modified-form").addEventListener("submit", submitModified);
+  $("event-add").addEventListener("click", openEventDialog);
+  $("event-form").addEventListener("submit", submitEvent);
   $("cancel-form").addEventListener("submit", submitCancel);
   for (const button of document.querySelectorAll("[data-close]")) {
     button.addEventListener("click", () => button.closest("dialog").close());

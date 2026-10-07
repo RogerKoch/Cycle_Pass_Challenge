@@ -24,11 +24,13 @@ from backend.engine.checkin_triggers import (
     weight_trend,
 )
 from backend.engine.cycling_sessions import SLOT_FTP_TEST
+from backend.engine.event_prep import weight_trend_excluded
 from backend.engine.nutrition_calc import calculate_cycling_kcal, calculate_strength_kcal
 from backend.engine.plan_adjustments import AdjustmentSpan, active_kinds, effective_deficit
 from backend.engine.week_plan import STATUS_SKIPPED, phase_week
 from backend.extensions import db
 from backend.models.checkins import Checkin
+from backend.models.events import event_spans
 from backend.models.ftp_tests import FtpTest
 from backend.models.intake import IntakeDay
 from backend.models.intervals import IcuWellness
@@ -165,9 +167,15 @@ def _review_state(profile: UserProfile, today: date) -> tuple[list[Finding], dic
         TrainingDay.day_date < today,
         TrainingDay.status != STATUS_SKIPPED,
     ).all()
+    events = event_spans()
     inputs = TriggerInputs(
         today=today,
-        checkins=[CheckinPoint(c.checkin_date, c.weight_kg) for c in checkins],
+        # Gewichte im Lade-/Eventfenster (Wasser durch Carb-Loading) verfaelschen den Trend nicht
+        checkins=[
+            CheckinPoint(c.checkin_date, c.weight_kg)
+            for c in checkins
+            if not weight_trend_excluded(c.checkin_date, events)
+        ],
         ftp_tests=[FtpPoint(t.id, t.test_date, t.ftp_watts) for t in ftp_tests],
         signals=[
             SignalPoint(s.signal_date, s.sleep, s.legs, s.hunger, s.back, s.effort, s.resting_hr)

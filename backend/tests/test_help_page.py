@@ -75,3 +75,18 @@ def test_every_info_link_points_to_existing_anchor():
     links |= set(re.findall(r"\]\(#([\w-]+)\)", CONTENT))
     assert links, "keine Links gefunden"
     assert links - anchors == set()
+
+
+def test_help_event_numbers_match_engine_constants():
+    from backend.engine import event_prep as ep
+
+    taper = ", ".join(f"{k}: {v}" for k, v in ep.TAPER_DAYS.items())
+    assert f"Taper (A: {ep.TAPER_DAYS['A']} Tage, B: {ep.TAPER_DAYS['B']}, C: {ep.TAPER_DAYS['C']})" in CONTENT, taper
+    for key, (start, end) in ep.TAPER_VOLUME.items():
+        text = f"{key}: {start * 100:.0f} % → {end * 100:.0f} %" if start != end else f"{key}: {start * 100:.0f} %"
+        assert text in CONTENT
+    assert f"| A, ab {ep.LONG_EVENT_MINUTES} min | {_de(ep.CARBS_LONG_A[3])} g/kg | {_de(ep.CARBS_LONG_A[2])} g/kg | {_de(ep.CARBS_LONG_A[1])} g/kg |" in CONTENT
+    assert f"| normal | {_de(ep.CARBS_MEDIUM[2])} g/kg | {_de(ep.CARBS_MEDIUM[1])} g/kg |" in CONTENT
+    assert f"| normal | normal | {_de(ep.CARBS_SHORT[1])} g/kg |" in CONTENT
+    assert f"auf {_de(ep.LOAD_FAT_G_PER_KG)} g pro kg Gewicht" in CONTENT
+    assert f"mindestens {ep.LOADING_MIN_MINUTES} min" in CONTENT
