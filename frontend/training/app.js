@@ -94,7 +94,7 @@ async function load() {
   ]);
   if (!day.ok || !week.ok) {
     $("page-msg").textContent = (day.data.error || week.data.error || "Laden fehlgeschlagen")
-      + " – Profil im Dashboard anlegen.";
+      + " – Profil unter Profil anlegen.";
     return;
   }
   $("page-msg").textContent = "";
@@ -576,7 +576,7 @@ function bindEvents() {
 }
 
 async function syncIntervals() {
-  // Auto-Sync beim Oeffnen (Server synchronisiert hoechstens alle 30 min); Fehler zeigt das Dashboard
+  // Auto-Sync beim Oeffnen (Server synchronisiert hoechstens alle 30 min); Fehler zeigt das Profil
   const status = await api("GET", "/api/intervals/status");
   if (status.ok && status.data.configured) await api("POST", "/api/intervals/sync?if_stale=1");
 }

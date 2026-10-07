@@ -17,7 +17,7 @@ C:\dev\virtualenvs\cycle_pass_challenge\Scripts\pip install -r requirements.txt
 C:\dev\virtualenvs\cycle_pass_challenge\Scripts\python main.py
 ```
 
-Dashboard: http://127.0.0.1:5000 (SQLite-DB `alpenpaesse.db` entsteht beim ersten Start).
+Heute (Startseite): http://127.0.0.1:5000 (SQLite-DB `alpenpaesse.db` entsteht beim ersten Start).
 Ernährungs-Tagebuch (mobil): http://127.0.0.1:5000/ernaehrung/
 Tagesplan Training (mobil): http://127.0.0.1:5000/training/
 
@@ -50,7 +50,7 @@ INTERVALS_ICU_API_KEY = "..."  # optional: intervals.icu → Settings → Develo
 Lokal ohne `instance/config.py` gibt es keinen Login. Um den Login lokal über HTTP zu testen, zusätzlich
 `SESSION_COOKIE_SECURE = False` setzen.
 
-## Dashboard
+## Profil (`/profil/`) und Check-ins (`/checkins/`)
 
 | Abschnitt | Zweck |
 |---|---|

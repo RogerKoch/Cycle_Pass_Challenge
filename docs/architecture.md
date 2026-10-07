@@ -15,9 +15,9 @@ integriert.
 | **Kraft-Engine** | Phasenabhängige Sätze/Reps/Übungsauswahl | gebaut (`strength_sessions.py`) |
 | **Ernährungs-Engine** | kcal/Makros aus Gewicht, Körperfett %, Trainingslast | gebaut |
 | **Trainingskalender** | Standardwoche je Phase, Tauschen/Anpassen/Absagen, Kopplungsregeln | gebaut (`week_plan.py`, `/training/`) |
-| **Check-in-Modul** | Wöchentliche/periodische Erfassung, Trigger-Regeln für Re-Kalibrierung | gebaut (`checkin_triggers.py`, Review im Dashboard) |
+| **Check-in-Modul** | Wöchentliche/periodische Erfassung, Trigger-Regeln für Re-Kalibrierung | gebaut (`checkin_triggers.py`, Review unter `/checkins/`) |
 | **Pass-Datenbank** | 199 Pässe, Cluster, Logistik-Planung | Excel vorhanden |
-| **Frontend/Dashboard** | Anzeige aller abgeleiteten Pläne + Pass-Übersicht | Dashboard, `/training/`, `/ernaehrung/` gebaut; Pass-Übersicht zu bauen |
+| **Frontend/Dashboard** | Anzeige aller abgeleiteten Pläne + Pass-Übersicht | `/` (Heute), `/training/`, `/ernaehrung/`, `/checkins/`, `/profil/` gebaut; Pass-Übersicht zu bauen |
 
 Alle Komponenten teilen sich **eine SQLite-Datenbank**.
 
@@ -76,8 +76,9 @@ alpenpaesse-app/
 │
 ├── frontend/
 │   ├── heute/                       # Startseite Heute
-│   ├── profil/                      # Profil, Check-in, FTP, Messwerte (wird in Etappe 3/4 aufgeteilt)
-│   ├── shared/                      # shared.css (Design-System), nav.js (Navigation)
+│   ├── profil/                      # Profil, intervals.icu, Startwerte (FTP/Benchmark), Messwerte
+│   ├── checkins/                    # Check-in, Fragebogen, Review, FTP-Test, Kraft-Benchmark
+│   ├── shared/                      # shared.css (Design-System), nav.js (Navigation), ui.js/test-forms.js/forms.css (Formular-Seiten)
 │   ├── training/                    # mobil: Tagesplan (Rad/Kraft/Mobility/Ernährung) + Woche
 │   ├── ernaehrung/                  # mobil: Ernährungs-Tagebuch
 │   └── passuebersicht/              # Pass-Datenbank durchsuchbar/filterbar
@@ -148,7 +149,7 @@ Key (`INTERVALS_ICU_API_KEY` in `instance/config.py`, HTTP Basic mit Username `A
 
 | Baustein | Umsetzung |
 |---|---|
-| Sync | `POST /api/intervals/sync` holt die letzten 14 Tage (Aktivitäten + Wellness), Upsert; im Fenster gelöschte Aktivitäten werden entfernt. Auto-Sync beim Öffnen von `/training/` und Dashboard (`?if_stale=1`, höchstens alle 30 min) plus Button. Ohne Key ist alles aus |
+| Sync | `POST /api/intervals/sync` holt die letzten 14 Tage (Aktivitäten + Wellness), Upsert; im Fenster gelöschte Aktivitäten werden entfernt. Auto-Sync beim Öffnen von `/training/`, `/profil/` und `/checkins/` (`?if_stale=1`, höchstens alle 30 min) plus Button. Ohne Key ist alles aus |
 | Speicher | neue Tabellen `icu_activities`, `icu_wellness`, `integration_state` (keine Spalten an bestehende Tabellen) |
 | Trainings-Ist | `imported_training.summarize_day`: Rad = Typen auf `…Ride`, Kraft = `WeightTraining`. Rad-kcal pro Fahrt = kJ (1 kcal/kJ, Ernährungsplan-Caveat „~3,6 kcal/Wh“); ohne Leistungsmesser MET-Tabelle (moderat, aufs Gewicht skaliert). Garmins Kalorienwert wird nicht verwendet (ohne Leistung teils unplausibel tief, z. B. 351 kcal für 3 h). Intensität aus dem Intensity Factor (Coggan-Bänder). Import vor manueller Rückmeldung; heute ersetzt der Import nur bereits importierte Teile |
 | Auto-Check-ins | Jeder Wiegetag wird zum Check-in (Quelle „Garmin“), manueller Check-in desselben Tags hat Vorrang. Fehlender KFA → letzter Wert; Muskelmasse → letzter Wert (liefert intervals.icu nicht, fliesst in keine Berechnung ein). Braucht einen ersten manuellen Check-in |

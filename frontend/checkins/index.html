@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2e7d32">
+  <title>Check-ins</title>
+  <link rel="stylesheet" href="../shared/shared.css">
+  <link rel="stylesheet" href="../shared/forms.css">
+</head>
+<body data-nav="checkins">
+  <script src="../shared/nav.js" defer></script>
+  <main>
+    <section id="checkin">
+      <h2>Check-in <a class="info" href="../hilfe/#ffm" aria-label="Erklärung">ⓘ</a></h2>
+      <form id="checkin-form">
+        <label>Gewicht (kg) <input name="weight_kg" type="number" step="0.1" required></label>
+        <label>Körperfett (%) <input name="bodyfat_pct" type="number" step="0.1" required></label>
+        <label>Muskelmasse (kg) <input name="muscle_kg" type="number" step="0.1" required></label>
+        <button type="submit">Erfassen</button>
+      </form>
+      <p class="msg" id="checkin-msg"></p>
+      <table id="checkin-table"></table>
+
+      <h3>Fragebogen (wöchentlich)</h3>
+      <p>Problem-Score der letzten Woche: 0 = kein, 1 = leicht, 2 = deutlich, 3 = stark. <a class="info" href="../hilfe/#skala" aria-label="Erklärung">ⓘ</a></p>
+      <form id="signals-form">
+        <label>Schlaf schlecht <select name="sleep"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+        <label>Beine platt <select name="legs"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+        <label>Dauerhunger <select name="hunger"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+        <label>Rücken nach langen Fahrten <select name="back"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+        <label>Anstrengung höher bei gleicher Leistung <select name="effort"><option value="0">0 kein</option><option value="1">1 leicht</option><option value="2">2 deutlich</option><option value="3">3 stark</option></select></label>
+        <label>Ruhe-HF (optional) <input name="resting_hr" type="number" min="30" max="120" step="1"></label>
+        <button type="submit">Erfassen</button>
+      </form>
+      <p class="msg" id="signals-msg"></p>
+      <p id="signals-view"></p>
+    </section>
+
+    <section id="review">
+      <h2>Check-in-Review <a class="info" href="../hilfe/#regeln" aria-label="Erklärung">ⓘ</a></h2>
+      <div id="review-summary"></div>
+      <div id="review-findings"></div>
+      <h3>Anpassungen</h3>
+      <div id="review-adjustments"></div>
+      <p class="msg" id="review-msg"></p>
+    </section>
+
+    <section id="ftp">
+      <h2>FTP-Test <a class="info" href="../hilfe/#ftp" aria-label="Erklärung">ⓘ</a></h2>
+      <div id="ftp-box"></div>
+    </section>
+
+    <section id="benchmark">
+      <h2>Kraft-Benchmark <a class="info" href="../hilfe/#kraft-benchmark" aria-label="Erklärung">ⓘ</a></h2>
+      <div id="benchmark-box"></div>
+    </section>
+  </main>
+
+  <script src="../shared/ui.js"></script>
+  <script src="../shared/test-forms.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
