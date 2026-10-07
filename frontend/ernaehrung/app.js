@@ -161,7 +161,9 @@ async function loadTarget() {
     $("summary-msg").textContent = `Soll nicht verfügbar: ${data.error}`;
     return;
   }
-  $("summary-msg").textContent = "";
+  $("summary-msg").textContent = data.event
+    ? `🏁 ${data.event.name} · ${data.event.label}: ${data.timing_hints[0] || ""}`
+    : "";
   state.target = { kcal: data.nutrition.target_kcal, ...data.macros };
 }
 

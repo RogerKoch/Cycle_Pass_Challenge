@@ -219,7 +219,14 @@ def calculate_daily_kcal_target(
     )
 
 
-def calculate_macro_targets(weight_kg: float, ffm_kg: float, day_type: DayType, target_kcal: float) -> MacroTargets:
+def calculate_macro_targets(
+    weight_kg: float,
+    ffm_kg: float,
+    day_type: DayType,
+    target_kcal: float,
+    carbs_g_per_kg: float | None = None,
+    fat_g_per_kg: float | None = None,
+) -> MacroTargets:
     """Berechnet Protein-, Fett- und Kohlenhydrat-Ziele in Gramm.
 
     Args:
@@ -227,14 +234,16 @@ def calculate_macro_targets(weight_kg: float, ffm_kg: float, day_type: DayType, 
         ffm_kg: fettfreie Masse (aus dem letzten Check-in).
         day_type: Tagestyp fuer die Kohlenhydrat-Periodisierung.
         target_kcal: taegliches kcal-Ziel (nur informativ, aktuell ungenutzt in der Berechnung).
+        carbs_g_per_kg: Event-Override (Carb-Loading) statt Tagestyp-Wert.
+        fat_g_per_kg: Event-Override fuer Fett (Vorabend-Mahlzeiten fettarm).
 
     Returns:
         MacroTargets mit Protein (FFM-basiert), Fett (gewichtsbasiert) und
         Kohlenhydraten (tagestyp-periodisiert) in Gramm.
     """
     protein_g = ffm_kg * PROTEIN_G_PER_KG_FFM
-    fat_g = weight_kg * FAT_G_PER_KG_BODYWEIGHT
-    carbs_g = weight_kg * _CARBS_G_PER_KG_BY_DAYTYPE[day_type]
+    fat_g = weight_kg * (FAT_G_PER_KG_BODYWEIGHT if fat_g_per_kg is None else fat_g_per_kg)
+    carbs_g = weight_kg * (_CARBS_G_PER_KG_BY_DAYTYPE[day_type] if carbs_g_per_kg is None else carbs_g_per_kg)
     return MacroTargets(protein_g=protein_g, fat_g=fat_g, carbs_g=carbs_g)
 
 

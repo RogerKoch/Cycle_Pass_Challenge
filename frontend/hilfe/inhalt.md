@@ -164,8 +164,8 @@ Trainings aus Garmin (über intervals.icu) zählen als Ist-Werte: sie ersetzen d
 <a id="taper"></a>
 
 ### Taper
-- **Was:** die letzten Wochen vor der Passsaison: Umfang −40 bis −60 %, Intensität bleibt.
-- **Wozu:** frisch und in Topform in die Saison starten.
+- **Was:** die letzten Wochen vor der Passsaison oder vor einem [Event](#events): Umfang −40 bis −60 %, Intensität bleibt.
+- **Wozu:** frisch und in Topform in die Saison bzw. ins Event starten.
 
 <a id="zielgewicht"></a>
 
@@ -370,6 +370,34 @@ Protein richtet sich nach der FFM, damit es beim Abnehmen nicht mitsinkt.
 
 Nach der Ausfahrt: 1,0–1,2 g KH pro kg in den ersten Stunden.
 
+<a id="events"></a>
+
+### Events (Rennen & Touren)
+
+Trägst du im Training unter **Events** ein Rennen oder eine Tour ein (Datum, erwartete Dauer, Priorität A/B/C),
+plant die App Training und Ernährung drumherum automatisch um. Nichts davon wird gespeichert – löschst du das
+Event, gilt wieder der Standardplan.
+
+| Tag | Training | Ernährung |
+|---|---|---|
+| Taper (A: 14 Tage, B: 7, C: 2) | Volumen sinkt (A: 80 % → 50 %, B: 70 % → 55 %, C: 80 %), Intensität bleibt | Defizit: A halb ab T-14, A/B aus ab T-7 |
+| T-3 bis T-1 | T-1: Opener (3 kurze Antritte); keine Kraft ab T-1 (A/B ab T-2) | Carb-Loading, Defizit aus |
+| Eventtag | Event mit erwarteter Dauer, kein Zwift-Workout | Frühstück 3–4 h vorher, unterwegs 30–90 g KH/h, danach 1,0–1,2 g/kg/h |
+| Recovery | 1 Tag (unter 2 h), 2 Tage (2–4 h), 3 Tage (länger): nur locker, keine Beinkraft in den ersten 48 h | Defizit bleibt aus, Protein 2,0–2,2 g/kg |
+
+**Carb-Loading** (nur bei mindestens 90 min Dauer und Priorität A/B):
+
+| Event | T-3 | T-2 | T-1 |
+|---|---|---|---|
+| A, ab 150 min | 7 g/kg | 9 g/kg | 10 g/kg |
+| A/B, 90–149 min (und B ab 150 min) | normal | 7 g/kg | 8,5 g/kg |
+| unter 90 min oder Priorität C | normal | normal | 7 g/kg |
+
+- **Fett** sinkt an T-2/T-1 auf 0,8 g pro kg Gewicht, Ballaststoffe runter, damit der Magen am Start leer und die Speicher voll sind.
+- **Kalorien** steigen an Ladetagen automatisch: das Tagesziel folgt den Kohlenhydraten.
+- **Gewicht:** 1–2 kg mehr auf der Waage sind Wasser (rund 2,7 g Wasser pro g Kohlenhydrate), kein Fett. Check-ins von T-3 bis R+3 zählen deshalb nicht für den Gewichtstrend.
+- **Beispiel:** 70 kg, Priorität A, 4 h: T-1 = 10 g/kg ≈ 700 g KH.
+
 <a id="regeln"></a>
 
 ## 6 · Check-in-Regeln
@@ -405,5 +433,6 @@ Zusätzlich erinnert die App an fällige Check-ins (Waage + Fragebogen, wöchent
 | Gewichtsverlust | Garthe et al. (2011): max. 0,7 %/Woche bei Athleten |
 | Energy Availability | RED-S-Konsens (IOC) |
 | Rumpf | McGill Big 3 |
+| Events (Taper, Carb-Loading, Fueling, Recovery) | Burke et al. (2011); ACSM/AND/DC (2016); Bosquet et al. (2007); Mujika & Padilla (2003) – Details in `docs/research/event-vorbereitung.md` |
 
 Die vollständigen Recherchen mit allen Quellen liegen im Projekt unter `docs/research/`.

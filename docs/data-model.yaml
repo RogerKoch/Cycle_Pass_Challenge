@@ -265,3 +265,20 @@ checkin_triggers:
   back_pain: { condition: "unterer Rücken schmerzt nach langen Fahrten", action: "Core-Frequenz erhöhen" }
   constant_hunger: { condition: "Dauerhunger", action: "Defizit reduzieren" }
   ftp_retests: { when: "alle 6–8 Wochen: Ende Base, Mitte Build, Ende Build 2, vor Peak", calendar: "Phase0 W1, Base W8, Build1 W6, Build2 W5 (Samstag)" }
+
+# ---------------------------------------------------------------------------
+# EVENT-VORBEREITUNG (Rennen/Touren zu beliebiger Zeit)
+# ---------------------------------------------------------------------------
+# Volltext und Quellen: docs/research/event-vorbereitung.md ([A] = App-Ableitung); Umsetzung backend/engine/event_prep.py.
+events:
+  priorities: { A: "Hauptevent", B: "wichtig", C: "Test" }
+  kinds: [rennen, tour]
+  taper_days: { A: 14, B: 7, C: 2 }
+  taper_volume_factor: { A: [0.8, 0.5], B: [0.7, 0.55], C: [0.8, 0.8] }   # erster Tag -> T-2, linear
+  load_days: 3
+  loading_min_minutes: 90
+  carbs_g_per_kg: { long_a_150min: { T-3: 7, T-2: 9, T-1: 10 }, medium: { T-2: 7, T-1: 8.5 }, short_or_c: { T-1: 7 } }
+  load_fat_g_per_kg: 0.8
+  deficit: { a_half_from_days: 14, ab_zero_from_days: 7, zero_in: [load, event, recovery] }
+  recovery_days: { under_120min: 1, up_to_240min: 2, longer: 3 }
+  weight_trend_excluded_window: "T-3 .. R+3"

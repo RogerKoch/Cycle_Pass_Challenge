@@ -213,3 +213,10 @@ def test_no_fueling_without_ride():
 def test_timing_hints_empty_on_rest_day_and_include_protein_after_strength():
     assert nutrition_timing_hints(False, False, 74) == []
     assert any("Protein" in h for h in nutrition_timing_hints(False, True, 74))
+
+
+def test_macro_targets_accept_event_overrides_for_carbs_and_fat():
+    macros = calculate_macro_targets(70, 55, DayType.RUHETAG, 2500, carbs_g_per_kg=10.0, fat_g_per_kg=0.8)
+    assert macros.carbs_g == 700
+    assert macros.fat_g == pytest.approx(56)
+    assert macros.protein_g == calculate_macro_targets(70, 55, DayType.RUHETAG, 2500).protein_g

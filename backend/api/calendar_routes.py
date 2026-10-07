@@ -16,6 +16,14 @@ from backend.engine.cycling_sessions import (
     is_deload_week,
     session_watts,
 )
+from backend.engine.event_prep import (
+    SLOT_EVENT,
+    EventContext,
+    EventSpan,
+    apply_event_to_session,
+    event_context,
+    strength_blocked,
+)
 from backend.engine.imported_training import ActivityRecord, ImportedDay, summarize_day
 from backend.engine.nutrition_calc import CyclingIntensity
 from backend.engine.plan_adjustments import (
@@ -47,6 +55,7 @@ from backend.engine.week_plan import (
 from backend.engine.zwo_export import session_to_zwo
 from backend.extensions import db
 from backend.integrations.intervals_icu import IcuError, PushResult, configured_client, push_workouts
+from backend.models.events import event_spans
 from backend.models.ftp_tests import FtpTest
 from backend.models.intervals import imported_records
 from backend.models.plan_adjustments import adjustment_spans
@@ -109,28 +118,35 @@ def _day_plan(row: TrainingDay) -> DayPlan:
 
 
 def resolve_cycling(
-    row: TrainingDay, phase_id: str, week: int, spans: list[AdjustmentSpan] | None = None
+    row: TrainingDay,
+    phase_id: str,
+    week: int,
+    spans: list[AdjustmentSpan] | None = None,
+    events: list[EventSpan] | None = None,
 ) -> CyclingSession | None:
-    """Rad-Einheit eines Kalendertags inklusive erzwungener Erholungswoche und Dauer-Override.
+    """Rad-Einheit eines Kalendertags inklusive Erholungswoche, Dauer-Override und Event-Vorbereitung.
 
     Args:
         row: Kalendertag.
         phase_id: Phase des Tages.
         week: Woche in der Phase.
         spans: bestaetigte Anpassungen; None = aus der DB laden.
+        events: Events; None = aus der DB laden.
 
     Returns:
         Die Einheit oder None ohne Rad.
     """
-    if row.cycling_slot is None:
-        return None
-    spans = adjustment_spans() if spans is None else spans
-    session = build_cycling_session(row.cycling_slot, phase_id, week)
-    if session is not None and is_forced_deload(row.day_date, spans) and not is_deload_week(phase_id, week):
-        session = apply_deload(session)
-    if session is not None and row.planned_minutes is not None:
-        session = adjust_duration(session, row.planned_minutes)
-    return session
+    events = event_spans() if events is None else events
+    ctx = event_context(row.day_date, events)
+    session = None
+    if row.cycling_slot is not None:
+        spans = adjustment_spans() if spans is None else spans
+        session = build_cycling_session(row.cycling_slot, phase_id, week)
+        if session is not None and is_forced_deload(row.day_date, spans) and not is_deload_week(phase_id, week):
+            session = apply_deload(session)
+        if session is not None and row.planned_minutes is not None:
+            session = adjust_duration(session, row.planned_minutes)
+    return apply_event_to_session(session, ctx)
 
 
 def imported_day(day: date, weight_kg: float | None = None) -> ImportedDay | None:
@@ -212,6 +228,19 @@ def _serialize_cycling(session: CyclingSession, ftp_watts: int | None) -> dict:
     }
 
 
+def _serialize_event(ctx: EventContext | None) -> dict | None:
+    if ctx is None:
+        return None
+    return {
+        "name": ctx.span.name,
+        "priority": ctx.span.priority,
+        "event_date": ctx.span.event_date.isoformat(),
+        "label": ctx.label,
+        "phase": ctx.phase,
+        "days_to": ctx.days_to,
+    }
+
+
 def _serialize_imported(activity: ActivityRecord) -> dict:
     return {
         "name": activity.name,
@@ -250,6 +279,7 @@ def serialize_day(
     full: bool = True,
     spans: list[AdjustmentSpan] | None = None,
     stages: ExerciseStages | None = None,
+    events: list[EventSpan] | None = None,
 ) -> dict:
     """Kalendertag als JSON; `full` ergaenzt Mobility, Slot-Auswahl und Ersatztage."""
     spans = adjustment_spans() if spans is None else spans
@@ -257,12 +287,14 @@ def serialize_day(
     kinds = active_kinds(row.day_date, spans)
     phase, week = phase_week(profile.program_start_date, row.day_date)
     started = row.day_date >= profile.program_start_date
-    session = resolve_cycling(row, phase.phase_id, week, spans)
+    events = event_spans() if events is None else events
+    event_ctx = event_context(row.day_date, events)
+    session = resolve_cycling(row, phase.phase_id, week, spans, events)
     strength = (
         resolve_strength(
             row.strength_session, phase.phase_id, week, KIND_STRENGTH_REDUCED in kinds, profile.strength_focus, stages
         )
-        if row.strength_session
+        if row.strength_session and not strength_blocked(event_ctx)
         else None
     )
     week_plans = [_day_plan(r) for r in week_rows]
@@ -275,6 +307,7 @@ def serialize_day(
         "started": started,
         "phase": {"phase_id": phase.phase_id, "week_in_phase": week, "deload": deload},
         "adjustments": sorted(kinds),
+        "event": _serialize_event(event_ctx),
         "cycling": _serialize_cycling(session, ftp_watts) if session else None,
         "strength": asdict(strength) if strength else None,
         "actual": {
@@ -301,9 +334,13 @@ def serialize_day(
 
 def _serialize_week(profile: UserProfile, rows: list[TrainingDay]) -> dict:
     ftp_watts, spans, stages = _latest_ftp(), adjustment_spans(), exercise_stages(current_benchmark())
+    events = event_spans()
     return {
         "week_start": rows[0].day_date.isoformat(),
-        "days": [serialize_day(r, profile, rows, ftp_watts, full=False, spans=spans, stages=stages) for r in rows],
+        "days": [
+            serialize_day(r, profile, rows, ftp_watts, full=False, spans=spans, stages=stages, events=events)
+            for r in rows
+        ],
     }
 
 
@@ -319,7 +356,7 @@ def planned_sessions(profile: UserProfile, today: date, days: int = PUSH_WINDOW_
     Abgesagte Tage und Tage ohne Rad liefern None (Workout wird entfernt); erledigte Tage und Tage
     vor Programmstart fehlen (werden nicht angefasst).
     """
-    spans = adjustment_spans()
+    spans, events = adjustment_spans(), event_spans()
     rows = {r.day_date: r for d in (today, today + timedelta(days=days - 1)) for r in ensure_week(profile, d)}
     result: dict[date, CyclingSession | None] = {}
     for offset in range(days):
@@ -331,7 +368,9 @@ def planned_sessions(profile: UserProfile, today: date, days: int = PUSH_WINDOW_
             result[current] = None
             continue
         phase, week = phase_week(profile.program_start_date, current)
-        result[current] = resolve_cycling(row, phase.phase_id, week, spans)
+        session = resolve_cycling(row, phase.phase_id, week, spans, events)
+        # der Eventtag hat kein Zwift-Workout (Dauer/Intensitaet nur fuer kcal und Fueling)
+        result[current] = None if session is not None and session.slot == SLOT_EVENT else session
     return result
 
 
@@ -410,7 +449,7 @@ def get_day_zwo(day: str):
     row = next(r for r in ensure_week(profile, parsed) if r.day_date == parsed)
     phase, week = phase_week(profile.program_start_date, parsed)
     session = resolve_cycling(row, phase.phase_id, week)
-    if session is None:
+    if session is None or session.slot == SLOT_EVENT:
         return jsonify({"error": "an diesem Tag ist keine Radeinheit geplant"}), 404
     return Response(
         session_to_zwo(session),
