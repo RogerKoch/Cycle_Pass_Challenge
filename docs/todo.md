@@ -13,7 +13,7 @@ Stand: 2026-10-05
 | 5  | ✅ Kraft-Level pro User | Umgesetzt 2026-10-07 als Kraft-Benchmarks (Woche-0-Tests der Recherche) → Stufe je Übung, Core-Freischaltung, Meilensteine; Intervall im Profil 2–8 Wochen (Standard 4), Erinnerung im Review. |
 | 6  | Mehrere User | Entschieden: eigene Instanz pro User (eigene DB/Passwort/Pfad, gleicher Code). Server-Setup pro neuem User. |
 | 7  | ✅ Barcode-Scanner iPhone | Scan soll automatisch erkennen (kein Auslöser). Auf iPhone kein Ergebnis – Symptome klären, dann debuggen (`frontend/ernaehrung/app.js`, ZXing). |
-| 8  | Kapitel UI/Navigation | Gesamt-Navigation, Gruppierung der Seiten. Eigenes Kapitel. |
+| 8  | Kapitel UI/Navigation | Gesamt-Überarbeitung des UI, Mix aus Sidebar (Desktop)/Tab-Leiste (Handy) und grünem Karten-Look. Bereiche: Heute, Profil, Training (Kalender Tag/Woche/Monat, geplant vs. gemacht), Check-ins (Wöchentlich/FTP/Kraft-Benchmark mit Chart+Tabelle), Ernährung (Kalender, Mahlzeiten vorplanen, Soll/Ist). Etappen: **1 Shell (Design-System `frontend/shared/`, Navigation) ✔ in Arbeit**, 2 Heute, 3 Profil, 4 Check-ins, 5 Training-Kalender, 6 Ernährung-Kalender + Mahlzeitenplanung. |
 | 9  | Kapitel Pässe-Planung | **Nicht vor 1.12.2026**, ausser explizit angefragt. Benötigt die Pass-Excel-Dateien. |
 | 10 | FTP eintragen | Ramp-Test Anfang Oktober → FTP erfassen, damit Zonen/Watt freigeschaltet werden. |
 | 11 | Waage/Wellness-Sync | intervals.icu-Wellness inaktiv → keine automatischen Check-ins. Aktivieren oder manuell erfassen. |

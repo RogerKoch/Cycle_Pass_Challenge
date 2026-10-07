@@ -8,9 +8,10 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../shared/shared.css">
 </head>
-<body>
+<body data-nav="ernaehrung">
+  <script src="../shared/nav.js" defer></script>
   <header class="topbar">
     <button id="prev-day" class="icon-btn" aria-label="Vorheriger Tag">‹</button>
     <button id="date-label" class="date-label" aria-label="Zu heute springen"></button>
@@ -24,7 +25,7 @@
     </section>
 
     <div id="meals"></div>
-    <p class="footer"><a href="../training/">Training</a> · <a href="../">Dashboard</a> · <a href="../hilfe/">Erklärungen</a> · Nährwerte: Schweizer Nährwertdatenbank (BLV), Open Food Facts</p>
+    <p class="footer">Nährwerte: Schweizer Nährwertdatenbank (BLV), Open Food Facts</p>
   </main>
 
   <!-- Suche -->

@@ -8,10 +8,11 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="../ernaehrung/style.css">
+  <link rel="stylesheet" href="../shared/shared.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-nav="training">
+  <script src="../shared/nav.js" defer></script>
   <header class="topbar">
     <button id="prev-day" class="icon-btn" aria-label="Vorheriger Tag">‹</button>
     <button id="date-label" class="date-label" aria-label="Zu heute springen"></button>
@@ -44,7 +45,6 @@
       <p class="msg" id="event-list-msg"></p>
     </section>
 
-    <p class="footer"><a href="../ernaehrung/">Ernährung</a> · <a href="../">Dashboard</a> · <a href="../hilfe/">Erklärungen</a></p>
   </main>
 
   <!-- Einheit anpassen -->

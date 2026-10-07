@@ -32,6 +32,7 @@ FRONTEND_DIR = REPO_ROOT / "frontend" / "dashboard"
 NUTRITION_DIR = REPO_ROOT / "frontend" / "ernaehrung"
 TRAINING_DIR = REPO_ROOT / "frontend" / "training"
 HELP_DIR = REPO_ROOT / "frontend" / "hilfe"
+SHARED_DIR = REPO_ROOT / "frontend" / "shared"
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -79,6 +80,11 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     def help_page(filename: str = "index.html"):
         """Liefert die Erklaer-Seite (Begriffe, Formeln, Regeln)."""
         return send_from_directory(HELP_DIR, filename)
+
+    @app.get("/shared/<path:filename>")
+    def shared_files(filename: str):
+        """Liefert Stylesheet und Navigation, die alle Seiten teilen."""
+        return send_from_directory(SHARED_DIR, filename)
 
     db.init_app(app)
 
