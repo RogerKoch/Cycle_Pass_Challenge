@@ -18,6 +18,8 @@ const state = {
   date: localIso(new Date()),
   day: null,
   week: null,
+  month: null, // /api/calendar/month, nur in der Monatsansicht
+  view: "tag", // tag | woche | monat
   plan: null, // /api/plan/today, nur fuer heute
   events: [], // kommende Events
   swapMode: false,
@@ -88,9 +90,10 @@ function openDialog(id) {
 // ---------------------------------------------------------------- Laden
 
 async function load() {
-  const [day, week] = await Promise.all([
+  const [day, week, month] = await Promise.all([
     api("GET", `/api/calendar/day/${state.date}`),
     api("GET", `/api/calendar/week/${state.date}`),
+    state.view === "monat" ? api("GET", `/api/calendar/month/${state.date.slice(0, 7)}`) : null,
   ]);
   if (!day.ok || !week.ok) {
     $("page-msg").textContent = (day.data.error || week.data.error || "Laden fehlgeschlagen")
@@ -101,6 +104,7 @@ async function load() {
   state.illustrations = await ILLUSTRATIONS;
   state.day = day.data;
   state.week = week.data;
+  state.month = month && month.ok ? month.data : null;
   state.plan = null;
   loadReviewBanner();
   const events = await api("GET", "/api/events");
@@ -113,11 +117,107 @@ async function load() {
 }
 
 function render() {
-  const label = fmtDate(state.date);
-  $("date-label").textContent = state.date === today() ? `Heute, ${label}` : label;
+  $("date-label").textContent = viewLabel();
+  applyView();
   renderDay();
   renderWeek();
+  renderMonth();
   renderEvents();
+}
+
+// ---------------------------------------------------------------- Ansichten (Tag/Woche/Monat)
+
+const VIEWS = ["tag", "woche", "monat"];
+
+function viewFromHash() {
+  const hash = location.hash.slice(1);
+  if (VIEWS.includes(hash)) return hash;
+  return window.matchMedia("(min-width: 900px)").matches ? "monat" : "tag";
+}
+
+function isoWeek(iso) {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7)); // Donnerstag der Woche
+  const firstThursday = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
+}
+
+function viewLabel() {
+  if (state.view === "monat") {
+    return new Date(`${state.date}T12:00:00`).toLocaleDateString("de-CH", { month: "long", year: "numeric" });
+  }
+  if (state.view === "woche") {
+    const days = state.week ? state.week.days : null;
+    const range = days ? `${fmtDate(days[0].date, { day: "numeric", month: "short" })}–${fmtDate(days[6].date, { day: "numeric", month: "short" })}` : "";
+    return `KW ${isoWeek(state.date)}${range ? ` · ${range}` : ""}`;
+  }
+  const label = fmtDate(state.date);
+  return state.date === today() ? `Heute, ${label}` : label;
+}
+
+function applyView() {
+  $("month").hidden = state.view !== "monat";
+  $("week").hidden = state.view !== "woche";
+  $("cal-layout").classList.toggle("has-side", state.view !== "tag");
+  for (const link of document.querySelectorAll("[data-view]")) {
+    link.setAttribute("aria-current", link.dataset.view === state.view ? "page" : "false");
+  }
+}
+
+// Pfeile der Kopfzeile: Tag +-1, Woche +-7, Monat +-1 Monat
+function shiftView(direction) {
+  if (state.view === "tag") state.date = shiftDate(state.date, direction);
+  else if (state.view === "woche") state.date = shiftDate(state.date, 7 * direction);
+  else {
+    const date = new Date(`${state.date}T12:00:00`);
+    date.setDate(1);
+    date.setMonth(date.getMonth() + direction);
+    const first = localIso(date);
+    state.date = first.slice(0, 7) === today().slice(0, 7) ? today() : first;
+  }
+  return load();
+}
+
+// Zustand eines Tages fuer Kalenderzelle und Wochenliste: gemacht / abweichend / geplant / nicht erfasst / abgesagt
+function dayState(d) {
+  if (!d.started || (!d.cycling && !d.strength && !hasImportedTraining(d) && d.status === "planned")) {
+    return { cls: d.started ? "rest" : "", icon: "" };
+  }
+  if (d.status === "skipped") return { cls: "skipped", icon: STATUS_ICONS.skipped };
+  if (d.status === "modified") return { cls: "modified", icon: STATUS_ICONS.modified };
+  if (d.status === "done" || hasImportedTraining(d)) return { cls: "done", icon: STATUS_ICONS.done };
+  return d.date < today() ? { cls: "open", icon: "…" } : { cls: "planned", icon: "" };
+}
+
+function cellText(d) {
+  const parts = [];
+  if (d.event) parts.push(`🏁 ${d.event.label}`);
+  if (d.cycling) parts.push(`🚴 ${round(d.cycling.minutes)}'`);
+  if (d.strength) parts.push(`💪 ${d.strength.session_id}`);
+  return parts;
+}
+
+function renderMonth() {
+  if (state.view !== "monat" || !state.month) return;
+  const month = state.date.slice(0, 7);
+  const head = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((name) => el("div", { class: "dh" }, name));
+  const cells = state.month.weeks.flatMap((week) => week.days).map((d) => {
+    const ds = dayState(d);
+    const classes = ["cell", ds.cls, d.date.startsWith(month) ? "" : "out", d.date === today() ? "today" : "",
+      d.date === state.date ? "sel" : ""].join(" ");
+    const parts = cellText(d);
+    const title = [fmtDate(d.date, { weekday: "long", day: "numeric", month: "long" }), ...parts, ds.icon].filter(Boolean).join(" · ");
+    return el("button", { class: classes, type: "button", title, "aria-label": title, onclick: () => onMonthDay(d.date) },
+      el("span", { class: "num" }, String(Number(d.date.slice(8)))),
+      ...parts.map((text) => el("span", { class: "line" }, text)),
+      ds.icon ? el("span", { class: "line" }, ds.icon) : null);
+  });
+  $("month-grid").replaceChildren(...head, ...cells);
+}
+
+async function onMonthDay(iso) {
+  state.date = iso;
+  await load();
 }
 
 async function loadReviewBanner() {
@@ -433,16 +533,18 @@ function renderWeek() {
     if (d.event) parts.push(`🏁 ${d.event.label}`);
     if (d.cycling) parts.push(`🚴 ${d.cycling.title} · ${fmtMinutes(d.cycling.minutes)}`);
     if (d.strength) parts.push(`💪 Kraft ${d.strength.session_id}`);
+    const ds = dayState(d);
     const classes = [
       d.date === today() ? "today" : "",
-      d.status === "skipped" ? "skipped" : "",
+      ds.cls,
+      d.date === state.date ? "current" : "",
       d.date === state.swapFirst ? "selected" : "",
     ].join(" ");
     return el("li", { class: classes, onclick: () => onWeekDay(d.date) },
       el("span", { class: "day-tag" }, fmtDate(d.date, { weekday: "short", day: "numeric" })),
       el("span", { class: "name" }, parts.length ? parts.join(" · ") : (d.started ? "Ruhetag" : "–"),
         d.warnings.length ? el("span", { class: "sub" }, `⚠ ${d.warnings[0].message}`) : null),
-      el("span", { class: "kcal" }, STATUS_ICONS[d.status]));
+      el("span", { class: "kcal" }, ds.icon));
   });
   $("week-list").replaceChildren(...items);
 }
@@ -554,8 +656,9 @@ async function resetWeek() {
 }
 
 function bindEvents() {
-  $("prev-day").addEventListener("click", () => { state.date = shiftDate(state.date, -1); load(); });
-  $("next-day").addEventListener("click", () => { state.date = shiftDate(state.date, 1); load(); });
+  $("prev-day").addEventListener("click", () => shiftView(-1));
+  $("next-day").addEventListener("click", () => shiftView(1));
+  window.addEventListener("hashchange", () => { state.view = viewFromHash(); load(); });
   $("date-label").addEventListener("click", () => { state.date = today(); load(); });
   $("swap-toggle").addEventListener("click", () => {
     state.swapMode = !state.swapMode;
@@ -581,5 +684,6 @@ async function syncIntervals() {
   if (status.ok && status.data.configured) await api("POST", "/api/intervals/sync?if_stale=1");
 }
 
+state.view = viewFromHash();
 bindEvents();
 syncIntervals().finally(load);

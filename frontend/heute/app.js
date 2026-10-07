@@ -76,7 +76,7 @@ function trainingCard(day) {
   if (day.strength) lines.push(el("p", {}, `💪 ${day.strength.title} · ${day.strength.duration_minutes} min`));
   if (!day.cycling && !day.strength) lines.push(el("p", {}, el("strong", {}, "Ruhetag"), " · nur Mobility"));
   for (const warning of day.warnings) lines.push(el("p", { class: "hint" }, `⚠ ${warning.message}`));
-  return [head, badges, ...lines, el("a", { class: "action-link", href: "training/" }, "Details und Anpassen →")];
+  return [head, badges, ...lines, el("a", { class: "action-link", href: "training/#tag" }, "Details und Anpassen →")];
 }
 
 // ---------------------------------------------------------------- Ernaehrung
@@ -118,7 +118,7 @@ function nutritionCard(plan, totals) {
 
 function weekCard(week) {
   const days = week.days.map((d) => el("a", {
-    href: "training/",
+    href: "training/#woche",
     class: [d.date === today() ? "today" : "", d.status === "done" || d.status === "modified" ? "done" : "",
       d.status === "skipped" ? "skipped" : ""].join(" "),
   }, fmtDate(d.date, { weekday: "short" }), el("span", { class: "mark" }, `${d.cycling ? "🚴" : ""}${d.strength ? "💪" : ""}`),
