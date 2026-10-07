@@ -93,8 +93,9 @@ def combine(results: list[BenchmarkResult]) -> BenchmarkResult | None:
             if value is None:
                 continue
             setattr(combined, f.name, value)
-            if f.name in _PAIRED:
-                setattr(combined, _PAIRED[f.name], getattr(result, _PAIRED[f.name]))
+            partner = _PAIRED.get(f.name)
+            if partner and getattr(result, partner) is not None:
+                setattr(combined, partner, getattr(result, partner))
     return combined
 
 
@@ -141,8 +142,7 @@ def milestones(current: BenchmarkResult | None) -> list[Milestone]:
     c = current or BenchmarkResult(test_date=date.min)
     variants = list(PUSHUP_VARIANTS)
     standard_clean = c.pushup_variant in variants and (
-        variants.index(c.pushup_variant) > variants.index("standard")
-        or (c.pushup_variant == "standard" and (c.pushup_reps or 0) >= 8)
+        variants.index(c.pushup_variant) >= variants.index("standard") and (c.pushup_reps or 0) >= 8
     )
 
     def measured(*values: object) -> bool:

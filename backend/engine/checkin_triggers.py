@@ -23,6 +23,7 @@ from backend.engine.plan_adjustments import (
     KIND_MAINTENANCE,
     KIND_STRENGTH_REDUCED,
 )
+from backend.engine.strength_benchmarks import next_due
 
 logger = logging.getLogger(__name__)
 
@@ -475,7 +476,7 @@ def _due_findings(inputs: TriggerInputs) -> list[Finding]:
             source="Check-in-Review",
         ))
     last_benchmark = inputs.last_strength_benchmark
-    if last_benchmark is None or inputs.today >= last_benchmark + timedelta(weeks=inputs.benchmark_interval_weeks):
+    if inputs.today >= next_due(last_benchmark, inputs.benchmark_interval_weeks, inputs.today):
         findings.append(Finding(
             key=f"strength_benchmark_due:{last_benchmark.isoformat() if last_benchmark else 'none'}",
             trigger_id="strength_benchmark_due",
