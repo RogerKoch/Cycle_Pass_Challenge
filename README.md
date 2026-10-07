@@ -71,6 +71,7 @@ Ohne FTP-Test zeigt "Heute" statt der Zonen einen Hinweis.
 | GET / POST | `/api/checkins` | Check-ins listen (neueste zuerst) / erfassen |
 | GET | `/api/checkins/latest` | Neuester Check-in |
 | POST | `/api/checkins/ftp-tests` | FTP-Test erfassen (`best_1min_power_watts`, optional `test_date`, `manual_correction_pct`) |
+| GET | `/api/checkins/ftp-tests` | Alle FTP-Tests, neueste zuerst |
 | GET | `/api/checkins/ftp-tests/latest` | Neuester FTP-Test |
 | GET | `/api/baseline` | Alle Baseline-Felder (Wert, Quelle `estimated`/`measured`, Zeitpunkt) + abgeleitete Werte |
 | PUT | `/api/baseline/<feld>` | Messwert setzen (`{"value": 1800}`), überschreibt die Schätzung |

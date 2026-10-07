@@ -109,6 +109,13 @@ def create_ftp_test():
     return jsonify(_serialize_ftp_test(ftp_test)), 201
 
 
+@checkins_bp.get("/ftp-tests")
+def list_ftp_tests():
+    """Listet alle FTP-Tests, neueste zuerst."""
+    tests = FtpTest.query.order_by(FtpTest.test_date.desc(), FtpTest.created_at.desc()).all()
+    return jsonify([_serialize_ftp_test(t) for t in tests]), 200
+
+
 @checkins_bp.get("/ftp-tests/latest")
 def get_latest_ftp_test():
     """Gibt den neuesten FTP-Test zurueck, oder 404 falls keiner existiert."""

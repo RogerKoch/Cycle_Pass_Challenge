@@ -1,32 +1,80 @@
 "use strict";
 
 const SEVERITY_LABEL = { alert: "Dringend", warn: "Achtung", info: "Hinweis" };
+const TABS = ["woechentlich", "ftp", "benchmark"];
+const TABLE_ROWS = 10;
+const METRICS = {
+  weight_kg: { label: "Gewicht", unit: "kg" },
+  bodyfat_pct: { label: "Körperfett", unit: "%" },
+  muscle_kg: { label: "Muskelmasse", unit: "kg" },
+};
 
-async function loadCheckins() {
-  const { data } = await api("GET", "/api/checkins");
-  const rows = (data || []).map((c) => [
+const state = { checkins: [], targetWeight: null, showAll: false };
+
+// ---------------------------------------------------------------- Reiter
+
+function showTab() {
+  const hash = location.hash.slice(1);
+  const tab = TABS.includes(hash) ? hash : "woechentlich";
+  for (const name of TABS) $(name).hidden = name !== tab;
+  for (const link of document.querySelectorAll("[data-tab]")) {
+    link.setAttribute("aria-current", link.dataset.tab === tab ? "page" : "false");
+  }
+  // Anker innerhalb eines Reiters (z.B. #review) erst nach dem Einblenden anspringen
+  if (hash && !TABS.includes(hash)) document.getElementById(hash)?.scrollIntoView();
+}
+
+// ---------------------------------------------------------------- Check-ins
+
+function renderChart() {
+  const key = $("chart-metric").value;
+  const { label, unit } = METRICS[key];
+  const points = [...state.checkins].reverse().map((c) => ({ date: c.checkin_date, value: c[key] }));
+  lineChart($("checkin-chart"), points, {
+    unit, label, target: key === "weight_kg" ? state.targetWeight : null,
+  });
+}
+
+function renderCheckinTable() {
+  const shown = state.showAll ? state.checkins : state.checkins.slice(0, TABLE_ROWS);
+  const rows = shown.map((c) => [
     c.checkin_date, fmt(c.weight_kg, 1), fmt(c.bodyfat_pct, 1), fmt(c.muscle_kg, 1), fmt(c.ffm_kg, 1),
     c.source === "intervals" ? "Garmin" : "manuell",
   ]);
   const table = makeTable(["Datum", "Gewicht kg", "KF %", "Muskel kg", "FFM kg", "Quelle"], rows);
   table.id = "checkin-table";
   $("checkin-table").replaceWith(table);
+  $("checkin-more").hidden = state.checkins.length <= TABLE_ROWS;
+  $("checkin-more").textContent = state.showAll ? "Weniger anzeigen" : `Alle anzeigen (${state.checkins.length})`;
+}
+
+async function loadCheckins() {
+  const { data } = await api("GET", "/api/checkins");
+  state.checkins = data || [];
+  renderCheckinTable();
+  renderChart();
 }
 
 async function saveCheckin(event) {
   event.preventDefault();
   const { ok, data } = await api("POST", "/api/checkins", formToObject(event.target));
   setMsg("checkin-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadCheckins(), loadReview()]);
+  if (ok) {
+    event.target.reset();
+    await Promise.all([loadCheckins(), loadReview()]);
+  }
 }
+
+// ---------------------------------------------------------------- Fragebogen
 
 async function loadSignals() {
   const { data } = await api("GET", "/api/signals");
-  const latest = (data || [])[0];
-  $("signals-view").textContent = latest
-    ? `Letzter Fragebogen: ${latest.date} (Schlaf ${latest.sleep}, Beine ${latest.legs}, Hunger ${latest.hunger}, `
-      + `Rücken ${latest.back}, Anstrengung ${latest.effort}${latest.resting_hr ? `, Ruhe-HF ${latest.resting_hr}` : ""})`
-    : "Noch kein Fragebogen erfasst.";
+  const rows = (data || []).slice(0, 8).map((s) => [
+    s.date, s.sleep, s.legs, s.hunger, s.back, s.effort, s.resting_hr ?? "–",
+  ]);
+  const table = makeTable(["Datum", "Schlaf", "Beine", "Hunger", "Rücken", "Anstrengung", "Ruhe-HF"], rows);
+  table.id = "signals-table";
+  $("signals-table").replaceWith(table);
 }
 
 async function saveSignals(event) {
@@ -38,6 +86,8 @@ async function saveSignals(event) {
   if (ok) await Promise.all([loadSignals(), loadReview()]);
 }
 
+// ---------------------------------------------------------------- Review
+
 async function loadReview() {
   const { ok, data } = await api("GET", "/api/review");
   if (!ok) {
@@ -46,6 +96,8 @@ async function loadReview() {
   }
   setMsg("review-msg", "");
   const s = data.summary;
+  state.targetWeight = s.target_weight_kg ?? null;
+  renderChart();
   const num = (v, d = 0, unit = "") => (v === null || v === undefined ? "–" : `${fmt(v, d)}${unit}`);
   $("review-summary").replaceChildren(makeTable(["Kennzahl", "Wert"], [
     ["Gewicht / Ziel", `${num(s.weight_kg, 1, " kg")} / ${num(s.target_weight_kg, 1, " kg")}`],
@@ -94,10 +146,18 @@ async function undoAdjustment(id) {
   await loadReview();
 }
 
+// ---------------------------------------------------------------- Start
+
 $("checkin-form").addEventListener("submit", saveCheckin);
 $("signals-form").addEventListener("submit", saveSignals);
+$("chart-metric").addEventListener("change", renderChart);
+$("checkin-more").addEventListener("click", () => {
+  state.showAll = !state.showAll;
+  renderCheckinTable();
+});
+window.addEventListener("hashchange", showTab);
 
-const testOptions = { onSaved: loadReview };
+const testOptions = { history: true, onSaved: loadReview };
 function loadAll() {
   loadCheckins();
   loadSignals();
@@ -114,5 +174,6 @@ async function syncIfStale() {
   if (data.synced) loadAll();
 }
 
+showTab();
 loadAll();
 syncIfStale();

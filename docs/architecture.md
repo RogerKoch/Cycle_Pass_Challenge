@@ -1,4 +1,4 @@
-# Architektur: Alpenpässe-Applikation
+﻿# Architektur: Alpenpässe-Applikation
 
 ## Ziel
 
@@ -78,7 +78,7 @@ alpenpaesse-app/
 │   ├── heute/                       # Startseite Heute
 │   ├── profil/                      # Profil, intervals.icu, Startwerte (FTP/Benchmark), Messwerte
 │   ├── checkins/                    # Check-in, Fragebogen, Review, FTP-Test, Kraft-Benchmark
-│   ├── shared/                      # shared.css (Design-System), nav.js (Navigation), ui.js/test-forms.js/forms.css (Formular-Seiten)
+│   ├── shared/                      # shared.css (Design-System), nav.js (Navigation), ui.js/chart.js/test-forms.js/forms.css (Formular-Seiten, Charts)
 │   ├── training/                    # mobil: Tagesplan (Rad/Kraft/Mobility/Ernährung) + Woche
 │   ├── ernaehrung/                  # mobil: Ernährungs-Tagebuch
 │   └── passuebersicht/              # Pass-Datenbank durchsuchbar/filterbar
