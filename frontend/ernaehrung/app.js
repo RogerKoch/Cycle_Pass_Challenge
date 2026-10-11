@@ -15,7 +15,9 @@ const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.1/umd/zxing-b
 const state = {
   date: localIso(new Date()),
   day: null,
-  target: null, // {kcal, protein_g, carbs_g, fat_g} nur fuer heute
+  view: "tag", // tag | woche | monat
+  overview: [], // /api/plan/days (Woche/Monat): [{date, target, eaten}]
+  target: null, // {kcal, protein_g, carbs_g, fat_g} fuer den gewaehlten Tag
   meal: "fruehstueck",
   amount: null, // {food, entry?}
   scanControls: null,
@@ -56,7 +58,8 @@ function el(tag, attrs = {}, ...children) {
 }
 
 const round = (value) => Math.round(Number(value));
-const isToday = () => state.date === localIso(new Date());
+const today = () => localIso(new Date());
+const isToday = () => state.date === today();
 
 function openDialog(id) {
   const dialog = $(id);
@@ -70,42 +73,199 @@ function closeDialog(id) {
 
 // ---------------------------------------------------------------- Tag laden/rendern
 
+// Tag (Tagebuch + Soll) und je nach Ansicht die Uebersicht; jede Aenderung laedt ueber diese Funktion neu
 async function loadDay() {
-  const { ok, data } = await api("GET", `/api/food-log/${state.date}`);
-  if (!ok) {
-    $("summary-msg").textContent = data.error || "Tag konnte nicht geladen werden";
+  const range = overviewRange();
+  const [log, plan, overview] = await Promise.all([
+    api("GET", `/api/food-log/${state.date}`),
+    api("GET", `/api/plan/${state.date}`),
+    range ? api("GET", `/api/plan/days?from=${range[0]}&to=${range[1]}`) : null,
+  ]);
+  if (!log.ok) {
+    $("summary-msg").textContent = log.data.error || "Tag konnte nicht geladen werden";
     return;
   }
-  state.day = data;
+  state.day = log.data;
+  state.overview = overview && overview.ok ? overview.data.days : [];
+  applyTarget(plan);
   render();
 }
 
-function render() {
-  const label = new Date(`${state.date}T12:00:00`).toLocaleDateString("de-CH", {
-    weekday: "short", day: "numeric", month: "short",
+function applyTarget(plan) {
+  if (!plan.ok) {
+    state.target = null;
+    $("summary-msg").textContent = `Soll nicht verfügbar: ${plan.data.error}`;
+    return;
+  }
+  const data = plan.data;
+  $("summary-msg").textContent = data.event
+    ? `🏁 ${data.event.name} · ${data.event.label}: ${data.timing_hints[0] || ""}`
+    : "";
+  state.target = { kcal: data.nutrition.target_kcal, ...data.macros };
+}
+
+// ---------------------------------------------------------------- Ansichten (Tag/Woche/Monat)
+
+const VIEWS = ["tag", "woche", "monat"];
+
+function viewFromHash() {
+  const hash = location.hash.slice(1);
+  if (VIEWS.includes(hash)) return hash;
+  return window.matchMedia("(min-width: 900px)").matches ? "monat" : "tag";
+}
+
+function mondayOf(iso) {
+  const date = new Date(`${iso}T12:00:00`);
+  return shiftDate(iso, -((date.getDay() + 6) % 7));
+}
+
+function overviewRange() {
+  if (state.view === "woche") {
+    const monday = mondayOf(state.date);
+    return [monday, shiftDate(monday, 6)];
+  }
+  if (state.view === "monat") {
+    const first = `${state.date.slice(0, 7)}-01`;
+    const next = new Date(`${first}T12:00:00`);
+    next.setMonth(next.getMonth() + 1);
+    const last = shiftDate(localIso(next), -1);
+    return [mondayOf(first), shiftDate(mondayOf(last), 6)];
+  }
+  return null;
+}
+
+function isoWeek(iso) {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7)); // Donnerstag der Woche
+  const firstThursday = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getDay() + 6) % 7)) / 7);
+}
+
+function fmtDate(iso, options) {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString("de-CH", options);
+}
+
+function viewLabel() {
+  if (state.view === "monat") return fmtDate(state.date, { month: "long", year: "numeric" });
+  if (state.view === "woche") {
+    const monday = mondayOf(state.date);
+    const range = `${fmtDate(monday, { day: "numeric", month: "short" })}–${fmtDate(shiftDate(monday, 6), { day: "numeric", month: "short" })}`;
+    return `KW ${isoWeek(state.date)} · ${range}`;
+  }
+  const label = fmtDate(state.date, { weekday: "short", day: "numeric", month: "short" });
+  return isToday() ? `Heute, ${label}` : label;
+}
+
+function applyView() {
+  $("month").hidden = state.view !== "monat";
+  $("week").hidden = state.view !== "woche";
+  $("cal-layout").classList.toggle("has-side", state.view !== "tag");
+  for (const link of document.querySelectorAll("[data-view]")) {
+    link.setAttribute("aria-current", link.dataset.view === state.view ? "page" : "false");
+  }
+}
+
+// Pfeile der Kopfzeile: Tag +-1, Woche +-7, Monat +-1 Monat
+function shiftView(direction) {
+  if (state.view === "tag") state.date = shiftDate(state.date, direction);
+  else if (state.view === "woche") state.date = shiftDate(state.date, 7 * direction);
+  else {
+    const date = new Date(`${state.date}T12:00:00`);
+    date.setDate(1);
+    date.setMonth(date.getMonth() + direction);
+    const first = localIso(date);
+    state.date = first.slice(0, 7) === today().slice(0, 7) ? today() : first;
+  }
+  return loadDay();
+}
+
+// Zustand eines Tages: vergangene Tage nach Ist/Soll, heute und Zukunft "offen"
+function dayState(d) {
+  if (!d.target) return { cls: "", diff: null };
+  if (d.date >= today()) return { cls: "future", diff: null };
+  if (!d.eaten) return { cls: "empty", diff: null };
+  const ratio = d.eaten.kcal / d.target.kcal;
+  const diff = d.eaten.kcal - d.target.kcal;
+  return { cls: ratio < 0.9 ? "under" : ratio > 1.05 ? "over" : "ok", diff };
+}
+
+const signed = (value) => `${value > 0 ? "+" : value < 0 ? "−" : "±"}${Math.abs(round(value))}`;
+
+function renderMonth() {
+  const month = state.date.slice(0, 7);
+  const head = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((name) => el("div", { class: "dh" }, name));
+  const cells = state.overview.map((d) => {
+    const ds = dayState(d);
+    const classes = ["cell", ds.cls, d.date.startsWith(month) ? "" : "out", d.date === today() ? "today" : "",
+      d.date === state.date ? "sel" : ""].join(" ");
+    const text = d.target
+      ? (d.eaten ? `${round(d.eaten.kcal)} / ${round(d.target.kcal)} kcal` : `Soll ${round(d.target.kcal)} kcal`)
+      : "";
+    const title = [fmtDate(d.date, { weekday: "long", day: "numeric", month: "long" }), text].filter(Boolean).join(" · ");
+    return el("button", { class: classes, type: "button", title, "aria-label": title, onclick: () => selectDay(d.date) },
+      el("span", { class: "num" }, String(Number(d.date.slice(8)))),
+      d.eaten ? el("span", { class: "line" }, String(round(d.eaten.kcal))) : null,
+      d.target ? el("span", { class: "line" }, d.eaten ? `/${round(d.target.kcal)}` : String(round(d.target.kcal))) : null);
   });
-  $("date-label").textContent = isToday() ? `Heute, ${label}` : label;
+  $("month-grid").replaceChildren(...head, ...cells);
+}
+
+function renderWeek() {
+  const items = state.overview.map((d) => {
+    const ds = dayState(d);
+    const detail = d.target
+      ? `${d.eaten ? `Ist ${round(d.eaten.kcal)}` : "Ist –"} · Soll ${round(d.target.kcal)} kcal`
+      : "kein Soll";
+    const classes = [ds.cls, d.date === state.date ? "current" : ""].join(" ");
+    return el("li", { class: classes, onclick: () => selectDay(d.date) },
+      el("span", { class: "name" }, fmtDate(d.date, { weekday: "short", day: "numeric", month: "short" }),
+        el("span", { class: "sub" }, detail)),
+      el("span", { class: "kcal" }, ds.diff === null ? "" : `${signed(ds.diff)} kcal`));
+  });
+  $("week-list").replaceChildren(...items);
+}
+
+async function selectDay(iso) {
+  state.date = iso;
+  await loadDay();
+}
+
+function render() {
+  $("date-label").textContent = viewLabel();
+  applyView();
+  if (state.view === "monat") renderMonth();
+  if (state.view === "woche") renderWeek();
   renderTotals();
   renderMeals();
 }
 
 function renderTotals() {
   const totals = state.day.totals;
-  const target = isToday() ? state.target : null;
+  const target = state.target;
   const rows = [
     ["Protein", "protein_g"],
     ["KH", "carbs_g"],
     ["Fett", "fat_g"],
   ].map(([name, key]) => macroRow(name, totals[key], target ? target[key] : null, "g"));
   const kcalText = target ? `/ ${round(target.kcal)} kcal` : "kcal";
-  const remaining = target ? el("span", { class: "hint" }, `noch ${round(target.kcal - totals.kcal)} kcal`) : null;
+  const remaining = target && state.date >= today() ? el("span", { class: "hint" }, `noch ${round(target.kcal - totals.kcal)} kcal`) : null;
   $("totals").replaceChildren(
     el("div", { class: "kcal-head" },
       el("div", {}, el("span", { class: "kcal-big" }, String(round(totals.kcal))), ` ${kcalText}`),
       remaining),
     ...(target ? [bar(totals.kcal, target.kcal)] : []),
     ...rows,
+    ...[diffLine(totals, target)].filter(Boolean),
   );
+}
+
+// Abgeschlossene Tage: Abweichung zum Soll
+function diffLine(totals, target) {
+  if (!target || state.date >= today()) return null;
+  if (!totals.kcal) return el("p", { class: "diff empty" }, "Nichts erfasst");
+  const ds = dayState({ date: state.date, target, eaten: totals });
+  const text = ds.cls === "ok" ? `im Soll (${signed(ds.diff)} kcal)` : `${signed(ds.diff)} kcal ${ds.diff < 0 ? "unter" : "über"} Soll`;
+  return el("p", { class: `diff ${ds.cls}` }, text);
 }
 
 function bar(value, target) {
@@ -149,22 +309,6 @@ function renderMeals() {
         el("button", { onclick: () => openTemplates(meal) }, "Vorlagen")));
   });
   $("meals").replaceChildren(...sections);
-}
-
-// ---------------------------------------------------------------- Soll (nur heute)
-
-async function loadTarget() {
-  // Soll aus dem Trainingskalender (geplante bzw. zurueckgemeldete Einheit)
-  const { ok, data } = await api("GET", "/api/plan/today");
-  if (!ok) {
-    state.target = null;
-    $("summary-msg").textContent = `Soll nicht verfügbar: ${data.error}`;
-    return;
-  }
-  $("summary-msg").textContent = data.event
-    ? `🏁 ${data.event.name} · ${data.event.label}: ${data.timing_hints[0] || ""}`
-    : "";
-  state.target = { kcal: data.nutrition.target_kcal, ...data.macros };
 }
 
 // ---------------------------------------------------------------- Suche
@@ -470,9 +614,10 @@ async function lookupBarcode(ean) {
 // ---------------------------------------------------------------- Events
 
 function bindEvents() {
-  $("prev-day").addEventListener("click", () => { state.date = shiftDate(state.date, -1); loadDay(); });
-  $("next-day").addEventListener("click", () => { state.date = shiftDate(state.date, 1); loadDay(); });
-  $("date-label").addEventListener("click", () => { state.date = localIso(new Date()); loadDay(); });
+  $("prev-day").addEventListener("click", () => shiftView(-1));
+  $("next-day").addEventListener("click", () => shiftView(1));
+  $("date-label").addEventListener("click", () => selectDay(today()));
+  window.addEventListener("hashchange", () => { state.view = viewFromHash(); loadDay(); });
 
   $("search-input").addEventListener("input", (event) => {
     clearTimeout(searchTimer);
@@ -516,8 +661,9 @@ function setGramsFromInput() {
   updatePreview();
 }
 
+state.view = viewFromHash();
 bindEvents();
-loadTarget().then(loadDay).then(() => {
+loadDay().then(() => {
   // Einsprung von der Heute-Seite: ?add=<mahlzeit> oeffnet direkt die Suche
   const meal = new URLSearchParams(location.search).get("add");
   if (meal in MEAL_NAMES) openSearch(meal);

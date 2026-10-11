@@ -9,6 +9,7 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="../shared/shared.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body data-nav="ernaehrung">
   <script src="../shared/nav.js" defer></script>
@@ -19,12 +20,34 @@
   </header>
 
   <main>
-    <section class="card" id="summary">
-      <div id="totals"></div>
-      <p class="msg" id="summary-msg"></p>
-    </section>
+    <nav class="seg" id="view-seg" aria-label="Ansicht">
+      <a href="#tag" data-view="tag">Tag</a>
+      <a href="#woche" data-view="woche">Woche</a>
+      <a href="#monat" data-view="monat">Monat</a>
+    </nav>
 
-    <div id="meals"></div>
+    <div class="cal-layout" id="cal-layout">
+      <div class="cal-side">
+        <section class="card" id="month" hidden>
+          <div class="month-grid" id="month-grid"></div>
+          <div class="legend">
+            <span><i class="ok"></i>im Soll</span><span><i class="under"></i>unter Soll</span><span><i class="over"></i>über Soll</span>
+            <span><i class="empty"></i>nichts erfasst</span><span><i class="future"></i>offen</span>
+          </div>
+        </section>
+        <section class="card" id="week" hidden>
+          <ul id="week-list" class="list"></ul>
+        </section>
+      </div>
+      <div class="cal-detail">
+        <section class="card" id="summary">
+          <div id="totals"></div>
+          <p class="msg" id="summary-msg"></p>
+        </section>
+
+        <div id="meals"></div>
+      </div>
+    </div>
     <p class="footer">Nährwerte: Schweizer Nährwertdatenbank (BLV), Open Food Facts</p>
   </main>
 

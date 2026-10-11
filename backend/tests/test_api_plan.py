@@ -175,3 +175,90 @@ def test_plan_uses_activity_factor_from_profile(client):
     nutrition = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()["nutrition"]
     assert nutrition["non_exercise_factor"] == 2.1
     assert nutrition["non_exercise_kcal"] == pytest.approx(nutrition["bmr_kcal"] * 2.1)
+
+
+# ---- Plan fuer beliebige Tage und Uebersicht (Ernaehrungs-Kalender)
+
+def _days_range(days_back: int, days_forward: int = 0) -> str:
+    from datetime import date, timedelta
+
+    today = date.today()
+    return f"from={(today - timedelta(days=days_back)).isoformat()}&to={(today + timedelta(days=days_forward)).isoformat()}"
+
+
+def test_plan_for_today_matches_plan_today(client):
+    from datetime import date
+
+    _calendar_profile(client)
+    today = client.get("/api/plan/today").get_json()
+    by_date = client.get(f"/api/plan/{date.today().isoformat()}").get_json()
+    assert by_date["nutrition"] == today["nutrition"]
+    assert by_date["macros"] == today["macros"]
+
+
+def test_plan_for_future_day_writes_no_training_days(client, app):
+    from datetime import date, timedelta
+
+    from backend.models.training_days import TrainingDay
+
+    _calendar_profile(client)
+    client.get("/api/plan/today")
+    before = TrainingDay.query.count()
+    far = (date.today() + timedelta(days=60)).isoformat()
+    assert client.get(f"/api/plan/{far}").status_code == 200
+    assert TrainingDay.query.count() == before
+
+
+def test_plan_for_day_before_program_start_is_422(client):
+    _setup_profile_and_checkin(client, program_start_date="2026-10-01")
+    response = client.get("/api/plan/2026-09-01")
+    assert response.status_code == 422
+    assert "Programmstart" in response.get_json()["error"]
+
+
+def test_plan_for_invalid_date_is_400(client):
+    _calendar_profile(client)
+    assert client.get("/api/plan/morgen").status_code == 400
+
+
+def test_plan_uses_newest_checkin_up_to_that_day(client):
+    from datetime import date, timedelta
+
+    _calendar_profile(client)
+    today = date.today()
+    client.post("/api/checkins", json={"weight_kg": 80, "bodyfat_pct": 23, "muscle_kg": 30,
+                                       "checkin_date": (today - timedelta(days=3)).isoformat()})
+    old_day = (today - timedelta(days=2)).isoformat()
+    older = client.get(f"/api/plan/{old_day}").get_json()["nutrition"]["bmr_kcal"]
+    client.post("/api/checkins", json={"weight_kg": 60, "bodyfat_pct": 23, "muscle_kg": 30,
+                                       "checkin_date": (today - timedelta(days=1)).isoformat()})
+    assert client.get(f"/api/plan/{old_day}").get_json()["nutrition"]["bmr_kcal"] == older
+    assert client.get(f"/api/plan/{today.isoformat()}").get_json()["nutrition"]["bmr_kcal"] < older
+
+
+def test_days_overview_has_target_and_eaten(client):
+    from datetime import date
+
+    _calendar_profile(client)
+    today = date.today().isoformat()
+    client.post("/api/food-log", json={"date": today, "meal": "snack", "label": "Gel", "kcal": 300,
+                                       "protein_g": 0, "carbs_g": 70, "fat_g": 0})
+    body = client.get(f"/api/plan/days?{_days_range(1, 1)}").get_json()
+    assert [d["date"] for d in body["days"]][1] == today
+    day = body["days"][1]
+    assert day["eaten"]["kcal"] == 300
+    assert day["target"]["kcal"] == pytest.approx(client.get("/api/plan/today").get_json()["nutrition"]["target_kcal"])
+    assert body["days"][0]["eaten"] is None
+
+
+def test_days_overview_has_no_target_before_program_start(client):
+    _setup_profile_and_checkin(client, program_start_date="2026-10-01")
+    body = client.get("/api/plan/days?from=2026-09-29&to=2026-10-02").get_json()
+    assert [d["target"] is None for d in body["days"]] == [True, True, False, False]
+
+
+@pytest.mark.parametrize("query", ["", "from=2026-10-01", "from=x&to=y", "from=2026-10-05&to=2026-10-01",
+                                   "from=2026-01-01&to=2026-12-31"])
+def test_days_overview_rejects_bad_ranges(client, query):
+    _calendar_profile(client)
+    assert client.get(f"/api/plan/days?{query}").status_code == 400

@@ -1,0 +1,20 @@
+/* Ergaenzt shared/shared.css: Kalenderzustaende (Ist gegen Soll) */
+.cell.ok { background: var(--accent-soft); color: var(--accent); }
+.cell.over { background: color-mix(in srgb, var(--danger) 16%, var(--card)); color: var(--danger); }
+.cell.under { background: color-mix(in srgb, var(--warn) 18%, var(--card)); color: var(--warn); }
+.cell.empty { background: transparent; border-color: var(--line); color: var(--muted); }
+.cell.future { background: transparent; border-color: var(--muted); }
+.legend .ok { background: var(--accent-soft); border-color: var(--accent); }
+.legend .over { background: color-mix(in srgb, var(--danger) 30%, var(--card)); }
+.legend .under { background: color-mix(in srgb, var(--warn) 30%, var(--card)); }
+.legend .empty { border-color: var(--line); }
+.legend .future { border-color: var(--muted); }
+#week-list li.current .name { font-weight: 700; }
+#week-list li.over .kcal { color: var(--danger); }
+#week-list li.under .kcal { color: var(--warn); }
+#week-list li.ok .kcal { color: var(--accent); }
+#week-list li.empty .name { color: var(--muted); }
+.diff { margin: 6px 0 0; font-size: 0.9rem; }
+.diff.over { color: var(--danger); }
+.diff.under { color: var(--warn); }
+.diff.ok { color: var(--accent); }
