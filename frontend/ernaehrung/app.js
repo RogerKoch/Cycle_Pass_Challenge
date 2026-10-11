@@ -18,6 +18,7 @@ const state = {
   view: "tag", // tag | woche | monat
   overview: [], // /api/plan/days (Woche/Monat): [{date, target, eaten}]
   target: null, // {kcal, protein_g, carbs_g, fat_g} fuer den gewaehlten Tag
+  plan: null, // /api/plan/<datum> (Mahlzeiten, Fueling, Hinweise) oder null
   meal: "fruehstueck",
   planned: false, // Dialoge legen geplante statt gegessene Eintraege an
   amount: null, // {food, entry?}
@@ -95,6 +96,7 @@ async function loadDay() {
 function applyTarget(plan) {
   if (!plan.ok) {
     state.target = null;
+    state.plan = null;
     $("summary-msg").textContent = `Soll nicht verfügbar: ${plan.data.error}`;
     return;
   }
@@ -103,6 +105,7 @@ function applyTarget(plan) {
     ? `🏁 ${data.event.name} · ${data.event.label}: ${data.timing_hints[0] || ""}`
     : "";
   state.target = { kcal: data.nutrition.target_kcal, ...data.macros };
+  state.plan = data;
 }
 
 // ---------------------------------------------------------------- Ansichten (Tag/Woche/Monat)
@@ -240,7 +243,29 @@ function render() {
   if (state.view === "monat") renderMonth();
   if (state.view === "woche") renderWeek();
   renderTotals();
+  renderPlan();
   renderMeals();
+}
+
+// Verteilung des Tagessolls auf Mahlzeiten, Fueling waehrend der Fahrt und Timing-Hinweise
+function renderPlan() {
+  const plan = state.plan;
+  $("plan-card").hidden = !plan;
+  if (!plan) return;
+  const m = plan.macros;
+  const meals = plan.meals.map((meal) => el("tr", {},
+    el("td", {}, meal.label, el("span", { class: "sub" }, meal.hint)),
+    el("td", { class: "num" }, `${round(meal.kcal)} kcal`, el("span", { class: "sub" }, `${round(meal.protein_g)} g P`))));
+  const fueling = plan.fueling && plan.fueling.carbs_g_per_hour_max > 0
+    ? `Während der Fahrt: ${round(plan.fueling.carbs_g_per_hour_min)}–${round(plan.fueling.carbs_g_per_hour_max)} g KH/h `
+      + `(gesamt ${round(plan.fueling.carbs_g_total_min)}–${round(plan.fueling.carbs_g_total_max)} g). ${plan.fueling.note}`
+    : plan.fueling ? `Während der Fahrt: ${plan.fueling.note}` : null;
+  $("plan-card").replaceChildren(
+    el("h2", {}, `Soll: ${round(plan.nutrition.target_kcal)} kcal`),
+    el("p", { class: "hint" }, `Protein ${round(m.protein_g)} g · KH ${round(m.carbs_g)} g · Fett ${round(m.fat_g)} g`),
+    el("table", { class: "plan-meals" }, el("tbody", {}, ...meals)),
+    fueling ? el("p", { class: "hint" }, fueling) : null,
+    ...plan.timing_hints.map((hint) => el("p", { class: "hint" }, hint)));
 }
 
 function renderTotals() {

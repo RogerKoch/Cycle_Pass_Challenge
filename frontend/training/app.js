@@ -20,7 +20,6 @@ const state = {
   week: null,
   month: null, // /api/calendar/month, nur in der Monatsansicht
   view: "tag", // tag | woche | monat
-  plan: null, // /api/plan/today, nur fuer heute
   events: [], // kommende Events
   swapMode: false,
   swapFirst: null, // im Tauschmodus der zuerst angetippte Tag
@@ -105,14 +104,9 @@ async function load() {
   state.day = day.data;
   state.week = week.data;
   state.month = month && month.ok ? month.data : null;
-  state.plan = null;
   loadReviewBanner();
   const events = await api("GET", "/api/events");
   state.events = events.ok ? events.data : [];
-  if (state.date === today()) {
-    const plan = await api("GET", "/api/plan/today");
-    state.plan = plan.ok ? plan.data : { error: plan.data.error };
-  }
   render();
 }
 
@@ -234,6 +228,7 @@ async function loadReviewBanner() {
 // ---------------------------------------------------------------- Tag
 
 function renderDay() {
+  stopActiveTimer();
   const day = state.day;
   const cards = [phaseLine(day)];
   if (!day.started) {
@@ -252,7 +247,6 @@ function renderDay() {
   if (day.strength) cards.push(strengthCard(day.strength));
   cards.push(mobilityCard(day.mobility));
   cards.push(actionsCard(day));
-  if (state.plan) cards.push(nutritionCard(state.plan));
   $("day").replaceChildren(...cards);
 }
 
@@ -327,6 +321,7 @@ function strengthCard(strength) {
     e.name,
     e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
     e.original ? el("span", { class: "sub" }, `Getauscht gegen: ${e.original}`) : null,
+    timerButton(e.reps),
     swapControl(e),
     illustration(e.name, strength.session_id)));
   return el("section", { class: "card" },
@@ -336,6 +331,76 @@ function strengthCard(strength) {
       infoLink("kraftphasen")),
     strength.note ? el("p", { class: "warning" }, strength.note) : null,
     el("ul", { class: "exercises" }, ...items));
+}
+
+// ---------------------------------------------------------------- Timer
+
+// "20–40 s" / "8 min" am Anfang der Reps -> Sekunden (obere Grenze). Steht die Zeit nicht vorn
+// ("6–8 je Seite, 3–5 s halten"), ist sie nur Haltedauer pro Wiederholung -> kein Timer.
+function parseDuration(reps) {
+  const match = /^(\d+)(?:–(\d+))?\s*(s|min)\b/.exec(reps || "");
+  if (!match) return null;
+  return Number(match[2] || match[1]) * (match[3] === "min" ? 60 : 1);
+}
+
+function formatClock(seconds) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+let stopActiveTimer = () => {};
+
+function beep() {
+  try {
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    oscillator.connect(context.destination);
+    oscillator.frequency.value = 880;
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.4);
+  } catch {
+    // kein Ton verfuegbar: Vibration/Anzeige genuegen
+  }
+  if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+}
+
+// Countdown-Button fuer Uebungen mit Zeitangabe; Klick startet, nochmaliger Klick setzt zurueck
+function timerButton(reps) {
+  const seconds = parseDuration(reps);
+  if (!seconds) return null;
+  const button = el("button", { type: "button", class: "timer" }, `⏱ ${formatClock(seconds)}`);
+  let handle = null;
+  let wakeLock = null;
+  const reset = () => {
+    clearInterval(handle);
+    handle = null;
+    button.textContent = `⏱ ${formatClock(seconds)}`;
+    button.classList.remove("running");
+    if (wakeLock) wakeLock.release().catch(() => {});
+    wakeLock = null;
+  };
+  button.addEventListener("click", async () => {
+    if (handle) return reset();
+    stopActiveTimer();
+    stopActiveTimer = reset;
+    let remaining = seconds;
+    button.classList.add("running");
+    button.textContent = `⏱ ${formatClock(remaining)}`;
+    handle = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        button.textContent = `⏱ ${formatClock(remaining)}`;
+        return;
+      }
+      reset();
+      beep();
+    }, 1000);
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+    } catch {
+      // Wake-Lock nicht unterstuetzt oder abgelehnt: Timer laeuft trotzdem
+    }
+  });
+  return button;
 }
 
 // Tausch gilt dauerhaft, bis er hier wieder geaendert wird (Material fehlt, Alternative waehlen)
@@ -363,6 +428,7 @@ function mobilityCard(mobility) {
       el("ul", { class: "exercises" }, ...mobility.map((e) => el("li", {},
         el("span", { class: "dose" }, `${e.sets} × ${e.reps}`), e.name,
         e.note ? el("span", { class: "sub" }, e.note) : null,
+        timerButton(e.reps),
         illustration(e.name))))));
 }
 
@@ -413,27 +479,6 @@ function actionsCard(day) {
     reschedule.length ? el("p", { class: "hint" }, "Schlüsseleinheit nachholen:") : null,
     reschedule.length ? el("div", { class: "actions-row" }, ...reschedule) : null,
     el("p", { class: "msg", id: "action-msg" }));
-}
-
-function nutritionCard(plan) {
-  if (plan.error) {
-    return el("section", { class: "card" }, el("h2", {}, "🍽 Ernährung"), el("p", { class: "hint" }, `Nicht verfügbar: ${plan.error}`));
-  }
-  const m = plan.macros;
-  const meals = plan.meals.map((meal) => el("tr", {},
-    el("td", {}, meal.label, el("span", { class: "sub" }, meal.hint)),
-    el("td", { class: "num" }, `${round(meal.kcal)} kcal`, el("span", { class: "sub" }, `${round(meal.protein_g)} g P`))));
-  const fueling = plan.fueling && plan.fueling.carbs_g_per_hour_max > 0
-    ? `Während der Fahrt: ${round(plan.fueling.carbs_g_per_hour_min)}–${round(plan.fueling.carbs_g_per_hour_max)} g KH/h `
-      + `(gesamt ${round(plan.fueling.carbs_g_total_min)}–${round(plan.fueling.carbs_g_total_max)} g). ${plan.fueling.note}`
-    : plan.fueling ? `Während der Fahrt: ${plan.fueling.note}` : null;
-  return el("section", { class: "card" },
-    el("h2", {}, `🍽 Ernährung: ${round(plan.nutrition.target_kcal)} kcal`),
-    el("p", { class: "card-sub" }, `Protein ${round(m.protein_g)} g · KH ${round(m.carbs_g)} g · Fett ${round(m.fat_g)} g`),
-    el("table", { class: "meals" }, el("tbody", {}, ...meals)),
-    fueling ? el("p", { class: "hint" }, fueling) : null,
-    ...plan.timing_hints.map((hint) => el("p", { class: "hint" }, hint)),
-    el("p", { class: "hint" }, el("a", { href: "../ernaehrung/" }, "Zum Ernährungs-Tagebuch →")));
 }
 
 // ---------------------------------------------------------------- Aktionen

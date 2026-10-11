@@ -24,6 +24,8 @@ table.segments .sub { display: block; color: var(--muted); font-weight: 400; fon
 .exercises li:last-child { border-bottom: 0; }
 .exercises .dose { float: right; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 8px; }
 .exercises .sub { display: block; color: var(--muted); font-size: 0.8rem; }
+.exercises .timer { margin-top: 6px; font-variant-numeric: tabular-nums; }
+.exercises .timer.running { background: var(--accent); color: #fff; }
 .exercises .swap summary { font-size: 0.8rem; padding: 4px 0 0; }
 .exercises .swap button { display: block; width: 100%; margin: 6px 0 0; }
 .exercises .illus summary { font-size: 0.8rem; padding: 4px 0 0; }
@@ -34,10 +36,6 @@ table.segments .sub { display: block; color: var(--muted); font-weight: 400; fon
 .actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .actions-row button { flex: 1; min-width: 6.5rem; }
 
-.meals { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-.meals td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.meals td.num { text-align: right; white-space: nowrap; }
-.meals .sub { display: block; color: var(--muted); font-size: 0.75rem; }
 
 #week-list li.today .name { font-weight: 700; }
 #week-list li.selected { background: var(--accent-soft); }
