@@ -1,6 +1,6 @@
 ﻿# TODO / Backlog
 
-Stand: 2026-10-05
+Stand: 2026-10-11
 
 ## Offen
 
@@ -23,3 +23,10 @@ Stand: 2026-10-05
 | 15 | ✅ Wie wird der Grundumsatz berechnet | Mifflin-St Jeor (10 × kg + 6,25 × cm − 5 × Alter + 5); gemessener RMR ersetzt die Schätzung. Erklärt in `/hilfe/#grundumsatz`. |
 | 16 | ✅ Man sollte abfragen können was der Beruf ist damit man den BMR Multiplikator einstellen kann, aufgrund des trainingsplan vervollständigt sich das bild | Heute fix 1,45. Vorschlag: Profilfeld „Alltag/Beruf“ mit 5 Stufen (PAL ohne Sport, DGE): nur sitzend 1,2 · Büro 1,45 · gemischt 1,65 · stehend/gehend 1,85 · körperlich schwer 2,1. Training bleibt separat (keine Doppelzählung). |
 | 17 | ✅ Event-Vorbereitung (Training + Ernährung) | Umgesetzt 2026-10-07 (Entscheid: Events übers ganze Jahr, nicht nur Pass-Ziel): Event im Training anlegen (Datum, Dauer, Prio A/B/C, Rennen/Tour) → Taper (A 14 / B 7 / C 2 Tage), Opener T-1, Carb-Loading T-3…T-1 (bis 10 g/kg), Eventtag-Fueling, Recovery 1–3 Tage, Defizit pausiert, Gewichtstrend im Fenster ignoriert. Recherche in `docs/research/event-vorbereitung.md` (Quellenwerte aus Zusammenfassungen, Primärquellen noch gegenprüfen). Hilfe `/hilfe/#events`. |
+| 18 | Kraft-Übungen tauschen (Material fehlt) | Übung ersetzen, wenn Material nicht vorhanden (z. B. kein Tisch, keine Bänder). Braucht eine Bibliothek von Alternativübungen pro Übung (gleiches Muster/Ziel, anderes Material). |
+| 19 | kcal aus K/F/P berechnen (low prio) | Wenn bei einem Eintrag keine kcal-Angabe vorhanden ist: aus Kohlenhydraten, Fett, Protein berechnen (4/9/4 kcal/g). |
+| 20 | Gemachtes Training aus Sync löschen | Ein als gemacht erfasstes/synchronisiertes Training in unserer App wieder entfernen können. |
+| 21 | Alles zurücksetzen | Komplett-Reset der App-Daten, um neu zu starten (mit Bestätigung; vorher Backup-Hinweis). |
+| 22 | Tageskommentare | Pro Tag Kommentare hinzufügen können. |
+| 23 | Tagesansichten trennen | Training-Tagesseite zeigt nur Training, Ernährung nur Ernährung, „Heute“ beides. |
+| 24 | Timer bei Kraft/Mobility | Wenn bei einer Übung eine Zeit angegeben ist, Timer (Start/Stopp) anbieten. |
