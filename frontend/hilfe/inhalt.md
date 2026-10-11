@@ -290,6 +290,16 @@ Im Profil wählbar. Der Fokus kommt **obendrauf** (ca. +10 min pro Einheit), der
 
 - **Beine schonen:** Der Bein-Fokus pausiert in Peak/Taper, in der Passsaison und solange „Beine platt“ aktiv ist –
   dann zählt das Radtraining.
+<a id="uebungen-tauschen"></a>
+
+### Übungen tauschen
+Fehlt Material (stabiler Tisch, Widerstandsbänder), lassen sich Kraftübungen durch Alternativen ersetzen. Sätze, Pause und Phasenfenster bleiben wie beim Original.
+
+- **Im Profil** unter „Material fehlt“ ankreuzen: Betroffene Übungen werden automatisch durch die erste passende Alternative ersetzt.
+- **Pro Übung** im Training („Übung tauschen“): Alternative wählen oder zurück zum Original.
+- Ein Tausch gilt **dauerhaft**, bis du ihn wieder änderst – nicht nur für einen Tag. Ein manueller Tausch hat Vorrang vor der Material-Automatik.
+- Die Stufe aus dem Kraft-Benchmark (z. B. „Füsse erhöht“) gilt nur für die Originalübung.
+
 <a id="kraft-benchmark"></a>
 
 ### Kraft-Benchmark

@@ -22,6 +22,7 @@ from backend.engine.cycling_sessions import (
     SLOT_Z2_OR_REKOM,
     build_cycling_session,
 )
+from backend.engine.strength_alternatives import apply_swaps
 from backend.engine.strength_benchmarks import ExerciseStages
 from backend.engine.strength_sessions import (
     FOCUS_EXTRA_MINUTES,
@@ -133,6 +134,8 @@ def resolve_strength(
     reduced: bool = False,
     focus: str = FOCUS_NONE,
     stages: ExerciseStages | None = None,
+    swaps: dict[str, str] | None = None,
+    missing_equipment: frozenset[str] = frozenset(),
 ) -> StrengthSession:
     """Krafteinheit fuer Phase und Woche, im Taper mit Reduktionshinweis.
 
@@ -146,6 +149,8 @@ def resolve_strength(
         reduced: reduzierte Einheit aus dem Check-in-Review (Beine platt).
         focus: Kraft-Fokus aus dem Profil.
         stages: Stufen aus dem Kraft-Benchmark.
+        swaps: dauerhaft getauschte Uebungen (Originalname -> Alternative).
+        missing_equipment: fehlendes Material aus dem Profil (automatischer Tausch).
 
     Returns:
         StrengthSession der zugehoerigen Kraftphase.
@@ -159,6 +164,9 @@ def resolve_strength(
         focus = FOCUS_NONE
     session = build_strength_session(
         session_id, strength_phase_for(phase_id), " ".join(notes) or None, reduced, focus, stages
+    )
+    session = replace(
+        session, exercises=[apply_swaps(e, swaps or {}, missing_equipment) for e in session.exercises]
     )
     if not taper:
         return session

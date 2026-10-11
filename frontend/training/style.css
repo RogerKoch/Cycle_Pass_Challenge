@@ -24,6 +24,8 @@ table.segments .sub { display: block; color: var(--muted); font-weight: 400; fon
 .exercises li:last-child { border-bottom: 0; }
 .exercises .dose { float: right; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 8px; }
 .exercises .sub { display: block; color: var(--muted); font-size: 0.8rem; }
+.exercises .swap summary { font-size: 0.8rem; padding: 4px 0 0; }
+.exercises .swap button { display: block; width: 100%; margin: 6px 0 0; }
 .exercises .illus summary { font-size: 0.8rem; padding: 4px 0 0; }
 .exercises .illus img { display: block; width: 100%; max-width: 520px; margin: 6px 0; }
 .exercises .illus a { color: var(--accent); font-size: 0.8rem; }

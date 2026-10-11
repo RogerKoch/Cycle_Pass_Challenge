@@ -16,6 +16,7 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "activity_level", "VARCHAR(20) NOT NULL DEFAULT 'buero'"),
     ("user_profile", "strength_focus", "VARCHAR(20) NOT NULL DEFAULT 'none'"),
     ("user_profile", "benchmark_interval_weeks", "INTEGER NOT NULL DEFAULT 4"),
+    ("user_profile", "equipment_missing", "VARCHAR(100) NOT NULL DEFAULT ''"),
     ("food_log_entries", "status", "VARCHAR(10) NOT NULL DEFAULT 'eaten'"),
 ]
 
@@ -108,6 +109,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     from backend.api.calendar_routes import calendar_bp
     from backend.api.checkin_routes import checkins_bp
     from backend.api.event_routes import events_bp
+    from backend.api.exercise_routes import exercises_bp
     from backend.api.food_log_routes import food_log_bp
     from backend.api.food_routes import foods_bp
     from backend.api.intake_routes import intake_bp
@@ -130,6 +132,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(intervals_bp)
     app.register_blueprint(benchmarks_bp)
     app.register_blueprint(events_bp)
+    app.register_blueprint(exercises_bp)
 
     from backend.auth import register_auth
     from backend.backup import backup_db_command

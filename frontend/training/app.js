@@ -326,6 +326,8 @@ function strengthCard(strength) {
     el("span", { class: "dose" }, `${e.sets} × ${e.reps}`),
     e.name,
     e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
+    e.original ? el("span", { class: "sub" }, `Getauscht gegen: ${e.original}`) : null,
+    swapControl(e),
     illustration(e.name, strength.session_id)));
   return el("section", { class: "card" },
     el("h2", {}, `💪 ${strength.title}`),
@@ -334,6 +336,24 @@ function strengthCard(strength) {
       infoLink("kraftphasen")),
     strength.note ? el("p", { class: "warning" }, strength.note) : null,
     el("ul", { class: "exercises" }, ...items));
+}
+
+// Tausch gilt dauerhaft, bis er hier wieder geaendert wird (Material fehlt, Alternative waehlen)
+function swapControl(exercise) {
+  if (!exercise.alternatives || !exercise.alternatives.length) return null;
+  const original = exercise.original || exercise.name;
+  const choose = async (alternative) => {
+    const { ok, data } = alternative === null
+      ? await api("DELETE", "/api/exercises/swap", { original })
+      : await api("PUT", "/api/exercises/swap", { original, alternative });
+    if (!ok) $("page-msg").textContent = data.error || "Tauschen fehlgeschlagen";
+    else await load();
+  };
+  const options = [original, ...exercise.alternatives].filter((name) => name !== exercise.name);
+  return el("details", { class: "swap" },
+    el("summary", {}, "Übung tauschen"),
+    ...options.map((name) => el("button", { type: "button", onclick: () => choose(name === original ? null : name) },
+      name === original ? `Zurück zu ${name}` : name)));
 }
 
 function mobilityCard(mobility) {

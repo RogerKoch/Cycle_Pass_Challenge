@@ -20,6 +20,17 @@ async function loadProfile() {
       option.value = f.id;
       return option;
     }));
+    $("equipment-missing").replaceChildren(
+      $("equipment-missing").querySelector("legend"),
+      ...data.equipment_options.map((o) => {
+        const box = el("input");
+        box.type = "checkbox";
+        box.value = o.id;
+        box.checked = data.equipment_missing.includes(o.id);
+        const label = el("label");
+        label.append(box, ` ${o.label}`);
+        return label;
+      }));
     for (const key of ["age", "height_cm", "program_start_date", "activity_level", "strength_focus", "benchmark_interval_weeks"]) {
       form.elements[key].value = data[key];
     }
@@ -33,7 +44,9 @@ async function saveProfile(event) {
   event.preventDefault();
   const form = event.target;
   const method = form.dataset.exists ? "PUT" : "POST";
-  const { ok, data } = await api(method, "/api/profile", formToObject(form));
+  const body = formToObject(form);
+  body.equipment_missing = [...form.querySelectorAll("#equipment-missing input:checked")].map((box) => box.value);
+  const { ok, data } = await api(method, "/api/profile", body);
   setMsg("profile-msg", ok ? "" : data.error);
   if (ok) await Promise.all([loadProfile(), loadBaseline(), loadToday()]);
 }

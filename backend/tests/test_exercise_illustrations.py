@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from backend.engine.strength_alternatives import ALTERNATIVES
 from backend.engine.strength_sessions import (
     FOCUS_OPTIONS,
     MOBILITY_ROUTINE,
@@ -18,6 +19,7 @@ def _index() -> dict:
 
 def _all_exercise_names() -> set[str]:
     names = {e.name for e in MOBILITY_ROUTINE}
+    names.update(a.name for options in ALTERNATIVES.values() for a in options)
     for phase in STRENGTH_PHASES.values():
         for session_id in SESSION_IDS:
             for focus in FOCUS_OPTIONS:
