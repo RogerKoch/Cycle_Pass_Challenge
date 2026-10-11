@@ -82,12 +82,14 @@ Ohne FTP-Test zeigt "Heute" statt der Zonen einen Hinweis.
 | GET / PATCH | `/api/foods/<id>` | Lebensmittel lesen / Portion setzen (Name+Nährwerte nur bei eigenen) |
 | POST | `/api/foods` | Eigenes Lebensmittel (pro 100 g, optional `portion_label`/`portion_g`, `barcode`) |
 | GET | `/api/foods/barcode/<ean>` | Lokal, sonst Open Food Facts (Treffer wird gespeichert) |
-| GET | `/api/food-log/<YYYY-MM-DD>` | Einträge je Mahlzeit + Tagessumme |
-| POST | `/api/food-log` | `{date, meal, food_id, grams}` oder Schnelleintrag `{date, meal, label, kcal, protein_g, carbs_g, fat_g}` |
+| GET | `/api/food-log/<YYYY-MM-DD>` | Einträge je Mahlzeit; `totals` = nur gegessen, `planned_totals` = vorgeplant |
+| POST | `/api/food-log` | `{date, meal, food_id, grams}` oder Schnelleintrag `{date, meal, label, kcal, protein_g, carbs_g, fat_g}`, optional `status` (`eaten` Standard, `planned` = vorgeplant, zählt nie als Ist) |
+| POST | `/api/food-log/<id>/consume` | Geplanten Eintrag als gegessen übernehmen |
+| POST | `/api/food-log/consume` | `{date, meal?}` → alle geplanten Einträge des Tages bzw. der Mahlzeit übernehmen |
 | PATCH / DELETE | `/api/food-log/<id>` | Menge ändern / Eintrag löschen |
 | GET / POST | `/api/meal-templates` | Vorlagen listen / anlegen (`items` oder `from_date` + `meal`) |
 | DELETE | `/api/meal-templates/<id>` | Vorlage löschen |
-| POST | `/api/meal-templates/<id>/apply` | `{date, meal?}` → Einträge anlegen |
+| POST | `/api/meal-templates/<id>/apply` | `{date, meal?, status?}` → Einträge anlegen (gegessen oder geplant) |
 | GET | `/api/plan/today` | Ohne Query: aus dem Trainingskalender (inkl. `training`, `meals`, `fueling`, `timing_hints`). Mit Query (alle Pflicht): `cycling_hours`, `cycling_intensity`, `strength_sessions`, `day_type` |
 | GET | `/api/plan/<YYYY-MM-DD>` | Ziel eines beliebigen Tages (wie `today` ohne Query); Gewicht = neuester Check-in bis zu diesem Tag, Tage vor Programmstart 422, schreibt nichts |
 | GET | `/api/plan/days?from=…&to=…` | Soll (kcal/Makros) und Ist je Tag für den Ernährungs-Kalender, höchstens 62 Tage |

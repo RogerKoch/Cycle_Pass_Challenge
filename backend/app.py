@@ -16,6 +16,7 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "activity_level", "VARCHAR(20) NOT NULL DEFAULT 'buero'"),
     ("user_profile", "strength_focus", "VARCHAR(20) NOT NULL DEFAULT 'none'"),
     ("user_profile", "benchmark_interval_weeks", "INTEGER NOT NULL DEFAULT 4"),
+    ("food_log_entries", "status", "VARCHAR(10) NOT NULL DEFAULT 'eaten'"),
 ]
 
 

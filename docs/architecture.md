@@ -174,7 +174,7 @@ kein Service Worker), keine externe Tracker-App.
 | Lebensmittel | Schweizer Nährwertdatenbank (BLV, `data/Schweizer_Nahrwertdatenbank.xlsx`, ~1.250 Einträge), Import per `flask --app main.py import-blv <pfad>` (idempotent, eigene Portionen bleiben) |
 | Suche | `LIKE` auf normalisierter Spalte `search_name` (Kleinschreibung, ohne Umlaut-Punkte/Akzente); Rang: ganzes Wort am Anfang → Präfix → Wortanfang → Teiltreffer, dann Nutzungshäufigkeit |
 | Barcode (optional) | Scan im Browser (`@zxing/browser`, CDN) oder Ziffern eintippen → Backend fragt Open Food Facts ab und speichert den Treffer als `source = off`. Kamera nur über HTTPS/localhost |
-| Einträge | `food_log_entries` mit Nährwert-**Snapshot**; Schnelleinträge ohne Lebensmittel; Mahlzeit-Vorlagen; eigene Portion je Lebensmittel |
+| Einträge | `food_log_entries` mit Nährwert-**Snapshot**; Schnelleinträge ohne Lebensmittel; Mahlzeit-Vorlagen; eigene Portion je Lebensmittel. `status` = `eaten` oder `planned` (vorgeplant): nur gegessene Einträge fliessen in `intake_days`, Soll/Ist, Energy Availability und Review ein |
 | Tagessumme | Jede Änderung am Log berechnet `intake_days` des Datums neu (leerer Tag → Datensatz gelöscht). Log-Einträge überschreiben damit einen per `PUT /api/intake` gesetzten Wert. |
 
 Mit den Ist-Werten berechnet `/api/plan/today` Soll/Ist und die Energy Availability für den

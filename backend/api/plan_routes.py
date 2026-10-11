@@ -36,6 +36,7 @@ from backend.engine.week_plan import phase_week
 from backend.models.checkins import Checkin
 from backend.models.events import event_spans
 from backend.models.ftp_tests import FtpTest
+from backend.models.food import FoodLogEntry
 from backend.models.intake import IntakeDay
 from backend.models.plan_adjustments import adjustment_spans
 from backend.models.user_profile import UserProfile
@@ -79,7 +80,7 @@ def get_days_overview():
     """Soll und Ist je Tag fuer einen Zeitraum (?from=YYYY-MM-DD&to=YYYY-MM-DD, hoechstens 62 Tage).
 
     Soll ist None, wenn fuer den Tag kein Ziel berechenbar ist (kein Profil/Check-in, vor Programmstart);
-    Ist ist None ohne erfasste Zufuhr.
+    Ist ist None ohne gegessene Zufuhr, planned ist None ohne vorgeplante Eintraege.
     """
     try:
         start = date.fromisoformat(request.args["from"])
@@ -93,6 +94,13 @@ def get_days_overview():
         d.intake_date: {"kcal": d.kcal, "protein_g": d.protein_g, "carbs_g": d.carbs_g, "fat_g": d.fat_g}
         for d in IntakeDay.query.filter(IntakeDay.intake_date >= start, IntakeDay.intake_date <= end).all()
     }
+    planned: dict[date, dict] = {}
+    for entry in FoodLogEntry.query.filter(
+        FoodLogEntry.entry_date >= start, FoodLogEntry.entry_date <= end, FoodLogEntry.status == "planned"
+    ).all():
+        total = planned.setdefault(entry.entry_date, {"kcal": 0.0, "protein_g": 0.0, "carbs_g": 0.0, "fat_g": 0.0})
+        for key in total:
+            total[key] += getattr(entry, key)
     days = []
     for offset in range((end - start).days + 1):
         current = start + timedelta(days=offset)
@@ -101,7 +109,8 @@ def get_days_overview():
             target = {"kcal": plan["nutrition"]["target_kcal"], **{k: plan["macros"][k] for k in ("protein_g", "carbs_g", "fat_g")}}
         except _PlanError:
             target = None
-        days.append({"date": current.isoformat(), "target": target, "eaten": eaten.get(current)})
+        days.append({"date": current.isoformat(), "target": target, "eaten": eaten.get(current),
+                     "planned": planned.get(current)})
     return jsonify({"from": start.isoformat(), "to": end.isoformat(), "days": days}), 200
 
 

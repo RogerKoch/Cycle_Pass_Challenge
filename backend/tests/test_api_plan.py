@@ -262,3 +262,24 @@ def test_days_overview_has_no_target_before_program_start(client):
 def test_days_overview_rejects_bad_ranges(client, query):
     _calendar_profile(client)
     assert client.get(f"/api/plan/days?{query}").status_code == 400
+
+
+def test_days_overview_has_planned_separately_from_eaten(client):
+    from datetime import date, timedelta
+
+    _calendar_profile(client)
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    client.post("/api/food-log", json={"date": tomorrow, "meal": "mittag", "label": "Pasta", "kcal": 700,
+                                       "protein_g": 25, "carbs_g": 120, "fat_g": 10, "status": "planned"})
+    day = client.get(f"/api/plan/days?from={tomorrow}&to={tomorrow}").get_json()["days"][0]
+    assert day["planned"]["kcal"] == 700
+    assert day["eaten"] is None
+
+
+def test_plan_today_ignores_planned_entries(client):
+    from datetime import date
+
+    _calendar_profile(client)
+    client.post("/api/food-log", json={"date": date.today().isoformat(), "meal": "mittag", "label": "Pasta",
+                                       "kcal": 700, "protein_g": 25, "carbs_g": 120, "fat_g": 10, "status": "planned"})
+    assert client.get("/api/plan/today").get_json()["intake"] is None

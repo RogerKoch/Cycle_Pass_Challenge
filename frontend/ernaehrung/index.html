@@ -90,6 +90,7 @@
     </details>
     <div class="row actions">
       <button id="amount-delete" class="danger">Löschen</button>
+      <button id="amount-consume" hidden>Als gegessen übernehmen</button>
       <button id="amount-save" class="primary grow">Hinzufügen</button>
     </div>
     <p class="msg" id="amount-msg"></p>
@@ -139,6 +140,7 @@
       <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
       <h2 id="template-title">Vorlagen</h2>
     </div>
+    <label class="check" id="template-planned-label" hidden><input id="template-planned" type="checkbox"> als geplant eintragen</label>
     <ul id="template-list" class="list"></ul>
     <form id="template-form" class="row">
       <input name="name" class="grow" placeholder="Mahlzeit als Vorlage speichern…" required>
