@@ -51,6 +51,7 @@ alpenpaesse-app/
 │   │   ├── training_days.py         # Trainingskalender, 1 Zeile pro Tag
 │   │   ├── wellbeing.py             # wöchentlicher Kurz-Fragebogen
 │   │   ├── strength_benchmarks.py   # Kraft-Benchmark-Tests
+│   │   ├── day_comments.py          # Freitext-Kommentar pro Tag
 │   │   └── plan_adjustments.py      # übernommene Anpassungen + Review-Entscheidungen
 │   ├── engine/                      # reine Berechnungslogik, ungekoppelt von Flask
 │   │   ├── cycling_zones.py         # Coggan-Zonen aus FTP

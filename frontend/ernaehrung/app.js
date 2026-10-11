@@ -245,6 +245,7 @@ function render() {
   renderTotals();
   renderPlan();
   renderMeals();
+  mountDayComment($("comment-card"), { base: "../", date: state.date });
 }
 
 // Verteilung des Tagessolls auf Mahlzeiten, Fueling waehrend der Fahrt und Timing-Hinweise
