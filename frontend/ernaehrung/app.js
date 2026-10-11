@@ -19,6 +19,7 @@ const state = {
   overview: [], // /api/plan/days (Woche/Monat): [{date, target, eaten}]
   target: null, // {kcal, protein_g, carbs_g, fat_g} fuer den gewaehlten Tag
   meal: "fruehstueck",
+  planned: false, // Dialoge legen geplante statt gegessene Eintraege an
   amount: null, // {food, entry?}
   scanControls: null,
 };
@@ -197,15 +198,17 @@ function renderMonth() {
   const cells = state.overview.map((d) => {
     const ds = dayState(d);
     const classes = ["cell", ds.cls, d.date.startsWith(month) ? "" : "out", d.date === today() ? "today" : "",
-      d.date === state.date ? "sel" : ""].join(" ");
+      d.date === state.date ? "sel" : "", d.planned ? "has-plan" : ""].join(" ");
     const text = d.target
       ? (d.eaten ? `${round(d.eaten.kcal)} / ${round(d.target.kcal)} kcal` : `Soll ${round(d.target.kcal)} kcal`)
       : "";
-    const title = [fmtDate(d.date, { weekday: "long", day: "numeric", month: "long" }), text].filter(Boolean).join(" · ");
+    const planText = d.planned ? `geplant ${round(d.planned.kcal)} kcal` : "";
+    const title = [fmtDate(d.date, { weekday: "long", day: "numeric", month: "long" }), text, planText].filter(Boolean).join(" · ");
     return el("button", { class: classes, type: "button", title, "aria-label": title, onclick: () => selectDay(d.date) },
       el("span", { class: "num" }, String(Number(d.date.slice(8)))),
       d.eaten ? el("span", { class: "line" }, String(round(d.eaten.kcal))) : null,
-      d.target ? el("span", { class: "line" }, d.eaten ? `/${round(d.target.kcal)}` : String(round(d.target.kcal))) : null);
+      d.target ? el("span", { class: "line" }, d.eaten ? `/${round(d.target.kcal)}` : String(round(d.target.kcal))) : null,
+      d.planned && !d.eaten ? el("span", { class: "line plan" }, `≈${round(d.planned.kcal)}`) : null);
   });
   $("month-grid").replaceChildren(...head, ...cells);
 }
@@ -215,6 +218,7 @@ function renderWeek() {
     const ds = dayState(d);
     const detail = d.target
       ? `${d.eaten ? `Ist ${round(d.eaten.kcal)}` : "Ist –"} · Soll ${round(d.target.kcal)} kcal`
+        + (d.planned ? ` · geplant ${round(d.planned.kcal)}` : "")
       : "kein Soll";
     const classes = [ds.cls, d.date === state.date ? "current" : ""].join(" ");
     return el("li", { class: classes, onclick: () => selectDay(d.date) },
@@ -255,8 +259,19 @@ function renderTotals() {
       remaining),
     ...(target ? [bar(totals.kcal, target.kcal)] : []),
     ...rows,
-    ...[diffLine(totals, target)].filter(Boolean),
+    ...[diffLine(totals, target), plannedLine(target)].filter(Boolean),
   );
+}
+
+// Geplante (noch nicht gegessene) Eintraege des Tages
+function plannedLine(target) {
+  const planned = state.day.planned_totals;
+  if (!planned || !planned.kcal) return null;
+  const text = `Geplant: ${round(planned.kcal)} kcal${target ? ` (Soll ${round(target.kcal)})` : ""}`;
+  const consume = state.date <= today()
+    ? el("button", { type: "button", onclick: () => consumePlanned() }, "Alle geplanten übernehmen")
+    : null;
+  return el("div", { class: "plan-line" }, el("span", {}, text), consume);
 }
 
 // Abgeschlossene Tage: Abweichung zum Soll
@@ -292,23 +307,44 @@ function entryAmount(entry) {
 }
 
 function renderMeals() {
+  const future = state.date > today();
+  const past = state.date < today();
   const sections = MEALS.map(([meal, name]) => {
     const entries = state.day.meals[meal];
-    const kcal = entries.reduce((sum, e) => sum + e.kcal, 0);
+    const eaten = entries.filter((e) => e.status === "eaten");
+    const planned = entries.filter((e) => e.status === "planned");
+    const kcal = eaten.reduce((sum, e) => sum + e.kcal, 0);
+    const plannedKcal = planned.reduce((sum, e) => sum + e.kcal, 0);
     const items = entries.map((entry) =>
-      el("li", { onclick: () => openEntry(entry) },
-        el("span", { class: "name" }, entry.label, el("span", { class: "sub" }, entryAmount(entry))),
+      el("li", { class: entry.status === "planned" ? "planned-entry" : "", onclick: () => openEntry(entry) },
+        el("span", { class: "name" }, entry.label, el("span", { class: "sub" },
+          [entry.status === "planned" ? "geplant" : null, entryAmount(entry)].filter(Boolean).join(" · "))),
         el("span", { class: "kcal" }, `${round(entry.kcal)} kcal`)));
+    const buttons = [];
+    if (!future) buttons.push(el("button", { class: "primary", onclick: () => openSearch(meal) }, "+ Hinzufügen"));
+    if (!past) buttons.push(el("button", { class: future ? "primary" : "", onclick: () => openSearch(meal, true) }, future ? "+ Planen" : "Planen"));
+    buttons.push(el("button", { onclick: () => openTemplates(meal) }, "Vorlagen"));
+    if (planned.length && !future) buttons.push(el("button", { onclick: () => consumePlanned(meal) }, "Alles übernehmen"));
     return el("section", { class: "card" },
       el("div", { class: "meal-head" },
         el("h2", {}, name),
-        el("span", { class: "meal-kcal" }, entries.length ? `${round(kcal)} kcal` : "")),
+        el("span", { class: "meal-kcal" },
+          [eaten.length ? `${round(kcal)} kcal` : "", planned.length ? `+ ${round(plannedKcal)} geplant` : ""].filter(Boolean).join(" ")),
+      ),
       items.length ? el("ul", { class: "list" }, ...items) : null,
-      el("div", { class: "meal-actions" },
-        el("button", { class: "primary", onclick: () => openSearch(meal) }, "+ Hinzufügen"),
-        el("button", { onclick: () => openTemplates(meal) }, "Vorlagen")));
+      el("div", { class: "meal-actions" }, ...buttons));
   });
   $("meals").replaceChildren(...sections);
+}
+
+async function consumePlanned(meal = null) {
+  const body = { date: state.date, ...(meal ? { meal } : {}) };
+  const { ok, data } = await api("POST", "/api/food-log/consume", body);
+  if (!ok) {
+    $("summary-msg").textContent = data.error;
+    return;
+  }
+  await loadDay();
 }
 
 // ---------------------------------------------------------------- Suche
@@ -316,9 +352,10 @@ function renderMeals() {
 let searchTimer = null;
 let searchSeq = 0;
 
-function openSearch(meal) {
+function openSearch(meal, planned = false) {
   state.meal = meal;
-  $("search-title").textContent = `${MEAL_NAMES[meal]} – hinzufügen`;
+  state.planned = planned;
+  $("search-title").textContent = `${MEAL_NAMES[meal]} – ${planned ? "planen" : "hinzufügen"}`;
   $("search-input").value = "";
   openDialog("search-dialog");
   $("search-input").focus();
@@ -346,8 +383,9 @@ function openAmount(food, entry = null) {
   $("amount-title").textContent = food.name;
   $("amount-per100").textContent =
     `pro 100 g: ${round(food.kcal_100g)} kcal · P ${food.protein_100g} · KH ${food.carbs_100g} · F ${food.fat_100g}`;
-  $("amount-save").textContent = entry ? "Speichern" : "Hinzufügen";
+  $("amount-save").textContent = entry ? "Speichern" : state.planned ? "Planen" : "Hinzufügen";
   $("amount-delete").hidden = !entry;
+  $("amount-consume").hidden = !(entry && entry.status === "planned" && state.date <= today());
   $("amount-msg").textContent = "";
   $("portion-details").open = false;
   $("portion-name").value = food.portion_label || "";
@@ -385,7 +423,9 @@ async function saveAmount() {
   const grams = Number($("amount-grams").value);
   const { ok, data } = entry
     ? await api("PATCH", `/api/food-log/${entry.id}`, { grams })
-    : await api("POST", "/api/food-log", { date: state.date, meal: state.meal, food_id: food.id, grams });
+    : await api("POST", "/api/food-log", {
+      date: state.date, meal: state.meal, food_id: food.id, grams, status: state.planned ? "planned" : "eaten",
+    });
   if (!ok) {
     $("amount-msg").textContent = data.error;
     return;
@@ -419,12 +459,26 @@ async function savePortion() {
   setGrams(Number($("amount-grams").value) || 0);
 }
 
+async function consumeEntry(entry) {
+  const { ok, data } = await api("POST", `/api/food-log/${entry.id}/consume`);
+  if (!ok) return data.error;
+  await loadDay();
+  return null;
+}
+
 async function openEntry(entry) {
   if (entry.food_id === null) {
-    if (confirm(`„${entry.label}“ (${round(entry.kcal)} kcal) löschen?`)) await deleteEntry(entry);
+    // Schnelleintraege haben keine Menge: nur uebernehmen (geplant) oder loeschen
+    if (entry.status === "planned" && state.date <= today()
+        && confirm(`„${entry.label}“ (${round(entry.kcal)} kcal) als gegessen übernehmen?`)) {
+      await consumeEntry(entry);
+    } else if (confirm(`„${entry.label}“ (${round(entry.kcal)} kcal) löschen?`)) {
+      await deleteEntry(entry);
+    }
     return;
   }
   state.meal = entry.meal;
+  state.planned = entry.status === "planned";
   const { ok, data } = await api("GET", `/api/foods/${entry.food_id}`);
   if (!ok) {
     if (confirm(`„${entry.label}“ löschen?`)) await deleteEntry(entry);
@@ -444,7 +498,7 @@ function openQuick() {
 async function submitQuick(event) {
   event.preventDefault();
   const form = Object.fromEntries(new FormData(event.target));
-  const body = { date: state.date, meal: state.meal, label: form.label };
+  const body = { date: state.date, meal: state.meal, label: form.label, status: state.planned ? "planned" : "eaten" };
   for (const key of ["kcal", "protein_g", "carbs_g", "fat_g"]) body[key] = Number(form[key]);
   const { ok, data } = await api("POST", "/api/food-log", body);
   if (!ok) {
@@ -488,7 +542,10 @@ async function submitCustom(event) {
 
 async function openTemplates(meal) {
   state.meal = meal;
-  $("template-title").textContent = `Vorlagen – ${MEAL_NAMES[meal]}`;
+  state.planned = state.date > today(); // Zukunft: immer geplant; heute: per Haken
+  $("template-title").textContent = `Vorlagen – ${MEAL_NAMES[meal]}${state.planned ? " (planen)" : ""}`;
+  $("template-planned-label").hidden = state.date !== today();
+  $("template-planned").checked = false;
   $("template-form").reset();
   $("template-msg").textContent = "";
   $("template-form").hidden = !state.day.meals[meal].some((e) => e.food_id !== null);
@@ -513,7 +570,9 @@ async function renderTemplates() {
 }
 
 async function applyTemplate(template) {
-  const { ok, data } = await api("POST", `/api/meal-templates/${template.id}/apply`, { date: state.date, meal: state.meal });
+  const { ok, data } = await api("POST", `/api/meal-templates/${template.id}/apply`, {
+    date: state.date, meal: state.meal, status: state.planned || $("template-planned").checked ? "planned" : "eaten",
+  });
   if (!ok) {
     $("template-msg").textContent = data.error;
     return;
@@ -634,6 +693,20 @@ function bindEvents() {
   });
   $("amount-grams").addEventListener("input", () => setGramsFromInput());
   $("amount-save").addEventListener("click", saveAmount);
+  $("amount-consume").addEventListener("click", async () => {
+    const { entry } = state.amount;
+    const grams = Number($("amount-grams").value);
+    if (grams !== entry.grams) {
+      const saved = await api("PATCH", `/api/food-log/${entry.id}`, { grams });
+      if (!saved.ok) {
+        $("amount-msg").textContent = saved.data.error;
+        return;
+      }
+    }
+    const error = await consumeEntry(entry);
+    if (error) $("amount-msg").textContent = error;
+    else closeDialog("amount-dialog");
+  });
   $("amount-delete").addEventListener("click", async () => {
     if (await deleteEntry(state.amount.entry)) closeDialog("amount-dialog");
   });

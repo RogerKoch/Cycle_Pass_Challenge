@@ -5,7 +5,7 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
-from backend.api.food_log_routes import add_food_entry, parse_grams, parse_meal, recompute_intake_day
+from backend.api.food_log_routes import add_food_entry, parse_grams, parse_meal, parse_status, recompute_intake_day
 from backend.extensions import db
 from backend.models.food import Food, FoodLogEntry, MealTemplate, MealTemplateItem
 
@@ -78,7 +78,7 @@ def delete_template(template_id: int):
 
 @meal_templates_bp.post("/<int:template_id>/apply")
 def apply_template(template_id: int):
-    """Legt die Eintraege der Vorlage fuer {date, meal?} an (meal: Default aus der Vorlage)."""
+    """Legt die Eintraege der Vorlage fuer {date, meal?, status?} an (meal: Default aus der Vorlage, status: eaten|planned)."""
     template = db.session.get(MealTemplate, template_id)
     if template is None:
         return jsonify({"error": "Vorlage nicht gefunden"}), 404
@@ -86,9 +86,11 @@ def apply_template(template_id: int):
     try:
         entry_date = date.fromisoformat(body["date"])
         meal = parse_meal(body.get("meal", template.meal))
+        status = parse_status(body.get("status"))
     except (KeyError, TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Daten: {exc}"}), 400
-    entries = [add_food_entry(entry_date, meal, item.food, item.grams) for item in template.items]
-    recompute_intake_day(entry_date)
+    entries = [add_food_entry(entry_date, meal, item.food, item.grams, status) for item in template.items]
+    if status == "eaten":
+        recompute_intake_day(entry_date)
     db.session.commit()
     return jsonify({"created": len(entries)}), 201

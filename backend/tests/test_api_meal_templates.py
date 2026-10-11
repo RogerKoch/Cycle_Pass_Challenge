@@ -77,3 +77,17 @@ def test_deletes_template(client, foods):
 )
 def test_rejects_invalid_templates(client, foods, body):
     assert client.post("/api/meal-templates", json=body).status_code == 400
+
+
+def test_applying_template_as_planned_does_not_touch_intake(client, foods):
+    template_id = client.post("/api/meal-templates", json={
+        "name": "Fruehstueck", "meal": "fruehstueck", "items": [{"food_id": foods[0].id, "grams": 100}],
+    }).get_json()["id"]
+    response = client.post(f"/api/meal-templates/{template_id}/apply",
+                           json={"date": "2026-10-04", "status": "planned"})
+    assert response.status_code == 201
+    day = client.get("/api/food-log/2026-10-04").get_json()
+    assert day["totals"]["kcal"] == 0
+    assert day["planned_totals"]["kcal"] > 0
+    assert client.post(f"/api/meal-templates/{template_id}/apply",
+                       json={"date": "2026-10-04", "status": "nope"}).status_code == 400

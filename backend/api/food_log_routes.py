@@ -9,7 +9,7 @@ from flask import Blueprint, jsonify, request
 
 from backend.engine.food_calc import Nutrients, scale_nutrients
 from backend.extensions import db
-from backend.models.food import MEALS, Food, FoodLogEntry
+from backend.models.food import ENTRY_STATUSES, MEALS, Food, FoodLogEntry
 from backend.models.intake import IntakeDay
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,15 @@ def parse_meal(value: object) -> str:
     return value
 
 
+def parse_status(value: object) -> str:
+    """Validiert den Status (Default eaten)."""
+    if value is None:
+        return "eaten"
+    if value not in ENTRY_STATUSES:
+        raise ValueError(f"status muss einer von {ENTRY_STATUSES} sein, war {value!r}")
+    return value
+
+
 def parse_grams(value: object) -> float:
     """Menge in Gramm, muss > 0 sein."""
     grams = float(value)
@@ -39,6 +48,7 @@ def _serialize(entry: FoodLogEntry) -> dict:
         "id": entry.id,
         "entry_date": entry.entry_date.isoformat(),
         "meal": entry.meal,
+        "status": entry.status,
         "food_id": entry.food_id,
         "grams": entry.grams,
         "label": entry.label,
@@ -53,12 +63,13 @@ def _snapshot(food: Food, grams: float) -> Nutrients:
     return scale_nutrients(per_100g, grams)
 
 
-def add_food_entry(entry_date: date, meal: str, food: Food, grams: float) -> FoodLogEntry:
+def add_food_entry(entry_date: date, meal: str, food: Food, grams: float, status: str = "eaten") -> FoodLogEntry:
     """Legt einen Eintrag mit Naehrwert-Snapshot an und zaehlt die Nutzung des Lebensmittels hoch (ohne Commit)."""
     nutrients = _snapshot(food, grams)
     entry = FoodLogEntry(
         entry_date=entry_date,
         meal=meal,
+        status=status,
         food=food,
         grams=grams,
         label=food.name,
@@ -77,9 +88,11 @@ def _day_totals(entries: list[FoodLogEntry]) -> dict:
 
 
 def recompute_intake_day(entry_date: date) -> None:
-    """Schreibt die Summe der Eintraege nach intake_days; ohne Eintraege wird der Tag geloescht (ohne Commit)."""
+    """Schreibt die Summe der gegessenen Eintraege nach intake_days; ohne solche wird der Tag geloescht (ohne Commit).
+
+    Geplante Eintraege zaehlen nie als Ist."""
     db.session.flush()
-    entries = FoodLogEntry.query.filter_by(entry_date=entry_date).all()
+    entries = FoodLogEntry.query.filter_by(entry_date=entry_date, status="eaten").all()
     day = IntakeDay.query.filter_by(intake_date=entry_date).first()
     if not entries:
         if day is not None:
@@ -102,7 +115,12 @@ def get_day(entry_date: str):
         return jsonify({"error": f"ungueltiges Datum: {exc}"}), 400
     entries = FoodLogEntry.query.filter_by(entry_date=parsed_date).order_by(FoodLogEntry.id).all()
     meals = {meal: [_serialize(e) for e in entries if e.meal == meal] for meal in MEALS}
-    return jsonify({"date": parsed_date.isoformat(), "meals": meals, "totals": _day_totals(entries)}), 200
+    eaten = [e for e in entries if e.status == "eaten"]
+    planned = [e for e in entries if e.status == "planned"]
+    return jsonify({
+        "date": parsed_date.isoformat(), "meals": meals,
+        "totals": _day_totals(eaten), "planned_totals": _day_totals(planned),
+    }), 200
 
 
 @food_log_bp.post("")
@@ -113,23 +131,25 @@ def create_entry():
     try:
         entry_date = date.fromisoformat(body["date"])
         meal = parse_meal(body.get("meal"))
+        status = parse_status(body.get("status"))
         if body.get("food_id") is not None:
             food = db.session.get(Food, int(body["food_id"]))
             if food is None:
                 return jsonify({"error": "Lebensmittel nicht gefunden"}), 404
-            entry = add_food_entry(entry_date, meal, food, parse_grams(body.get("grams")))
+            entry = add_food_entry(entry_date, meal, food, parse_grams(body.get("grams")), status)
         else:
             values = {key: float(body[key]) for key in TOTAL_FIELDS}
             for key, value in values.items():
                 if not math.isfinite(value) or value < 0:
                     raise ValueError(f"{key} muss >= 0 sein, war {value}")
             label = (body.get("label") or "").strip() or "Schnelleintrag"
-            entry = FoodLogEntry(entry_date=entry_date, meal=meal, label=label, **values)
+            entry = FoodLogEntry(entry_date=entry_date, meal=meal, status=status, label=label, **values)
             db.session.add(entry)
     except (KeyError, TypeError, ValueError) as exc:
         db.session.rollback()
         return jsonify({"error": f"ungueltiger Eintrag: {exc}"}), 400
-    recompute_intake_day(entry_date)
+    if status == "eaten":  # Plan-Eintraege duerfen intake_days nicht anfassen (auch kein altes manuelles Ist loeschen)
+        recompute_intake_day(entry_date)
     db.session.commit()
     return jsonify(_serialize(entry)), 201
 
@@ -151,7 +171,8 @@ def update_entry(entry_id: int):
     entry.grams = grams
     for key in TOTAL_FIELDS:
         setattr(entry, key, getattr(nutrients, key))
-    recompute_intake_day(entry.entry_date)
+    if entry.status == "eaten":
+        recompute_intake_day(entry.entry_date)
     db.session.commit()
     return jsonify(_serialize(entry)), 200
 
@@ -162,8 +183,44 @@ def delete_entry(entry_id: int):
     entry = db.session.get(FoodLogEntry, entry_id)
     if entry is None:
         return jsonify({"error": "Eintrag nicht gefunden"}), 404
-    entry_date = entry.entry_date
+    entry_date, was_eaten = entry.entry_date, entry.status == "eaten"
     db.session.delete(entry)
-    recompute_intake_day(entry_date)
+    if was_eaten:
+        recompute_intake_day(entry_date)
     db.session.commit()
     return "", 204
+
+
+@food_log_bp.post("/<int:entry_id>/consume")
+def consume_entry(entry_id: int):
+    """Uebernimmt einen geplanten Eintrag als gegessen."""
+    entry = db.session.get(FoodLogEntry, entry_id)
+    if entry is None:
+        return jsonify({"error": "Eintrag nicht gefunden"}), 404
+    if entry.status != "planned":
+        return jsonify({"error": "Eintrag ist nicht geplant"}), 400
+    entry.status = "eaten"
+    recompute_intake_day(entry.entry_date)
+    db.session.commit()
+    return jsonify(_serialize(entry)), 200
+
+
+@food_log_bp.post("/consume")
+def consume_planned():
+    """Uebernimmt alle geplanten Eintraege eines Tages {date} bzw. einer Mahlzeit {date, meal} als gegessen."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        entry_date = date.fromisoformat(body["date"])
+        meal = parse_meal(body["meal"]) if body.get("meal") is not None else None
+    except (KeyError, TypeError, ValueError) as exc:
+        return jsonify({"error": f"ungueltige Daten: {exc}"}), 400
+    query = FoodLogEntry.query.filter_by(entry_date=entry_date, status="planned")
+    if meal is not None:
+        query = query.filter_by(meal=meal)
+    entries = query.all()
+    for entry in entries:
+        entry.status = "eaten"
+    if entries:
+        recompute_intake_day(entry_date)
+    db.session.commit()
+    return jsonify({"consumed": len(entries)}), 200

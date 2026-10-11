@@ -6,6 +6,7 @@ from backend.extensions import db
 
 MEALS: tuple[str, ...] = ("fruehstueck", "mittag", "abend", "snack", "training")
 FOOD_SOURCES: tuple[str, ...] = ("blv", "custom", "off")
+ENTRY_STATUSES: tuple[str, ...] = ("eaten", "planned")  # planned zaehlt nie als Ist
 
 
 class Food(db.Model):
@@ -31,7 +32,7 @@ class Food(db.Model):
 
 class FoodLogEntry(db.Model):
     """Ein Tagebuch-Eintrag. Naehrwerte sind ein Snapshot zum Erfassungszeitpunkt;
-    Schnelleintraege haben keine food_id und keine Menge."""
+    Schnelleintraege haben keine food_id und keine Menge. status=planned: vorgeplant, noch nicht gegessen."""
 
     __tablename__ = "food_log_entries"
 
@@ -45,6 +46,7 @@ class FoodLogEntry(db.Model):
     protein_g: float = db.Column(db.Float, nullable=False)
     carbs_g: float = db.Column(db.Float, nullable=False)
     fat_g: float = db.Column(db.Float, nullable=False)
+    status: str = db.Column(db.String(10), nullable=False, default="eaten", server_default="eaten")
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     food = db.relationship(Food)

@@ -18,3 +18,12 @@
 .diff.over { color: var(--danger); }
 .diff.under { color: var(--warn); }
 .diff.ok { color: var(--accent); }
+
+/* Geplante Eintraege */
+.list li.planned-entry { opacity: 0.8; border-left: 3px dashed var(--muted); padding-left: 8px; }
+.plan-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 0.9rem; color: var(--muted); }
+.plan-line button { min-height: 36px; }
+.cell .line.plan { color: var(--muted); font-style: italic; }
+.cell { position: relative; }
+.cell.has-plan::after { content: ""; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.meal-actions { flex-wrap: wrap; }
