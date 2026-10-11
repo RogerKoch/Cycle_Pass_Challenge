@@ -33,5 +33,13 @@
   "Plank (Unterarmstütz)": { "img": "plank.svg", "video": "forearm plank" },
   "Reverse Crunch / Leg Raises": { "img": "reverse-crunch.svg", "video": "reverse crunch" },
   "Scapular Push-ups": { "img": "scapular-pushup.svg", "video": "scapular push up" },
-  "Step-ups": { "img": "step-up.svg", "video": "step up exercise low step" }
+  "Step-ups": { "img": "step-up.svg", "video": "step up exercise low step" },
+  "Band-Rudern": { "img": "band-rudern.svg", "video": "band row door anchor" },
+  "Handtuch-Rudern an Türklinke": { "img": "handtuch-rudern.svg", "video": "towel door row" },
+  "Rucksack-Rudern vorgebeugt": { "img": "rucksack-rudern.svg", "video": "backpack bent over row" },
+  "Rucksack Reverse Fly": { "img": "rucksack-reverse-fly.svg", "video": "reverse fly backpack" },
+  "Prone T-Raises (Bauchlage)": { "img": "prone-t-raises.svg", "video": "prone T raise" },
+  "Plank Shoulder Taps": { "img": "plank-shoulder-taps.svg", "video": "plank shoulder taps" },
+  "Seitlage Aussenrotation (Wasserflasche)": { "img": "seitlage-aussenrotation.svg", "video": "side lying external rotation" },
+  "Seitliches Beinheben (Seitenlage)": { "img": "seitliches-beinheben.svg", "video": "side lying leg raise" }
 }

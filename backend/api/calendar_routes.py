@@ -57,6 +57,7 @@ from backend.engine.zwo_export import session_to_zwo
 from backend.extensions import db
 from backend.integrations.intervals_icu import IcuError, PushResult, configured_client, push_workouts
 from backend.models.events import event_spans
+from backend.models.exercise_swaps import exercise_swaps
 from backend.models.ftp_tests import FtpTest
 from backend.models.intervals import imported_records
 from backend.models.plan_adjustments import adjustment_spans
@@ -317,7 +318,14 @@ def serialize_day(
     session = resolve_cycling(row, phase.phase_id, week, spans, events)
     strength = (
         resolve_strength(
-            row.strength_session, phase.phase_id, week, KIND_STRENGTH_REDUCED in kinds, profile.strength_focus, stages
+            row.strength_session,
+            phase.phase_id,
+            week,
+            KIND_STRENGTH_REDUCED in kinds,
+            profile.strength_focus,
+            stages,
+            exercise_swaps(),
+            frozenset(item for item in profile.equipment_missing.split(",") if item),
         )
         if row.strength_session and not strength_blocked(event_ctx)
         else None

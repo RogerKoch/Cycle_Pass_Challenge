@@ -112,6 +112,14 @@ strength_focus:
   core_focus_daily_mcgill: true   # Kraft-Recherche: Core profitiert von hoher Frequenz
   legs_paused_in: [peak_taper, passsaison, strength_reduced]   # "Beine schonen"
 
+# Todo #18 (2026-10-11): Uebungen tauschen, wenn Material fehlt. Bibliothek: backend/engine/strength_alternatives.py
+exercise_swaps:
+  equipment_options: [table, bands]          # Profilfeld equipment_missing (Liste)
+  persistence: "Tabelle exercise_swaps (Original -> Alternative), gilt dauerhaft bis zum naechsten Tausch"
+  resolution_order: [manual_swap, equipment_automation, original]
+  inherits_from_original: [sets, rest, group, leg, phase_window]
+  stage_note: "Stufen aus dem Kraft-Benchmark gelten nur fuer die Originaluebung"
+
 # Todo #5 (2026-10-07): Kraft-Benchmarks statt globalem Level. Quelle: Kraft-Recherche „Fortschrittsmessung“.
 strength_benchmarks:
   interval_weeks: { default: 4, min: 2, max: 8 }   # Profilfeld, Erinnerung im Check-in-Review

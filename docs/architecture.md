@@ -107,7 +107,7 @@ alpenpaesse-app/
 
 | Baustein | Umsetzung |
 |---|---|
-| Speicherung | `training_days`: Slot (`rekom`, `schluessel_1`, `z2_grundlage`, `z2_oder_rekom`, `schluessel_2`, `lang` oder leer), Krafteinheit A/B, Dauer-Override, Status, Ist-Werte, Notiz. Intervalle, Watt und Übungen werden beim Lesen aus Phase und Woche aufgelöst |
+| Speicherung | `training_days`: Slot (`rekom`, `schluessel_1`, `z2_grundlage`, `z2_oder_rekom`, `schluessel_2`, `lang` oder leer), Krafteinheit A/B, Dauer-Override, Status, Ist-Werte, Notiz. Intervalle, Watt und Übungen werden beim Lesen aus Phase und Woche aufgelöst; Übungstausche liegen dauerhaft in `exercise_swaps`, fehlendes Material im Profil (`equipment_missing`) |
 | Erzeugung | Lazy beim ersten Abruf einer Woche aus der Standardwoche (Mo Kraft A + Rekom · Di Schlüssel 1 · Mi Z2 · Do Kraft B + Rekom · Fr Ruhe · Sa Schlüssel 2 · So lang). Vor dem Programmstart leer |
 | Progression | je Phase/Woche nach *Trainingsplan Ausdauer* §3; Build 1 jede 3. Woche Erholungswoche (−40 % Volumen); Peak: 3 Spezifik- + 2 Taper-Wochen |
 | Tauschen | ganze Tage (Rad + Kraft) innerhalb einer Woche, ab heute; der Status bleibt beim Datum. So wird eine abgesagte Schlüsseleinheit auf einen Ersatztag verschoben |

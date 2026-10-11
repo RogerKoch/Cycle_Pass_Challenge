@@ -6,6 +6,7 @@ from datetime import date
 from flask import Blueprint, jsonify, request
 
 from backend.engine.nutrition_calc import ACTIVITY_LEVELS, DEFAULT_ACTIVITY_LEVEL
+from backend.engine.strength_alternatives import EQUIPMENT_OPTIONS
 from backend.engine.strength_benchmarks import DEFAULT_INTERVAL_WEEKS, MAX_INTERVAL_WEEKS, MIN_INTERVAL_WEEKS
 from backend.engine.strength_sessions import FOCUS_NONE, FOCUS_OPTIONS
 from backend.extensions import db
@@ -28,6 +29,13 @@ def _strength_focus(value: object) -> str:
     if value not in FOCUS_OPTIONS:
         raise ValueError(f"unbekannter Kraft-Fokus: {value}")
     return value
+
+
+def _equipment_missing(value: object) -> str:
+    """Prueft die Liste fehlenden Materials gegen EQUIPMENT_OPTIONS; liefert die kommagetrennte Form."""
+    if not isinstance(value, list) or any(item not in EQUIPMENT_OPTIONS for item in value):
+        raise ValueError(f"equipment_missing muss eine Liste aus {sorted(EQUIPMENT_OPTIONS)} sein")
+    return ",".join(sorted(set(value)))
 
 
 def _interval_weeks(value: object) -> int:
@@ -54,6 +62,8 @@ def _serialize(profile: UserProfile) -> dict:
         ],
         "strength_focus": profile.strength_focus,
         "benchmark_interval_weeks": profile.benchmark_interval_weeks,
+        "equipment_missing": [item for item in profile.equipment_missing.split(",") if item],
+        "equipment_options": [{"id": key, "label": label} for key, label in EQUIPMENT_OPTIONS.items()],
         "focus_options": [{"id": key, "label": label} for key, label in FOCUS_OPTIONS.items()],
         "created_at": profile.created_at.isoformat(),
         "updated_at": profile.updated_at.isoformat(),
@@ -84,6 +94,7 @@ def create_profile():
             activity_level=_activity_level(body.get("activity_level", DEFAULT_ACTIVITY_LEVEL)),
             strength_focus=_strength_focus(body.get("strength_focus", FOCUS_NONE)),
             benchmark_interval_weeks=_interval_weeks(body.get("benchmark_interval_weeks", DEFAULT_INTERVAL_WEEKS)),
+            equipment_missing=_equipment_missing(body.get("equipment_missing", [])),
         )
     except (KeyError, TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
@@ -114,6 +125,8 @@ def update_profile():
             profile.strength_focus = _strength_focus(body["strength_focus"])
         if "benchmark_interval_weeks" in body:
             profile.benchmark_interval_weeks = _interval_weeks(body["benchmark_interval_weeks"])
+        if "equipment_missing" in body:
+            profile.equipment_missing = _equipment_missing(body["equipment_missing"])
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 

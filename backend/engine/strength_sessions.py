@@ -13,7 +13,7 @@ Annahme (Schwerpunkt der Einheit).
 
 import logging
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 from backend.engine.strength_benchmarks import PUSHUP_VARIANTS, ExerciseStages
 
@@ -52,6 +52,8 @@ class Exercise:
     scaled: bool = False
     leg: bool = False  # Beinuebung, entfaellt bei reduzierter Kraft (Beine chronisch platt)
     group: str | None = None  # Bibliotheksgruppe fuer den Kraft-Fokus; None = Aufwaermen
+    original: str | None = None  # Name der ersetzten Uebung, wenn getauscht (engine.strength_alternatives)
+    alternatives: list[str] = field(default_factory=list)  # tauschbar gegen diese Uebungen
 
 
 @dataclass
