@@ -27,6 +27,6 @@ Stand: 2026-10-11
 | 19 | kcal aus K/F/P berechnen (low prio) | Wenn bei einem Eintrag keine kcal-Angabe vorhanden ist: aus Kohlenhydraten, Fett, Protein berechnen (4/9/4 kcal/g). |
 | 20 | Gemachtes Training aus Sync löschen | Ein als gemacht erfasstes/synchronisiertes Training in unserer App wieder entfernen können. |
 | 21 | Alles zurücksetzen | Komplett-Reset der App-Daten, um neu zu starten (mit Bestätigung; vorher Backup-Hinweis). |
-| 22 | Tageskommentare | Pro Tag Kommentare hinzufügen können. |
+| 22 | ✅ Tageskommentare | Umgesetzt 2026-10-11: ein Freitext pro Tag (Tabelle `day_comments`, `/api/day-comments/<datum>`), Karte „Kommentar“ auf Heute, Training und Ernährung; leer speichern löscht. |
 | 23 | ✅ Tagesansichten trennen | Umgesetzt 2026-10-11: Training-Tag nur Training; Mahlzeiten-Verteilung, Fueling und Timing-Hinweise liegen jetzt auf der Ernährungsseite (jedes Datum); „Heute“ zeigt beides. |
 | 24 | ✅ Timer bei Kraft/Mobility | Umgesetzt 2026-10-11: Countdown-Button bei Übungen, deren Reps mit einer Dauer beginnen („20–40 s“, „8 min“; obere Grenze, je Seite einzeln), Ton + Vibration am Ende, nur ein Timer gleichzeitig. |

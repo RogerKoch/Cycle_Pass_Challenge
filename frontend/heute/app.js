@@ -158,6 +158,7 @@ async function load() {
   $("nutrition-card").replaceChildren(
     ...nutritionCard(plan.ok ? plan.data : { error: plan.data.error }, log.ok ? log.data.totals : NO_TOTALS));
   $("week-card").replaceChildren(...weekCard(week.data));
+  mountDayComment($("comment-card"), { base: "", date: iso });
   loadReviewBanner();
 }
 

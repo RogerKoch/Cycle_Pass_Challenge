@@ -247,6 +247,9 @@ function renderDay() {
   if (day.strength) cards.push(strengthCard(day.strength));
   cards.push(mobilityCard(day.mobility));
   cards.push(actionsCard(day));
+  const comment = el("section", { class: "card" });
+  mountDayComment(comment, { base: "../", date: state.date });
+  cards.push(comment);
   $("day").replaceChildren(...cards);
 }
 
