@@ -27,3 +27,8 @@
 .cell { position: relative; }
 .cell.has-plan::after { content: ""; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .meal-actions { flex-wrap: wrap; }
+
+.plan-meals { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.plan-meals td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.plan-meals td.num { text-align: right; white-space: nowrap; }
+.plan-meals .sub { display: block; color: var(--muted); font-size: 0.75rem; }
