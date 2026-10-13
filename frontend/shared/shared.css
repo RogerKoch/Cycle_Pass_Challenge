@@ -111,7 +111,7 @@ dialog.sheet::backdrop { background: rgb(0 0 0 / 0.45); }
 
 /* App-Shell: Navigation (Sidebar ab 900px, darunter Tab-Leiste unten) */
 .nav { position: fixed; z-index: 10; background: var(--card); border: 0 solid var(--line); }
-.nav-brand { font-weight: 700; color: var(--accent); }
+.nav-brand { font-weight: 700; color: var(--accent); text-decoration: none; }
 .nav-item {
   display: flex; align-items: center; gap: 10px;
   color: var(--muted); text-decoration: none;

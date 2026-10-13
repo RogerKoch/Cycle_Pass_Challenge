@@ -39,3 +39,10 @@ def test_checkins_page_and_script_are_served(client):
     assert client.get("/checkins/app.js").status_code == 200
     for filename in ("ui.js", "test-forms.js", "forms.css", "chart.js"):
         assert client.get(f"/shared/{filename}").status_code == 200
+
+
+def test_brand_is_a_link_to_today_named_passform():
+    nav = (FRONTEND / "shared" / "nav.js").read_text(encoding="utf-8")
+    assert 'const brand = document.createElement("a")' in nav
+    assert 'brand.textContent = "PassForm"' in nav
+    assert 'brand.href = new URL("", base).href' in nav
