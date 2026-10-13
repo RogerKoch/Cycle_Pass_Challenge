@@ -24,27 +24,37 @@ logger = logging.getLogger(__name__)
 baseline_bp = Blueprint("baseline", __name__, url_prefix="/api/baseline")
 
 
-def resolve_baseline(profile: UserProfile, checkin: Checkin) -> dict[str, tuple[ResolvedValue, str | None]]:
+def _target_bodyfat_from_weight(profile: UserProfile, checkin: Checkin | None) -> float | None:
+    """Ziel-KFA (%) aus einem als Gewicht eingegebenen Ziel und der aktuellen FFM; None wenn nicht sinnvoll."""
+    if profile.target_weight_kg is None or checkin is None or not checkin.ffm_kg:
+        return None
+    bodyfat = 100 * (1 - checkin.ffm_kg / profile.target_weight_kg)
+    return bodyfat if 0 < bodyfat < 100 else None
+
+
+def resolve_baseline(profile: UserProfile, checkin: Checkin | None) -> dict[str, tuple[ResolvedValue, str | None]]:
     """Loest alle Baseline-Felder auf (Messwert vor Schaetzwert).
 
     Args:
         profile: Nutzerprofil (Alter, Groesse).
-        checkin: neuester Check-in (Gewicht, KFA fuer die Schaetzwerte).
+        checkin: neuester Check-in (Gewicht, KFA fuer die Schaetzwerte), oder None ohne Check-in.
 
     Returns:
         Feldname -> (ResolvedValue, updated_at als ISO-String oder None).
     """
     estimates: dict[str, float | None] = {
-        "rmr_kcal": calculate_bmr(checkin.weight_kg, profile.height_cm, profile.age),
-        "ffm_kg": checkin.ffm_kg,
-        "bodyfat_pct": checkin.bodyfat_pct,
-        "target_bodyfat_pct": DEFAULT_TARGET_BODYFAT_PCT,
+        "target_bodyfat_pct": _target_bodyfat_from_weight(profile, checkin) or DEFAULT_TARGET_BODYFAT_PCT,
     }
-    estimate_updated_at = {
-        "rmr_kcal": checkin.created_at.isoformat(),
-        "ffm_kg": checkin.created_at.isoformat(),
-        "bodyfat_pct": checkin.created_at.isoformat(),
-    }
+    estimate_updated_at: dict[str, str] = {}
+    if checkin is not None:
+        estimates.update(
+            rmr_kcal=calculate_bmr(checkin.weight_kg, profile.height_cm, profile.age),
+            ffm_kg=checkin.ffm_kg,
+            bodyfat_pct=checkin.bodyfat_pct,
+        )
+        estimate_updated_at = {
+            field: checkin.created_at.isoformat() for field in ("rmr_kcal", "ffm_kg", "bodyfat_pct")
+        }
     measured = {m.field_name: m for m in BaselineMeasurement.query.all()}
 
     result: dict[str, tuple[ResolvedValue, str | None]] = {}
@@ -63,14 +73,13 @@ def get_baseline():
     if profile is None:
         return jsonify({"error": "kein Profil vorhanden"}), 404
     checkin = Checkin.query.order_by(Checkin.checkin_date.desc(), Checkin.created_at.desc()).first()
-    if checkin is None:
-        return jsonify({"error": "kein Check-in vorhanden, Schaetzwerte nicht berechenbar"}), 422
 
     fields = resolve_baseline(profile, checkin)
     rmr, ffm, target_bf = fields["rmr_kcal"][0], fields["ffm_kg"][0], fields["target_bodyfat_pct"][0]
+    has_ffm = ffm.value is not None
     derived = {
-        "rmr_ratio": calculate_rmr_ratio(rmr.value, ffm.value),
-        "target_weight_kg": calculate_target_weight_kg(ffm.value, target_bf.value),
+        "rmr_ratio": calculate_rmr_ratio(rmr.value, ffm.value) if has_ffm and rmr.value is not None else None,
+        "target_weight_kg": calculate_target_weight_kg(ffm.value, target_bf.value) if has_ffm else None,
     }
     return jsonify(
         {
@@ -99,6 +108,10 @@ def set_measured_value(field: str):
     except (KeyError, TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltiger Messwert: {exc}"}), 400
 
+    if field == "target_bodyfat_pct":
+        profile = UserProfile.query.first()
+        if profile is not None:
+            profile.target_weight_kg = None  # ein Ziel gilt: Prozent ersetzt Gewicht
     row = BaselineMeasurement.query.filter_by(field_name=field).first()
     if row is None:
         row = BaselineMeasurement(field_name=field, measured_value=value)

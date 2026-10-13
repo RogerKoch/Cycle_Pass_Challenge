@@ -87,3 +87,12 @@ def test_adds_ftp_source_column_and_old_tests_count_as_manual(app):
     add_missing_columns()
 
     assert db.session.execute(text("SELECT source FROM ftp_tests")).scalar() == "manual"
+
+
+def test_adds_target_weight_column_to_existing_profile(app):
+    db.session.execute(text("ALTER TABLE user_profile DROP COLUMN target_weight_kg"))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert "target_weight_kg" in {c["name"] for c in inspect(db.engine).get_columns("user_profile")}

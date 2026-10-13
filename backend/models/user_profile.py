@@ -24,6 +24,8 @@ class UserProfile(db.Model):
     equipment_missing: str = db.Column(db.String(100), nullable=False, default="", server_default="")
     # Wochentage (0 = Mo ... 6 = So), an denen nach der Arbeit trainiert wird; Standard Di–Fr
     evening_training_days: str = db.Column(db.String(20), nullable=False, default="1,2,3,4", server_default="1,2,3,4")
+    # Zielgewicht in kg, falls als Gewicht (statt Ziel-Koerperfett) eingegeben; sonst None
+    target_weight_kg: float | None = db.Column(db.Float, nullable=True)
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,
