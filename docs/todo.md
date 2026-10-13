@@ -1,6 +1,6 @@
 ﻿# TODO / Backlog
 
-Stand: 2026-10-11
+Stand: 2026-10-13
 
 ## Offen
 
@@ -30,3 +30,6 @@ Stand: 2026-10-11
 | 22 | ✅ Tageskommentare | Umgesetzt 2026-10-11: ein Freitext pro Tag (Tabelle `day_comments`, `/api/day-comments/<datum>`), Karte „Kommentar“ auf Heute, Training und Ernährung; leer speichern löscht. |
 | 23 | ✅ Tagesansichten trennen | Umgesetzt 2026-10-11: Training-Tag nur Training; Mahlzeiten-Verteilung, Fueling und Timing-Hinweise liegen jetzt auf der Ernährungsseite (jedes Datum); „Heute“ zeigt beides. |
 | 24 | ✅ Timer bei Kraft/Mobility | Umgesetzt 2026-10-11: Countdown-Button bei Übungen, deren Reps mit einer Dauer beginnen („20–40 s“, „8 min“; obere Grenze, je Seite einzeln), Ton + Vibration am Ende, nur ein Timer gleichzeitig. |
+| 25 | Fragebogen: konkrete Antworten je Frage | Dropdown-Texte im wöchentlichen Fragebogen sind pro Frage verschieden formulieren (statt überall „kein/leicht/deutlich/stark“), z. B. Beine: frisch · leicht müde · schwer, Watt fehlen · kein Antritt. Skala 0–3 und Trigger bleiben; nur Beschriftung in `frontend/checkins/index.html`. |
+| 26 | Trainingszeit pro Wochentag | Im Profil je Wochentag Trainingszeit (Nachmittag/Abend nach der Arbeit vs. flexibel); Standard Di–Fr nach der Arbeit, Sa/So/Mo flexibel. Timing-Hinweise und Mahlzeiten-Labels passen sich an (Snack 1 Pre-Workout am Nachmittag, Abendessen = Post-Workout, Snack 2 entfällt/verschmilzt). kcal/Makros bleiben gleich. |
+| 27 | FTP automatisch aus intervals.icu | FTP aus den intervals.icu-Athletendaten (aus Zwift/Garmin) übernehmen statt manuell eintragen; API-Felder vorher prüfen. Manueller Ramp-Test bleibt als Fallback. |

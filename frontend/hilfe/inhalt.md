@@ -123,7 +123,16 @@ Trainings aus Garmin (über intervals.icu) zählen als Ist-Werte: sie ersetzen d
 <a id="skala"></a>
 
 ### Problem-Skala 0–3 (Fragebogen)
-- **Was:** 0 kein · 1 leicht · 2 deutlich · 3 stark.
+- **Was:** 0 = kein Problem · 1 leicht · 2 deutlich · 3 stark. Die Antworten sind je Frage konkret formuliert:
+
+| Frage | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| Schlaf schlecht | erholt geschlafen | etwas unruhig | deutlich zu kurz / oft wach | kaum geschlafen |
+| Beine platt | frisch | leicht müde | schwer, Watt fehlen | leer, kein Antritt |
+| Dauerhunger | normal | öfter Appetit | ständig hungrig trotz Plan | Heisshunger, kaum zu stoppen |
+| Rücken nach langen Fahrten | keine Beschwerden | leichtes Ziehen | Schmerz, der nachwirkt | stark, Alltag beeinträchtigt |
+| Anstrengung höher bei gleicher Leistung | normal | etwas höher | Z2 fühlt sich wie Tempo an | gleiche Watt kaum haltbar |
+
 - **Wozu:** ab **2 (deutlich)** prüft die App eine Regel (z. B. Rücken → Core täglich).
 
 <a id="reds"></a>
