@@ -8,6 +8,7 @@ from datetime import date, datetime, timezone
 from flask import Blueprint, jsonify, request
 
 from backend.api.calendar_routes import push_planned_workouts
+from backend.extensions import db
 from backend.integrations.intervals_icu import (
     STATE_LAST_ERROR,
     STATE_LAST_SYNC,
@@ -35,9 +36,23 @@ def get_status():
         "configured": configured_client() is not None,
         "last_sync": get_state(STATE_LAST_SYNC),
         "last_error": get_state(STATE_LAST_ERROR),
-        "activities": IcuActivity.query.count(),
+        "activities": IcuActivity.query.filter(IcuActivity.ignored.is_(False)).count(),
         "wellness_days": IcuWellness.query.count(),
     }), 200
+
+
+@intervals_bp.delete("/activities/<icu_id>")
+def remove_activity(icu_id: str):
+    """Blendet eine importierte Aktivitaet lokal aus; spaetere Syncs bringen sie nicht zurueck.
+
+    In intervals.icu/Garmin bleibt die Aktivitaet unveraendert.
+    """
+    activity = IcuActivity.query.filter_by(icu_id=icu_id).first()
+    if activity is None:
+        return jsonify({"error": "Aktivität nicht gefunden"}), 404
+    activity.ignored = True
+    db.session.commit()
+    return jsonify({"removed": icu_id}), 200
 
 
 @intervals_bp.post("/sync")

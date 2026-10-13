@@ -42,3 +42,18 @@ def test_adds_status_column_and_old_log_entries_count_as_eaten(app):
 
     assert "status" in {c["name"] for c in inspect(db.engine).get_columns("food_log_entries")}
     assert db.session.execute(text("SELECT status FROM food_log_entries")).scalar() == "eaten"
+
+
+def test_adds_ignored_column_and_old_activities_stay_visible(app):
+    db.session.execute(text("DROP TABLE icu_activities"))
+    db.session.execute(text(
+        "CREATE TABLE icu_activities (id INTEGER PRIMARY KEY, icu_id VARCHAR(32) NOT NULL, day DATE NOT NULL, "
+        "type VARCHAR(40) NOT NULL, name VARCHAR(200), moving_seconds INTEGER, joules FLOAT, calories FLOAT, "
+        "training_load FLOAT, avg_watts FLOAT, weighted_watts FLOAT, avg_hr FLOAT, intensity FLOAT)"
+    ))
+    db.session.execute(text("INSERT INTO icu_activities (icu_id, day, type) VALUES ('i1', '2026-10-01', 'Ride')"))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert db.session.execute(text("SELECT ignored FROM icu_activities")).scalar() == 0

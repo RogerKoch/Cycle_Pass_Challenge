@@ -202,5 +202,23 @@ async function syncIntervals(ifStale) {
   }
 }
 
+// Zuruecksetzen: Button erst aktiv, wenn das Bestaetigungswort stimmt (Server prueft es nochmals)
+const RESET_WORD = "ZURÜCKSETZEN";
+$("reset-form").elements.confirm.addEventListener("input", (event) => {
+  $("reset-form").querySelector("button").disabled = event.target.value.trim() !== RESET_WORD;
+});
+$("reset-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const { ok, data } = await api("POST", "/api/admin/reset", { confirm: event.target.elements.confirm.value.trim() });
+  if (!ok) {
+    setMsg("reset-msg", data.error);
+    return;
+  }
+  event.target.reset();
+  event.target.querySelector("button").disabled = true;
+  setMsg("reset-msg", `Zurückgesetzt${data.backup ? ` – Backup: ${data.backup}` : ""}. Bitte Profil neu anlegen.`);
+  await loadAll();
+});
+
 loadAll();
 syncIntervals(true);

@@ -269,6 +269,7 @@ def _serialize_event(ctx: EventContext | None) -> dict | None:
 
 def _serialize_imported(activity: ActivityRecord) -> dict:
     return {
+        "icu_id": activity.icu_id,
         "name": activity.name,
         "type": activity.type,
         "is_ride": activity.is_ride,
