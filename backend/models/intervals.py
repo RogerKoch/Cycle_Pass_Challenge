@@ -24,6 +24,8 @@ class IcuActivity(db.Model):
     weighted_watts: float | None = db.Column(db.Float, nullable=True)
     avg_hr: float | None = db.Column(db.Float, nullable=True)
     intensity: float | None = db.Column(db.Float, nullable=True)
+    # lokal entfernt: Sync ueberschreibt die Zeile, laesst dieses Flag aber stehen
+    ignored: bool = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
 
     def to_record(self) -> ActivityRecord:
         """Sicht fuer die Engine."""
@@ -78,6 +80,9 @@ class IntegrationState(db.Model):
 def imported_records(day_from: date, day_to: date) -> dict[date, list[ActivityRecord]]:
     """Importierte Aktivitaeten im Zeitraum, nach Tag gruppiert."""
     result: dict[date, list[ActivityRecord]] = {}
-    for row in IcuActivity.query.filter(IcuActivity.day >= day_from, IcuActivity.day <= day_to).all():
+    rows = IcuActivity.query.filter(
+        IcuActivity.day >= day_from, IcuActivity.day <= day_to, IcuActivity.ignored.is_(False)
+    ).all()
+    for row in rows:
         result.setdefault(row.day, []).append(row.to_record())
     return result

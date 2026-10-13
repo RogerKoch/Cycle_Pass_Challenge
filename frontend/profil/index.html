@@ -67,6 +67,19 @@
       <div id="today-result"></div>
     </section>
 
+    <section id="reset">
+      <h2>Zurücksetzen</h2>
+      <p class="hint">Löscht Profil, Kalender, Check-ins, Tests, Events, Kommentare, Übungstausche, Ernährungstagebuch und
+        Vorlagen sowie die Sync-Daten. Lebensmittel bleiben. Vorher wird automatisch ein Datenbank-Backup erstellt.
+        Der nächste intervals.icu-Sync holt die letzten 14 Tage wieder.</p>
+      <form id="reset-form">
+        <label>Zur Bestätigung <b>ZURÜCKSETZEN</b> eintippen
+          <input name="confirm" autocomplete="off" autocapitalize="characters"></label>
+        <button type="submit" class="danger" disabled>Alles zurücksetzen</button>
+      </form>
+      <p class="msg" id="reset-msg"></p>
+    </section>
+
     <form class="mobile-only" method="post" action="../logout"><button type="submit">Abmelden</button></form>
   </main>
 

@@ -277,6 +277,15 @@ const infoLink = (anchor) => el("a", { class: "info", href: `../hilfe/#${anchor}
 
 const hasImportedTraining = (day) => day.imported.some((a) => a.is_ride || a.is_strength);
 
+// Blendet die Aktivitaet nur in dieser App aus (intervals.icu/Garmin bleiben unveraendert)
+async function removeImported(activity) {
+  const label = activity.name || activity.type;
+  if (!confirm(`„${label}“ aus der App entfernen? In intervals.icu/Garmin bleibt sie bestehen.`)) return;
+  const { ok, data } = await api("DELETE", `/api/intervals/activities/${encodeURIComponent(activity.icu_id)}`);
+  if (!ok) $("page-msg").textContent = data.error || "Entfernen fehlgeschlagen";
+  else await load();
+}
+
 function importedCard(activities) {
   const items = activities.map((a) => {
     const facts = [
@@ -286,7 +295,9 @@ function importedCard(activities) {
       a.avg_hr ? `Ø ${round(a.avg_hr)} bpm` : null,
       a.training_load ? `Load ${round(a.training_load)}` : null,
     ].filter(Boolean).join(" · ");
-    return el("li", {}, `${a.is_ride ? "🚴" : a.is_strength ? "💪" : "•"} ${a.name || a.type}`, el("span", { class: "sub" }, facts));
+    const remove = el("button", { type: "button", onclick: () => removeImported(a) }, "Entfernen");
+    return el("li", {}, `${a.is_ride ? "🚴" : a.is_strength ? "💪" : "•"} ${a.name || a.type}`,
+      el("span", { class: "sub" }, facts), remove);
   });
   return el("section", { class: "card" },
     el("h2", {}, "⌚ Garmin-Ist"),
