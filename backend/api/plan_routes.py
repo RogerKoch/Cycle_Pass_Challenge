@@ -221,6 +221,9 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
         nutrition = replace(nutrition, target_kcal=max(nutrition.target_kcal, macro_kcal))
 
     fueling = intra_fueling(cycling_hours * 60, cycling_intensity)
+    # Training nach der Arbeit: Post-Workout-Mahlzeit ist das Abendessen (nur an Tagen mit Training)
+    evening_days = {int(d) for d in profile.evening_training_days.split(",") if d}
+    evening = day.weekday() in evening_days and (cycling_hours > 0 or strength_sessions > 0)
     intake_today = IntakeDay.query.filter_by(intake_date=day).first()
     intake = None
     if intake_today is not None:
@@ -251,11 +254,11 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
         "nutrition": asdict(nutrition),
         "macros": asdict(macros),
         "day_type": day_type.value,
-        "meals": [asdict(m) for m in distribute_meals(nutrition.target_kcal, macros.protein_g)],
+        "meals": [asdict(m) for m in distribute_meals(nutrition.target_kcal, macros.protein_g, evening)],
         "fueling": asdict(fueling) if fueling else None,
         "timing_hints": [
             *(event_nut.hints if event_nut else []),
-            *nutrition_timing_hints(cycling_hours > 0, strength_sessions > 0, checkin.weight_kg),
+            *nutrition_timing_hints(cycling_hours > 0, strength_sessions > 0, checkin.weight_kg, evening),
         ],
         "event": _serialize_event(event_ctx),
         "training": training,

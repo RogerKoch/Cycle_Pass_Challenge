@@ -9,7 +9,7 @@ das ist eine explizite Tabelle in data-model.yaml.
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -270,6 +270,11 @@ _MEAL_SLOTS: list[tuple[str, str, float | None, float, str]] = [
 ]
 
 
+# Training nach der Arbeit, vor dem Abendessen: Snack 2 entfaellt, das Abendessen ist die Post-Workout-Mahlzeit
+EVENING_SNACK_1_HINT = "Pre-Workout am Nachmittag, 30–60 min vor dem Training (schnelle KH, wenig Fett/Ballaststoffe)"
+EVENING_DINNER_HINT = "Direkt nach dem Training: KH + 20–25 g Protein, Recovery (Casein-Anteil)"
+
+
 @dataclass
 class MealSlot:
     """Richtwert fuer eine Mahlzeit."""
@@ -310,7 +315,7 @@ def derive_day_type(cycling_minutes: float, intensity: CyclingIntensity | None, 
     return DayType.RUHETAG
 
 
-def distribute_meals(target_kcal: float, protein_g: float) -> list[MealSlot]:
+def distribute_meals(target_kcal: float, protein_g: float, post_workout_is_dinner: bool = False) -> list[MealSlot]:
     """Verteilt kcal und Protein auf 3 Hauptmahlzeiten + 2 Snacks (ernaehrungsplan.md §3).
 
     Snacks erhalten feste Mittelwerte, der Rest geht im Verhaeltnis 25:30:30 an die
@@ -321,14 +326,19 @@ def distribute_meals(target_kcal: float, protein_g: float) -> list[MealSlot]:
         target_kcal: Tagesziel kcal.
         protein_g: Tagesziel Protein.
 
+    Args:
+        target_kcal: Tagesziel kcal.
+        protein_g: Tagesziel Protein.
+        post_workout_is_dinner: Training nach der Arbeit – Snack 2 (kcal + Protein) geht ins Abendessen.
+
     Returns:
-        Fuenf MealSlots; Summe kcal = target_kcal, Summe Protein = protein_g.
+        Fuenf MealSlots (vier bei `post_workout_is_dinner`); Summe kcal = target_kcal, Summe Protein = protein_g.
     """
     main_kcal = max(target_kcal - SNACK_1_KCAL - SNACK_2_KCAL, 0.0)
     main_share_total = sum(share for _, _, share, _, _ in _MEAL_SLOTS if share is not None)
     protein_weight_total = sum(weight for _, _, _, weight, _ in _MEAL_SLOTS)
     snack_kcal = {"snack_1": SNACK_1_KCAL, "snack_2": SNACK_2_KCAL}
-    return [
+    meals = [
         MealSlot(
             slot=slot,
             label=label,
@@ -337,6 +347,17 @@ def distribute_meals(target_kcal: float, protein_g: float) -> list[MealSlot]:
             hint=hint,
         )
         for slot, label, share, weight, hint in _MEAL_SLOTS
+    ]
+    if not post_workout_is_dinner:
+        return meals
+    by_slot = {m.slot: m for m in meals}
+    snack_2, dinner = by_slot["snack_2"], by_slot["abend"]
+    folded = replace(dinner, kcal=dinner.kcal + snack_2.kcal, protein_g=dinner.protein_g + snack_2.protein_g,
+                     hint=EVENING_DINNER_HINT)
+    return [
+        folded if m.slot == "abend" else replace(m, hint=EVENING_SNACK_1_HINT) if m.slot == "snack_1" else m
+        for m in meals
+        if m.slot != "snack_2"
     ]
 
 
@@ -362,20 +383,25 @@ def intra_fueling(cycling_minutes: float, intensity: CyclingIntensity | None) ->
     return Fueling(low, high, low * hours, high * hours, note)
 
 
-def nutrition_timing_hints(has_ride: bool, has_strength: bool, weight_kg: float) -> list[str]:
+def nutrition_timing_hints(has_ride: bool, has_strength: bool, weight_kg: float, evening: bool = False) -> list[str]:
     """Timing-Hinweise rund ums Training (ernaehrungsplan.md §3).
 
     Args:
         has_ride: Radeinheit geplant.
         has_strength: Krafteinheit geplant.
         weight_kg: aktuelles Gewicht (fuer KH nach dem Training).
+        evening: Training nach der Arbeit, vor dem Abendessen (statt flexibler Tageszeit).
 
     Returns:
         Hinweistexte, leer an Ruhetagen.
     """
     hints = []
     if has_ride:
-        hints.append("Training vormittags: Snack 1 als Pre-Workout. Nachmittags/abends: Snack 2 direkt danach.")
+        if evening:
+            hints.append("Training nach der Arbeit: Snack 1 nachmittags als Pre-Workout, "
+                         "Abendessen direkt nach dem Training.")
+        else:
+            hints.append("Training vormittags: Snack 1 als Pre-Workout. Nachmittags/abends: Snack 2 direkt danach.")
         hints.append(f"Nach dem Rad: {weight_kg * 1.0:.0f}–{weight_kg * 1.2:.0f} g KH in den ersten Stunden.")
     if has_strength:
         hints.append("Nach der Krafteinheit: 20–25 g Protein innerhalb ~2 h.")

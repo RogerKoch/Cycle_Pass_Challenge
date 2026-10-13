@@ -31,6 +31,17 @@ async function loadProfile() {
         label.append(box, ` ${o.label}`);
         return label;
       }));
+    $("evening-days").replaceChildren(
+      $("evening-days").querySelector("legend"),
+      ...data.weekday_options.map((o) => {
+        const box = el("input");
+        box.type = "checkbox";
+        box.value = o.id;
+        box.checked = data.evening_training_days.includes(o.id);
+        const label = el("label");
+        label.append(box, ` ${o.label}`);
+        return label;
+      }));
     for (const key of ["age", "height_cm", "program_start_date", "activity_level", "strength_focus", "benchmark_interval_weeks"]) {
       form.elements[key].value = data[key];
     }
@@ -46,6 +57,7 @@ async function saveProfile(event) {
   const method = form.dataset.exists ? "PUT" : "POST";
   const body = formToObject(form);
   body.equipment_missing = [...form.querySelectorAll("#equipment-missing input:checked")].map((box) => box.value);
+  body.evening_training_days = [...form.querySelectorAll("#evening-days input:checked")].map((box) => Number(box.value));
   const { ok, data } = await api(method, "/api/profile", body);
   setMsg("profile-msg", ok ? "" : data.error);
   if (ok) await Promise.all([loadProfile(), loadBaseline(), loadToday()]);

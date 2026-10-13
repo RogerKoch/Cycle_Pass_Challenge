@@ -38,6 +38,19 @@ def _equipment_missing(value: object) -> str:
     return ",".join(sorted(set(value)))
 
 
+WEEKDAYS: list[str] = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+
+
+def _evening_training_days(value: object) -> str:
+    """Prueft die Wochentage (0 = Mo ... 6 = So); liefert die kommagetrennte Form."""
+    valid = isinstance(value, list) and all(
+        isinstance(day, int) and not isinstance(day, bool) and 0 <= day <= 6 for day in value
+    )
+    if not valid:
+        raise ValueError("evening_training_days muss eine Liste von Wochentagen 0 (Mo) bis 6 (So) sein")
+    return ",".join(str(day) for day in sorted(set(value)))
+
+
 def _interval_weeks(value: object) -> int:
     """Prueft das Benchmark-Intervall (Wochen)."""
     if isinstance(value, bool):
@@ -63,6 +76,8 @@ def _serialize(profile: UserProfile) -> dict:
         "strength_focus": profile.strength_focus,
         "benchmark_interval_weeks": profile.benchmark_interval_weeks,
         "equipment_missing": [item for item in profile.equipment_missing.split(",") if item],
+        "evening_training_days": [int(d) for d in profile.evening_training_days.split(",") if d],
+        "weekday_options": [{"id": i, "label": label} for i, label in enumerate(WEEKDAYS)],
         "equipment_options": [{"id": key, "label": label} for key, label in EQUIPMENT_OPTIONS.items()],
         "focus_options": [{"id": key, "label": label} for key, label in FOCUS_OPTIONS.items()],
         "created_at": profile.created_at.isoformat(),
@@ -95,6 +110,7 @@ def create_profile():
             strength_focus=_strength_focus(body.get("strength_focus", FOCUS_NONE)),
             benchmark_interval_weeks=_interval_weeks(body.get("benchmark_interval_weeks", DEFAULT_INTERVAL_WEEKS)),
             equipment_missing=_equipment_missing(body.get("equipment_missing", [])),
+            evening_training_days=_evening_training_days(body.get("evening_training_days", [1, 2, 3, 4])),
         )
     except (KeyError, TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
@@ -127,6 +143,8 @@ def update_profile():
             profile.benchmark_interval_weeks = _interval_weeks(body["benchmark_interval_weeks"])
         if "equipment_missing" in body:
             profile.equipment_missing = _equipment_missing(body["equipment_missing"])
+        if "evening_training_days" in body:
+            profile.evening_training_days = _evening_training_days(body["evening_training_days"])
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 

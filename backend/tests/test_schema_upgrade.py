@@ -57,3 +57,19 @@ def test_adds_ignored_column_and_old_activities_stay_visible(app):
     add_missing_columns()
 
     assert db.session.execute(text("SELECT ignored FROM icu_activities")).scalar() == 0
+
+
+def test_adds_evening_training_days_with_workday_default(app):
+    db.session.execute(text("DROP TABLE user_profile"))
+    db.session.execute(text(
+        "CREATE TABLE user_profile (id INTEGER PRIMARY KEY, age INTEGER NOT NULL, height_cm FLOAT NOT NULL, "
+        "program_start_date DATE NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL)"
+    ))
+    db.session.execute(text(
+        "INSERT INTO user_profile VALUES (1, 49, 173, '2026-10-01', '2026-10-01 00:00:00', '2026-10-01 00:00:00')"
+    ))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert db.session.execute(text("SELECT evening_training_days FROM user_profile")).scalar() == "1,2,3,4"
