@@ -63,23 +63,30 @@ def _interval_weeks(value: object) -> int:
     return weeks
 
 
+def _options() -> dict:
+    """Auswahllisten fuer das Profilformular (auch ohne bestehendes Profil noetig)."""
+    return {
+        "activity_levels": [
+            {"id": key, "label": label, "factor": factor} for key, (label, factor) in ACTIVITY_LEVELS.items()
+        ],
+        "weekday_options": [{"id": i, "label": label} for i, label in enumerate(WEEKDAYS)],
+        "equipment_options": [{"id": key, "label": label} for key, label in EQUIPMENT_OPTIONS.items()],
+        "focus_options": [{"id": key, "label": label} for key, label in FOCUS_OPTIONS.items()],
+    }
+
+
 def _serialize(profile: UserProfile) -> dict:
     return {
+        **_options(),
         "id": profile.id,
         "age": profile.age,
         "height_cm": profile.height_cm,
         "program_start_date": profile.program_start_date.isoformat(),
         "activity_level": profile.activity_level,
-        "activity_levels": [
-            {"id": key, "label": label, "factor": factor} for key, (label, factor) in ACTIVITY_LEVELS.items()
-        ],
         "strength_focus": profile.strength_focus,
         "benchmark_interval_weeks": profile.benchmark_interval_weeks,
         "equipment_missing": [item for item in profile.equipment_missing.split(",") if item],
         "evening_training_days": [int(d) for d in profile.evening_training_days.split(",") if d],
-        "weekday_options": [{"id": i, "label": label} for i, label in enumerate(WEEKDAYS)],
-        "equipment_options": [{"id": key, "label": label} for key, label in EQUIPMENT_OPTIONS.items()],
-        "focus_options": [{"id": key, "label": label} for key, label in FOCUS_OPTIONS.items()],
         "created_at": profile.created_at.isoformat(),
         "updated_at": profile.updated_at.isoformat(),
     }
@@ -87,10 +94,10 @@ def _serialize(profile: UserProfile) -> dict:
 
 @profile_bp.get("")
 def get_profile():
-    """Gibt das aktuelle Profil zurueck, oder 404 falls keins existiert."""
+    """Gibt das aktuelle Profil zurueck, oder 404 (mit Auswahllisten) falls keins existiert."""
     profile = UserProfile.query.first()
     if profile is None:
-        return jsonify({"error": "kein Profil vorhanden"}), 404
+        return jsonify({"error": "kein Profil vorhanden", **_options()}), 404
     return jsonify(_serialize(profile)), 200
 
 

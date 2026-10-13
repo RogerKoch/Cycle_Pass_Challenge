@@ -2,46 +2,47 @@
 
 const SOURCE_LABEL = { measured: "gemessen", estimated: "geschätzt" };
 
+const NEW_PROFILE_DEFAULTS = { evening_training_days: [1, 2, 3, 4], equipment_missing: [] };
+
+// Rendert die Auswahllisten; die Backend-404-Antwort liefert sie auch ohne bestehendes Profil mit,
+// damit alles vor dem ersten Speichern ausfuellbar ist.
+function checkboxLabels(options, checked) {
+  return options.map((o) => {
+    const box = el("input");
+    box.type = "checkbox";
+    box.value = o.id;
+    box.checked = checked.includes(o.id);
+    const label = el("label");
+    label.append(box, ` ${o.label}`);
+    return label;
+  });
+}
+
 async function loadProfile() {
   const { ok, data } = await api("GET", "/api/profile");
   const form = $("profile-form");
+  form.elements.activity_level.replaceChildren(...data.activity_levels.map((l) => {
+    const option = el("option", `${l.label} (× ${l.factor})`);
+    option.value = l.id;
+    return option;
+  }));
+  form.elements.strength_focus.replaceChildren(...data.focus_options.map((f) => {
+    const option = el("option", f.label);
+    option.value = f.id;
+    return option;
+  }));
+  const current = ok ? data : NEW_PROFILE_DEFAULTS;
+  $("equipment-missing").replaceChildren(
+    $("equipment-missing").querySelector("legend"),
+    ...checkboxLabels(data.equipment_options, current.equipment_missing));
+  $("evening-days").replaceChildren(
+    $("evening-days").querySelector("legend"),
+    ...checkboxLabels(data.weekday_options, current.evening_training_days));
   if (ok) {
     const level = data.activity_levels.find((l) => l.id === data.activity_level);
     const focus = data.focus_options.find((f) => f.id === data.strength_focus);
     $("profile-view").textContent =
       `Alter ${data.age}, Grösse ${data.height_cm} cm, Programmstart ${data.program_start_date}, Alltag ${level.label} (× ${level.factor}), Kraft-Fokus ${focus.label}`;
-    form.elements.activity_level.replaceChildren(...data.activity_levels.map((l) => {
-      const option = el("option", `${l.label} (× ${l.factor})`);
-      option.value = l.id;
-      return option;
-    }));
-    form.elements.strength_focus.replaceChildren(...data.focus_options.map((f) => {
-      const option = el("option", f.label);
-      option.value = f.id;
-      return option;
-    }));
-    $("equipment-missing").replaceChildren(
-      $("equipment-missing").querySelector("legend"),
-      ...data.equipment_options.map((o) => {
-        const box = el("input");
-        box.type = "checkbox";
-        box.value = o.id;
-        box.checked = data.equipment_missing.includes(o.id);
-        const label = el("label");
-        label.append(box, ` ${o.label}`);
-        return label;
-      }));
-    $("evening-days").replaceChildren(
-      $("evening-days").querySelector("legend"),
-      ...data.weekday_options.map((o) => {
-        const box = el("input");
-        box.type = "checkbox";
-        box.value = o.id;
-        box.checked = data.evening_training_days.includes(o.id);
-        const label = el("label");
-        label.append(box, ` ${o.label}`);
-        return label;
-      }));
     for (const key of ["age", "height_cm", "program_start_date", "activity_level", "strength_focus", "benchmark_interval_weeks"]) {
       form.elements[key].value = data[key];
     }

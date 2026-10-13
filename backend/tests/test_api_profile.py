@@ -9,6 +9,14 @@ def test_get_profile_returns_404_when_none_exists(client):
     assert response.status_code == 404
 
 
+def test_profile_404_lists_form_options_so_new_profile_is_fillable(client):
+    body = client.get("/api/profile").get_json()
+    assert {o["id"] for o in body["activity_levels"]}
+    assert {o["id"] for o in body["focus_options"]}
+    assert {o["id"] for o in body["equipment_options"]}
+    assert len(body["weekday_options"]) == 7
+
+
 def test_creating_second_profile_returns_409(client):
     client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"})
     response = client.post("/api/profile", json={"age": 50, "height_cm": 173, "program_start_date": "2026-10-01"})
