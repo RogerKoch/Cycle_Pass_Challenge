@@ -10,8 +10,9 @@ const FTP_HTML = `
   <div data-view></div>
   <div class="chart" data-chart hidden></div>
   <form data-form>
-    <label>Beste 1-Min-Leistung (W) <input name="best_1min_power_watts" type="number" step="1" required></label>
+    <label>Beste 1-Min-Leistung (W) <input name="best_1min_power_watts" type="number" step="1"></label>
     <label>Manuelle Korrektur (%) <input name="manual_correction_pct" type="number" step="0.5" placeholder="z.B. -3"></label>
+    <label>oder FTP direkt (W) <input name="ftp_watts" type="number" step="1" min="1" placeholder="z.B. 240"></label>
     <button type="submit">Erfassen</button>
   </form>
   <p class="msg" data-msg></p>
@@ -83,8 +84,9 @@ function mountFtp(box, { startOnly = false, history = false, onSaved = async () 
       chart.hidden = table.hidden = false;
       lineChart(chart, [...tests].reverse().map((t) => ({ date: t.test_date, value: t.ftp_watts })),
         { unit: "W", decimals: 0, label: "FTP" });
-      table.replaceChildren(makeTable(["Datum", "Beste 1 Min W", "Korrektur %", "FTP W"],
-        tests.map((t) => [t.test_date, cell(t.best_1min_power_watts), cell(t.manual_correction_pct, 1), cell(t.ftp_watts)])));
+      table.replaceChildren(makeTable(["Datum", "Beste 1 Min W", "Korrektur %", "FTP W", "Quelle"],
+        tests.map((t) => [t.test_date, cell(t.best_1min_power_watts), cell(t.manual_correction_pct, 1), cell(t.ftp_watts),
+          t.source === "intervals" ? "intervals.icu" : t.best_1min_power_watts ? "Ramp-Test" : "direkt eingetragen"])));
     }
   }
 

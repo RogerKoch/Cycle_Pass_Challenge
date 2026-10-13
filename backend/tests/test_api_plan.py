@@ -283,3 +283,38 @@ def test_plan_today_ignores_planned_entries(client):
     client.post("/api/food-log", json={"date": date.today().isoformat(), "meal": "mittag", "label": "Pasta",
                                        "kcal": 700, "protein_g": 25, "carbs_g": 120, "fat_g": 10, "status": "planned"})
     assert client.get("/api/plan/today").get_json()["intake"] is None
+
+
+def _meal_slots(client) -> list[str]:
+    body = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
+    return [m["slot"] for m in body["meals"]]
+
+
+def test_training_after_work_merges_snack_2_into_dinner(client):
+    from datetime import date
+
+    _setup_profile_and_checkin(client)
+    today = date.today().weekday()
+    client.put("/api/profile", json={"evening_training_days": [today]})
+    assert _meal_slots(client) == ["fruehstueck", "snack_1", "mittag", "abend"]
+    body = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
+    assert any("nach der Arbeit" in hint for hint in body["timing_hints"])
+
+
+def test_flexible_day_keeps_all_five_meals(client):
+    from datetime import date
+
+    _setup_profile_and_checkin(client)
+    client.put("/api/profile", json={"evening_training_days": [(date.today().weekday() + 1) % 7]})
+    assert len(_meal_slots(client)) == 5
+
+
+def test_evening_training_days_default_update_and_validation(client):
+    body = client.post(
+        "/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"}
+    ).get_json()
+    assert body["evening_training_days"] == [1, 2, 3, 4]
+    assert {"id": 0, "label": "Mo"} in body["weekday_options"]
+    assert client.put("/api/profile", json={"evening_training_days": [5, 1]}).get_json()["evening_training_days"] == [1, 5]
+    assert client.put("/api/profile", json={"evening_training_days": [7]}).status_code == 400
+    assert client.put("/api/profile", json={"evening_training_days": "1,2"}).status_code == 400

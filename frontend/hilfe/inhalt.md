@@ -86,6 +86,8 @@ Trainings aus Garmin (über intervals.icu) zählen als Ist-Werte: sie ersetzen d
 - **Berechnung:** 75 % deiner besten 1-Minuten-Leistung im Ramp-Test. Optional manuelle Korrektur in %
   (Ramp-Test überschätzt Fahrer mit starkem Sprint oft um 3–5 %).
 - **Beispiel:** beste Minute 300 W → FTP **225 W**.
+- **Direkt eintragen:** Im Formular „oder FTP direkt (W)“ statt der 1-Minuten-Leistung. Der Eintrag gilt sofort und bleibt massgeblich, bis ein neuerer Test oder eine Änderung in intervals.icu kommt.
+- **Automatisch:** Ändert sich der FTP in intervals.icu (Einstellungen für Rad), übernimmt die App ihn beim nächsten Sync als neuen Eintrag (Quelle „intervals.icu“). Ein manueller Ramp-Test gilt, bis sich der intervals.icu-Wert wieder ändert.
 
 <a id="grundumsatz"></a>
 
@@ -123,7 +125,16 @@ Trainings aus Garmin (über intervals.icu) zählen als Ist-Werte: sie ersetzen d
 <a id="skala"></a>
 
 ### Problem-Skala 0–3 (Fragebogen)
-- **Was:** 0 kein · 1 leicht · 2 deutlich · 3 stark.
+- **Was:** 0 = kein Problem · 1 leicht · 2 deutlich · 3 stark. Die Antworten sind je Frage konkret formuliert:
+
+| Frage | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| Schlaf schlecht | erholt geschlafen | etwas unruhig | deutlich zu kurz / oft wach | kaum geschlafen |
+| Beine platt | frisch | leicht müde | schwer, Watt fehlen | leer, kein Antritt |
+| Dauerhunger | normal | öfter Appetit | ständig hungrig trotz Plan | Heisshunger, kaum zu stoppen |
+| Rücken nach langen Fahrten | keine Beschwerden | leichtes Ziehen | Schmerz, der nachwirkt | stark, Alltag beeinträchtigt |
+| Anstrengung höher bei gleicher Leistung | normal | etwas höher | Z2 fühlt sich wie Tempo an | gleiche Watt kaum haltbar |
+
 - **Wozu:** ab **2 (deutlich)** prüft die App eine Regel (z. B. Rücken → Core täglich).
 
 <a id="reds"></a>
@@ -367,6 +378,8 @@ Protein richtet sich nach der FFM, damit es beim Abnehmen nicht mitsinkt.
 | Abendessen | 30 % vom Rest | Erholung |
 
 „Rest“ = Tagesziel minus beide Snacks. Protein wird ähnlich auf die Hauptmahlzeiten verteilt.
+
+**Training nach der Arbeit:** Im Profil lassen sich die Wochentage markieren (Standard Di–Fr), an denen du nach der Arbeit und vor dem Abendessen trainierst. An solchen Tagen mit Training entfällt Snack 2: Snack 1 ist das Pre-Workout am Nachmittag, das Abendessen die Post-Workout-Mahlzeit (kcal und Protein von Snack 2 wandern ins Abendessen). Das Tagesziel bleibt gleich.
 
 <a id="fueling"></a>
 

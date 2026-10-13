@@ -100,6 +100,12 @@ strength_constraints:
 
 # User-Vorgabe 2026-10-06 (Todo #1/#14): waehlbarer Kraft-Fokus, kommt obendrauf (+10 min/Einheit).
 # Gruppen = Uebungsbibliothek A–D der Kraft-Recherche; Zusatzuebungen nur aus der Bibliothek.
+# Todo #26 (2026-10-13): Trainingszeit pro Wochentag, beeinflusst nur Mahlzeiten-Verteilung und Timing-Hinweise.
+evening_training_days:
+  default_weekdays: [1, 2, 3, 4]        # 0 = Mo ... 6 = So; Di-Fr nach der Arbeit, Sa/So/Mo flexibel
+  effect_on_training_day: "Snack 2 faellt in das Abendessen (kcal + Protein), Snack 1 = Pre-Workout nachmittags"
+  daily_targets_unchanged: true
+
 strength_focus:
   options: [none, core, upper, legs, mobility]
   extra_sets_on_focus_group: 1

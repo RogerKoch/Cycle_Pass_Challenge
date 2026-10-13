@@ -22,6 +22,8 @@ class UserProfile(db.Model):
     benchmark_interval_weeks: int = db.Column(db.Integer, nullable=False, default=4, server_default="4")
     # Fehlendes Material, kommagetrennt, Schluessel aus engine.strength_alternatives.EQUIPMENT_OPTIONS
     equipment_missing: str = db.Column(db.String(100), nullable=False, default="", server_default="")
+    # Wochentage (0 = Mo ... 6 = So), an denen nach der Arbeit trainiert wird; Standard Di–Fr
+    evening_training_days: str = db.Column(db.String(20), nullable=False, default="1,2,3,4", server_default="1,2,3,4")
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,

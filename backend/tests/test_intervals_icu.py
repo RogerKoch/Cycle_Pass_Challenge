@@ -27,12 +27,15 @@ TODAY = date(2026, 10, 20)
 class FakeClient:
     """Liefert vorgegebene Daten wie IcuClient."""
 
-    def __init__(self, activities=None, wellness=None, error=None, events=None, push_error=None):
+    def __init__(self, activities=None, wellness=None, error=None, events=None, push_error=None,
+                 sport_settings=None, settings_error=None):
         self.activities = activities or []
         self.wellness = wellness or []
         self.error = error
         self.events = events or []  # Kalender-Events in intervals.icu
         self.push_error = push_error
+        self.sport_settings = sport_settings or []
+        self.settings_error = settings_error
         self.upserted = []
         self.deleted = []
 
@@ -43,6 +46,11 @@ class FakeClient:
 
     def fetch_wellness(self, oldest, newest):
         return list(self.wellness)
+
+    def fetch_sport_settings(self):
+        if self.settings_error:
+            raise self.settings_error
+        return list(self.sport_settings)
 
     def fetch_workout_events(self, oldest, newest):
         return [e for e in self.events if oldest.isoformat() <= e["start_date_local"][:10] <= newest.isoformat()]
@@ -275,3 +283,66 @@ def test_unchanged_weigh_in_keeps_manual_correction_of_linked_checkin(app):
     db.session.commit()
     sync(FakeClient(wellness=[WellnessRecord(TODAY, weight_kg=73.2)]), TODAY)
     assert Checkin.query.filter_by(checkin_date=TODAY).one().weight_kg == 72.0
+
+
+# ---------------------------------------------------------------- FTP aus den Sport-Settings
+
+def _ride_settings(**values):
+    return [{"types": ["Ride", "VirtualRide"], **values}]
+
+
+def _ftp_tests():
+    from backend.models.ftp_tests import FtpTest
+
+    return FtpTest.query.order_by(FtpTest.id).all()
+
+
+def test_parse_ride_ftp_reads_ftp_then_indoor_ftp_and_ignores_other_sports():
+    from backend.integrations.intervals_icu import parse_ride_ftp
+
+    assert parse_ride_ftp(_ride_settings(ftp=231.4)) == 231
+    assert parse_ride_ftp(_ride_settings(ftp=None, indoor_ftp=220)) == 220
+    assert parse_ride_ftp([{"types": ["Run"], "ftp": 300}]) is None
+    assert parse_ride_ftp(_ride_settings(ftp=0)) is None
+    assert parse_ride_ftp([]) is None
+
+
+def test_first_sync_without_tests_creates_ftp_test_from_intervals(app):
+    result = sync(FakeClient(sport_settings=_ride_settings(ftp=230)), TODAY)
+
+    tests = _ftp_tests()
+    assert result.ftp_updated is True
+    assert [(t.ftp_watts, t.source, t.test_date) for t in tests] == [(230, "intervals", TODAY)]
+
+
+def test_unchanged_intervals_ftp_creates_no_second_test(app):
+    sync(FakeClient(sport_settings=_ride_settings(ftp=230)), TODAY)
+    result = sync(FakeClient(sport_settings=_ride_settings(ftp=230)), TODAY)
+    assert result.ftp_updated is False and len(_ftp_tests()) == 1
+
+
+def test_changed_intervals_ftp_creates_new_test(app):
+    sync(FakeClient(sport_settings=_ride_settings(ftp=230)), TODAY)
+    result = sync(FakeClient(sport_settings=_ride_settings(ftp=240)), TODAY + timedelta(days=7))
+    assert result.ftp_updated is True
+    assert [t.ftp_watts for t in _ftp_tests()] == [230, 240]
+
+
+def test_first_sync_keeps_existing_manual_test_until_intervals_value_changes(app):
+    from backend.models.ftp_tests import FtpTest
+
+    db.session.add(FtpTest(test_date=TODAY - timedelta(days=3), best_1min_power_watts=300, ftp_watts=225))
+    db.session.commit()
+
+    first = sync(FakeClient(sport_settings=_ride_settings(ftp=250)), TODAY)
+    assert first.ftp_updated is False and len(_ftp_tests()) == 1  # manueller Test bleibt massgeblich
+
+    changed = sync(FakeClient(sport_settings=_ride_settings(ftp=255)), TODAY + timedelta(days=1))
+    assert changed.ftp_updated is True and _ftp_tests()[-1].ftp_watts == 255
+
+
+def test_settings_error_does_not_fail_the_sync_but_adds_a_note(app):
+    result = sync(FakeClient(settings_error=IcuError("HTTP 500")), TODAY)
+    assert result.ftp_updated is False
+    assert any("FTP" in note and "HTTP 500" in note for note in result.notes)
+    assert get_state("last_error") is None

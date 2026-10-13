@@ -220,3 +220,20 @@ def test_macro_targets_accept_event_overrides_for_carbs_and_fat():
     assert macros.carbs_g == 700
     assert macros.fat_g == pytest.approx(56)
     assert macros.protein_g == calculate_macro_targets(70, 55, DayType.RUHETAG, 2500).protein_g
+
+
+def test_evening_training_folds_snack_2_into_dinner_and_keeps_daily_totals():
+    standard = distribute_meals(2480, 160)
+    evening = distribute_meals(2480, 160, post_workout_is_dinner=True)
+    assert [m.slot for m in evening] == ["fruehstueck", "snack_1", "mittag", "abend"]
+    assert sum(m.kcal for m in evening) == pytest.approx(2480)
+    assert sum(m.protein_g for m in evening) == pytest.approx(160)
+    dinner = {m.slot: m for m in standard}["abend"], {m.slot: m for m in standard}["snack_2"]
+    assert evening[-1].kcal == pytest.approx(dinner[0].kcal + dinner[1].kcal)
+    assert "Direkt nach dem Training" in evening[-1].hint
+
+
+def test_evening_timing_hint_replaces_generic_ride_hint_and_rest_day_stays_empty():
+    hints = nutrition_timing_hints(True, False, 74, evening=True)
+    assert any("nach der Arbeit" in h for h in hints) and not any("vormittags" in h for h in hints)
+    assert nutrition_timing_hints(False, False, 74, evening=True) == []
