@@ -19,6 +19,7 @@ from backend.engine.zwo_export import session_to_zwo
 from backend.extensions import db
 from backend.integrations.numbers import finite_number as _number
 from backend.models.checkins import Checkin
+from backend.models.ftp_tests import FtpTest
 from backend.models.intervals import IcuActivity, IcuWellness, IntegrationState
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,8 @@ STALE_AFTER = timedelta(minutes=30)
 STATE_LAST_SYNC = "last_sync"
 STATE_LAST_ERROR = "last_error"
 STATE_LAST_PUSH_ERROR = "last_push_error"
+STATE_ICU_FTP = "icu_ftp"  # zuletzt gesehener FTP aus den intervals.icu-Sport-Settings
+RIDE_TYPES = {"Ride", "VirtualRide"}
 EXTERNAL_ID_PREFIX = "cpc-"  # markiert die von der App angelegten Workouts
 ACTIVITY_FIELDS = (
     "id,start_date_local,type,name,moving_time,icu_joules,calories,icu_training_load,"
@@ -63,6 +66,7 @@ class SyncResult:
     wellness_days: int = 0
     checkins_created: int = 0
     checkins_updated: int = 0
+    ftp_updated: bool = False
     notes: list[str] = field(default_factory=list)
 
 
@@ -111,6 +115,19 @@ def parse_wellness(data: dict) -> WellnessRecord | None:
         sleep_secs=int(sleep) if sleep is not None else None,
         sleep_score=_number(data.get("sleepScore")),
     )
+
+
+def parse_ride_ftp(settings: list[dict]) -> int | None:
+    """FTP (W) der Rad-Sport-Settings (Ride/VirtualRide); `ftp`, sonst `indoor_ftp`. None, wenn nicht gesetzt."""
+    for entry in settings:
+        types = entry.get("types")
+        if not isinstance(types, list) or not RIDE_TYPES & set(types):
+            continue
+        for key in ("ftp", "indoor_ftp"):
+            watts = _number(entry.get(key))
+            if watts is not None and watts > 0:
+                return round(watts)
+    return None
 
 
 class IcuClient:
@@ -162,6 +179,11 @@ class IcuClient:
         rows = self._get(f"/athlete/{self._athlete}/wellness", {"oldest": oldest.isoformat(), "newest": newest.isoformat()})
         return [w for w in (self._parsed(parse_wellness, r) for r in rows if isinstance(r, dict)) if w is not None]
 
+    def fetch_sport_settings(self) -> list[dict]:
+        """Sport-Settings des Athleten (je Sportart FTP, Zonen, ...)."""
+        rows = self._get(f"/athlete/{self._athlete}/sport-settings", {})
+        return [r for r in rows if isinstance(r, dict)]
+
     def fetch_workout_events(self, oldest: date, newest: date) -> list[dict]:
         """Geplante Workouts (Kalender-Events) im Zeitraum (inklusive)."""
         rows = self._get(
@@ -191,6 +213,31 @@ def _set_state(key: str, value: str | None) -> None:
         db.session.add(IntegrationState(key=key, value=value))
     else:
         row.value = value
+
+
+def _sync_ftp(client: IcuClient, today: date, result: SyncResult) -> None:
+    """Uebernimmt eine Aenderung des intervals.icu-FTP als FtpTest (Quelle `intervals`).
+
+    Nur bei Aenderung gegenueber dem zuletzt gesehenen Wert; so gewinnt ein manueller Ramp-Test,
+    bis sich der intervals.icu-Wert aendert. Beim ersten Sync wird nur angelegt, wenn es noch keinen Test gibt.
+    Ein Fehler beim Lesen bricht den Sync nicht ab (Hinweis in `notes`).
+    """
+    try:
+        ftp = parse_ride_ftp(client.fetch_sport_settings())
+    except IcuError as exc:
+        result.notes.append(f"FTP konnte nicht aus intervals.icu gelesen werden: {exc}")
+        return
+    if ftp is None:
+        return
+    seen = get_state(STATE_ICU_FTP)
+    _set_state(STATE_ICU_FTP, str(ftp))
+    if seen == str(ftp):
+        return
+    latest = FtpTest.query.order_by(FtpTest.test_date.desc(), FtpTest.created_at.desc()).first()
+    if latest is not None and (seen is None or latest.ftp_watts == ftp):
+        return
+    db.session.add(FtpTest(test_date=today, best_1min_power_watts=0, ftp_watts=ftp, source="intervals"))
+    result.ftp_updated = True
 
 
 def _upsert_activities(records: list[ActivityRecord], oldest: date, newest: date, result: SyncResult) -> None:
@@ -296,6 +343,7 @@ def sync(client: IcuClient, today: date, days: int = SYNC_WINDOW_DAYS) -> SyncRe
         wellness = client.fetch_wellness(oldest, today)
         _upsert_activities(activities, oldest, today, result)
         _upsert_wellness(wellness, result)
+        _sync_ftp(client, today, result)
         _set_state(STATE_LAST_SYNC, datetime.now(timezone.utc).isoformat())
         _set_state(STATE_LAST_ERROR, None)
         db.session.commit()

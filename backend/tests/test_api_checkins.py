@@ -57,3 +57,16 @@ def test_lists_ftp_tests_newest_first(client):
     body = client.get("/api/checkins/ftp-tests").get_json()
     assert [t["test_date"] for t in body] == ["2026-11-01", "2026-10-01"]
     assert body[0]["ftp_watts"] == 225
+
+
+def test_ftp_from_intervals_is_listed_without_one_minute_power(client):
+    from datetime import date
+
+    from backend.extensions import db
+    from backend.models.ftp_tests import FtpTest
+
+    db.session.add(FtpTest(test_date=date(2026, 10, 12), best_1min_power_watts=0, ftp_watts=230, source="intervals"))
+    db.session.commit()
+
+    latest = client.get("/api/checkins/ftp-tests/latest").get_json()
+    assert (latest["ftp_watts"], latest["best_1min_power_watts"], latest["source"]) == (230, None, "intervals")

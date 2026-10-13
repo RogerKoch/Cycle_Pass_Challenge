@@ -73,3 +73,17 @@ def test_adds_evening_training_days_with_workday_default(app):
     add_missing_columns()
 
     assert db.session.execute(text("SELECT evening_training_days FROM user_profile")).scalar() == "1,2,3,4"
+
+
+def test_adds_ftp_source_column_and_old_tests_count_as_manual(app):
+    db.session.execute(text("DROP TABLE ftp_tests"))
+    db.session.execute(text(
+        "CREATE TABLE ftp_tests (id INTEGER PRIMARY KEY, test_date DATE NOT NULL, best_1min_power_watts FLOAT NOT NULL, "
+        "ftp_watts INTEGER NOT NULL, manual_correction_pct FLOAT, created_at DATETIME NOT NULL)"
+    ))
+    db.session.execute(text("INSERT INTO ftp_tests VALUES (1, '2026-10-01', 300, 225, NULL, '2026-10-01 00:00:00')"))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert db.session.execute(text("SELECT source FROM ftp_tests")).scalar() == "manual"

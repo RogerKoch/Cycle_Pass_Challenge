@@ -15,4 +15,6 @@ class FtpTest(db.Model):
     best_1min_power_watts: float = db.Column(db.Float, nullable=False)
     ftp_watts: int = db.Column(db.Integer, nullable=False)
     manual_correction_pct: float | None = db.Column(db.Float, nullable=True)
+    # "manual" (Ramp-Test) oder "intervals" (FTP aus intervals.icu; best_1min_power_watts ist dann 0 = unbekannt)
+    source: str = db.Column(db.String(12), nullable=False, default="manual", server_default="manual")
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

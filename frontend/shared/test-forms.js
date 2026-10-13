@@ -83,8 +83,9 @@ function mountFtp(box, { startOnly = false, history = false, onSaved = async () 
       chart.hidden = table.hidden = false;
       lineChart(chart, [...tests].reverse().map((t) => ({ date: t.test_date, value: t.ftp_watts })),
         { unit: "W", decimals: 0, label: "FTP" });
-      table.replaceChildren(makeTable(["Datum", "Beste 1 Min W", "Korrektur %", "FTP W"],
-        tests.map((t) => [t.test_date, cell(t.best_1min_power_watts), cell(t.manual_correction_pct, 1), cell(t.ftp_watts)])));
+      table.replaceChildren(makeTable(["Datum", "Beste 1 Min W", "Korrektur %", "FTP W", "Quelle"],
+        tests.map((t) => [t.test_date, cell(t.best_1min_power_watts), cell(t.manual_correction_pct, 1), cell(t.ftp_watts),
+          t.source === "intervals" ? "intervals.icu" : "Ramp-Test"])));
     }
   }
 

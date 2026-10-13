@@ -31,9 +31,11 @@ def _serialize_ftp_test(ftp_test: FtpTest) -> dict:
     return {
         "id": ftp_test.id,
         "test_date": ftp_test.test_date.isoformat(),
-        "best_1min_power_watts": ftp_test.best_1min_power_watts,
+        # bei FTP aus intervals.icu gibt es keine 1-Minuten-Bestleistung (0 = unbekannt)
+        "best_1min_power_watts": ftp_test.best_1min_power_watts or None,
         "ftp_watts": ftp_test.ftp_watts,
         "manual_correction_pct": ftp_test.manual_correction_pct,
+        "source": ftp_test.source,
     }
 
 
