@@ -70,3 +70,17 @@ def test_ftp_from_intervals_is_listed_without_one_minute_power(client):
 
     latest = client.get("/api/checkins/ftp-tests/latest").get_json()
     assert (latest["ftp_watts"], latest["best_1min_power_watts"], latest["source"]) == (230, None, "intervals")
+
+
+def test_ftp_can_be_entered_directly_without_one_minute_power(client):
+    response = client.post("/api/checkins/ftp-tests", json={"ftp_watts": 240})
+    body = response.get_json()
+    assert response.status_code == 201
+    assert (body["ftp_watts"], body["best_1min_power_watts"], body["source"]) == (240, None, "manual")
+    assert client.get("/api/checkins/ftp-tests/latest").get_json()["ftp_watts"] == 240
+
+
+def test_direct_ftp_rejects_non_positive_and_mixed_input(client):
+    assert client.post("/api/checkins/ftp-tests", json={"ftp_watts": 0}).status_code == 400
+    assert client.post("/api/checkins/ftp-tests", json={"ftp_watts": 240, "best_1min_power_watts": 300}).status_code == 400
+    assert client.post("/api/checkins/ftp-tests", json={}).status_code == 400

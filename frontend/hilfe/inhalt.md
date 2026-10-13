@@ -86,6 +86,7 @@ Trainings aus Garmin (über intervals.icu) zählen als Ist-Werte: sie ersetzen d
 - **Berechnung:** 75 % deiner besten 1-Minuten-Leistung im Ramp-Test. Optional manuelle Korrektur in %
   (Ramp-Test überschätzt Fahrer mit starkem Sprint oft um 3–5 %).
 - **Beispiel:** beste Minute 300 W → FTP **225 W**.
+- **Direkt eintragen:** Im Formular „oder FTP direkt (W)“ statt der 1-Minuten-Leistung. Der Eintrag gilt sofort und bleibt massgeblich, bis ein neuerer Test oder eine Änderung in intervals.icu kommt.
 - **Automatisch:** Ändert sich der FTP in intervals.icu (Einstellungen für Rad), übernimmt die App ihn beim nächsten Sync als neuen Eintrag (Quelle „intervals.icu“). Ein manueller Ramp-Test gilt, bis sich der intervals.icu-Wert wieder ändert.
 
 <a id="grundumsatz"></a>

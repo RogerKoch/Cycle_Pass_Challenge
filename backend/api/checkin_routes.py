@@ -86,17 +86,28 @@ def get_latest_checkin():
 
 @checkins_bp.post("/ftp-tests")
 def create_ftp_test():
-    """Legt einen FTP-Test an; ftp_watts wird serverseitig berechnet."""
+    """Legt einen FTP-Eintrag an: entweder Ramp-Test (ftp_watts wird berechnet) oder FTP direkt.
+
+    Body: `best_1min_power_watts` (+ optional `manual_correction_pct`) oder `ftp_watts` (direkt, ohne 1-Min-Wert).
+    """
     body = request.get_json(force=True, silent=True) or {}
     try:
-        best_1min_power_watts = float(body["best_1min_power_watts"])
         test_date = date.fromisoformat(body["test_date"]) if "test_date" in body else date.today()
         manual_correction_pct = (
             float(body["manual_correction_pct"]) if body.get("manual_correction_pct") is not None else None
         )
-        ftp_watts = calculate_ftp_from_ramp_test(best_1min_power_watts)
-        if manual_correction_pct is not None:
-            ftp_watts = round(ftp_watts * (1 + manual_correction_pct / 100))
+        if body.get("ftp_watts") is not None:
+            if body.get("best_1min_power_watts") is not None or manual_correction_pct is not None:
+                raise ValueError("entweder FTP direkt oder Ramp-Test-Wert (mit Korrektur) angeben")
+            ftp_watts = round(float(body["ftp_watts"]))
+            if ftp_watts <= 0:
+                raise ValueError("ftp_watts muss positiv sein")
+            best_1min_power_watts = 0.0  # unbekannt, direkt eingetragen
+        else:
+            best_1min_power_watts = float(body["best_1min_power_watts"])
+            ftp_watts = calculate_ftp_from_ramp_test(best_1min_power_watts)
+            if manual_correction_pct is not None:
+                ftp_watts = round(ftp_watts * (1 + manual_correction_pct / 100))
     except (KeyError, TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige FTP-Test-Daten: {exc}"}), 400
 
