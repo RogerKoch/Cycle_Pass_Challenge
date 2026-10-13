@@ -43,3 +43,7 @@ th:first-child, td:first-child { text-align: left; }
 /* Eingabe pro Zeile in Tabellen (Messwerte) */
 table input { min-height: 36px; padding: 4px 8px; text-align: right; max-width: 8rem; }
 table td button { min-height: 36px; }
+
+/* Formular mit gleichmaessigem Raster (lange Beschriftungen, gemischte Felder) */
+form.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 12px 16px; align-items: end; }
+form.fields button[type="submit"] { grid-column: 1 / -1; justify-self: start; }

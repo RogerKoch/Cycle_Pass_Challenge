@@ -21,10 +21,10 @@ const FTP_HTML = `
 const BENCHMARK_HTML = `
   <div data-view></div>
   <div data-chart-box hidden>
-    <label>Übung <select data-metric></select></label>
+    <div class="chips" data-metric role="radiogroup" aria-label="Übung"></div>
     <div class="chart" data-chart></div>
   </div>
-  <form data-form>
+  <form data-form class="fields">
     <label>Liegestütze am Stück <input name="pushup_reps" type="number" min="0" step="1"></label>
     <label>Variante <select name="pushup_variant"></select></label>
     <label>Inverted Rows am Stück <input name="row_reps" type="number" min="0" step="1"></label>
@@ -114,14 +114,21 @@ function mountBenchmark(box, { startOnly = false, history = false, onSaved = asy
   const table = box.querySelector("[data-history]");
   let tests = [];
 
-  metric.replaceChildren(...BENCHMARK_METRICS.map(([key, label]) => {
-    const option = el("option", label);
-    option.value = key;
-    return option;
+  const radioName = `metric-${Math.random().toString(36).slice(2)}`;
+  metric.replaceChildren(...BENCHMARK_METRICS.map(([key, label], index) => {
+    const radio = el("input");
+    radio.type = "radio";
+    radio.name = radioName;
+    radio.value = key;
+    radio.checked = index === 0;
+    const chip = el("label", undefined, "chip");
+    chip.append(radio, ` ${label}`);
+    return chip;
   }));
 
   function renderChart() {
-    const [key, label, unit] = BENCHMARK_METRICS.find(([k]) => k === metric.value);
+    const selected = metric.querySelector("input:checked").value;
+    const [key, label, unit] = BENCHMARK_METRICS.find(([k]) => k === selected);
     const points = [...tests].reverse().filter((t) => t[key] !== null && t[key] !== undefined)
       .map((t) => ({ date: t.test_date, value: t[key] }));
     lineChart(chart, points, { unit, decimals: 0, label });
