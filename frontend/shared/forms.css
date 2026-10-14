@@ -29,7 +29,7 @@ th:first-child, td:first-child { text-align: left; }
 .chips legend { padding: 0; margin-bottom: 6px; color: var(--muted); font-size: 0.85rem; }
 .chips .chip {
   position: relative; flex: 0 0 auto; flex-direction: row; align-items: center; gap: 6px;
-  padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px;
+  padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: 999px;
   background: var(--card); color: var(--text); font-size: 0.9rem; cursor: pointer;
 }
 .chip input { position: absolute; opacity: 0; width: 0; min-height: 0; padding: 0; }
