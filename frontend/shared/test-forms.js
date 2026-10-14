@@ -24,6 +24,10 @@ const BENCHMARK_HTML = `
     <div class="chips" data-metric role="radiogroup" aria-label="Übung"></div>
     <div class="chart" data-chart></div>
   </div>
+  <details class="sketches" data-sketches hidden>
+    <summary>Skizzen der Übungen</summary>
+    <div class="sketch-grid" data-sketch-grid></div>
+  </details>
   <form data-form class="fields">
     <label>Liegestütze am Stück <input name="pushup_reps" type="number" min="0" step="1"></label>
     <label>Variante <select name="pushup_variant"></select></label>
@@ -51,6 +55,15 @@ const BENCHMARK_METRICS = [
   ["side_plank_s", "Side Plank", "s"],
   ["sl_bridge_s", "Single-Leg Glute Bridge", "s"],
   ["plank_s", "Plank", "s"],
+];
+
+// Benchmark-Feld -> Uebungsname in training/img/exercises/index.json
+const BENCHMARK_SKETCHES = [
+  ["Liegestütze", "Liegestütz-Progression"],
+  ["Inverted Rows", "Inverted Rows (Tischkanten-Rudern)"],
+  ["Side Plank", "Side Plank"],
+  ["Single-Leg Glute Bridge", "Single-Leg Glute Bridge"],
+  ["Plank", "Plank (Unterarmstütz)"],
 ];
 
 function checkinsLink(text) {
@@ -113,6 +126,25 @@ function mountBenchmark(box, { readOnly = false, history = false, onSaved = asyn
   const metric = box.querySelector("[data-metric]");
   const table = box.querySelector("[data-history]");
   let tests = [];
+
+  // Skizzen der Uebungen (Seite liegt unter <praefix>/<seite>/, die Bilder unter training/)
+  if (!readOnly) {
+    const base = "../training/img/exercises/";
+    fetch(`${base}index.json`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((index) => {
+      const items = BENCHMARK_SKETCHES.filter(([, name]) => index[name]).map(([label, name]) => {
+        const figure = el("figure");
+        const image = el("img");
+        image.src = `${base}${index[name].img}`;
+        image.alt = label;
+        image.loading = "lazy";
+        figure.append(image, el("figcaption", label));
+        return figure;
+      });
+      if (!items.length) return;
+      box.querySelector("[data-sketch-grid]").replaceChildren(...items);
+      box.querySelector("[data-sketches]").hidden = false;
+    });
+  }
 
   const radioName = `metric-${Math.random().toString(36).slice(2)}`;
   metric.replaceChildren(...BENCHMARK_METRICS.map(([key, label], index) => {

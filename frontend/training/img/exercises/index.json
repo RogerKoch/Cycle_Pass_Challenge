@@ -41,5 +41,6 @@
   "Prone T-Raises (Bauchlage)": { "img": "prone-t-raises.svg", "video": "prone T raise" },
   "Plank Shoulder Taps": { "img": "plank-shoulder-taps.svg", "video": "plank shoulder taps" },
   "Seitlage Aussenrotation (Wasserflasche)": { "img": "seitlage-aussenrotation.svg", "video": "side lying external rotation" },
-  "Seitliches Beinheben (Seitenlage)": { "img": "seitliches-beinheben.svg", "video": "side lying leg raise" }
+  "Seitliches Beinheben (Seitenlage)": { "img": "seitliches-beinheben.svg", "video": "side lying leg raise" },
+  "Single-Leg Glute Bridge": { "img": "single-leg-glute-bridge.svg", "video": "single leg glute bridge" }
 }
