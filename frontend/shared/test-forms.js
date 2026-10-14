@@ -20,6 +20,10 @@ const FTP_HTML = `
 
 const BENCHMARK_HTML = `
   <div data-view></div>
+  <div data-targets-box hidden>
+    <h3>Ziele bis zum nächsten Test</h3>
+    <ul data-targets></ul>
+  </div>
   <div data-chart-box hidden>
     <div class="chips" data-metric role="radiogroup" aria-label="Übung"></div>
     <div class="chart" data-chart></div>
@@ -186,6 +190,9 @@ function mountBenchmark(box, { readOnly = false, history = false, onSaved = asyn
       if (data.stages[key] !== null) stages.push(text(data.stages[key]));
     }
     if (data.stages.core_advanced) stages.push("Hollow Body/Pallof freigeschaltet");
+    const targetsBox = box.querySelector("[data-targets-box]");
+    targetsBox.hidden = !data.targets.length;
+    box.querySelector("[data-targets]").replaceChildren(...data.targets.map((text) => el("li", text)));
     const due = data.next_due <= localToday() ? "fällig" : `nächster Test ${data.next_due}`;
     view.textContent = data.current
       ? `Letzter Test ${data.current.test_date} · ${due} (alle ${data.interval_weeks} Wochen) · Stufen: ${stages.join(", ") || "–"}`

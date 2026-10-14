@@ -11,6 +11,7 @@ from backend.engine.strength_benchmarks import (
     PUSHUP_VARIANTS,
     exercise_stages,
     milestones,
+    next_targets,
     next_due,
 )
 from backend.extensions import db
@@ -61,6 +62,7 @@ def get_benchmarks():
         "tests": [_serialize(t) for t in reversed(tests)],
         "current": {**asdict(current), "test_date": current.test_date.isoformat()} if current else None,
         "stages": asdict(exercise_stages(current)),
+        "targets": next_targets(current),
         "milestones": [asdict(m) for m in milestones(current)],
         "interval_weeks": interval,
         "next_due": next_due(tests[-1].test_date if tests else None, interval, date.today()).isoformat(),
