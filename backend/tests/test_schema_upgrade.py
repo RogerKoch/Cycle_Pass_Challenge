@@ -96,3 +96,17 @@ def test_adds_target_weight_column_to_existing_profile(app):
     add_missing_columns()
 
     assert "target_weight_kg" in {c["name"] for c in inspect(db.engine).get_columns("user_profile")}
+
+
+def test_existing_profile_keeps_friday_as_rest_day_after_upgrade(app):
+    db.session.execute(text("ALTER TABLE user_profile DROP COLUMN rest_weekday"))
+    db.session.execute(text(
+        "INSERT INTO user_profile (id, age, height_cm, program_start_date, activity_level, strength_focus, "
+        "benchmark_interval_weeks, equipment_missing, evening_training_days, created_at, updated_at) "
+        "VALUES (1, 49, 173, '2026-10-01', 'buero', 'none', 4, '', '1,2,3,4', '2026-10-01 00:00:00', '2026-10-01 00:00:00')"
+    ))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert db.session.execute(text("SELECT rest_weekday FROM user_profile")).scalar() == 4

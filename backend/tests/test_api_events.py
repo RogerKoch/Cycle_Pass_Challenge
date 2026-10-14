@@ -13,7 +13,10 @@ EVENT = {"event_date": (NEXT_MONDAY + timedelta(days=5)).isoformat(), "name": "G
 def profile(client):
     client.post(
         "/api/profile",
-        json={"age": 49, "height_cm": 173, "program_start_date": (THIS_MONDAY - timedelta(weeks=2)).isoformat()},
+        json={
+            "age": 49, "height_cm": 173, "rest_weekday": 4,
+            "program_start_date": (THIS_MONDAY - timedelta(weeks=2)).isoformat(),
+        },
     )
     client.post("/api/checkins", json={"weight_kg": 74, "bodyfat_pct": 23, "muscle_kg": 30})
     return client

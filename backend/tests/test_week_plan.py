@@ -160,3 +160,43 @@ def test_leg_focus_is_paused_in_taper_season_and_when_reduced():
 def test_focus_adds_ten_minutes_to_taper_session():
     assert resolve_strength("A", "peak_taper", 4).duration_minutes == "40"
     assert resolve_strength("A", "peak_taper", 4, focus="core").duration_minutes == "50"
+
+
+def _week_for(rest_weekday, monday):
+    return [
+        DayPlan(monday + timedelta(days=i), *default_day_plan(PROGRAM_START, monday + timedelta(days=i), rest_weekday))
+        for i in range(7)
+    ]
+
+
+def test_default_rest_weekday_is_friday_like_the_standard_week():
+    assert _week_for(4, BASE_MONDAY) == _week(BASE_MONDAY)
+
+
+def test_tuesday_rest_keeps_cycling_order_and_strength_weekdays():
+    plan = [(d.cycling_slot, d.strength_session) for d in _week_for(1, BASE_MONDAY)]
+    assert plan == [
+        ("rekom", "A"),
+        (None, None),
+        ("schluessel_1", None),
+        ("z2_grundlage", "B"),
+        ("z2_oder_rekom", None),
+        ("schluessel_2", None),
+        ("lang", None),
+    ]
+
+
+def test_every_rest_weekday_yields_a_valid_week_in_all_phases():
+    for rest_weekday in range(7):
+        for weeks in (0, 2, 2 + 8, 2 + 8 + 8, 2 + 8 + 8 + 6):
+            monday = PROGRAM_START + timedelta(weeks=weeks)
+            days = _week_for(rest_weekday, monday)
+            assert not [v for v in validate_week(days) if v.blocking], (rest_weekday, weeks)
+            assert days[rest_weekday].cycling_slot is None
+            assert days[rest_weekday].strength_session is None, (rest_weekday, weeks)
+
+
+def test_monday_rest_moves_strength_to_tuesday_in_single_strength_phases():
+    days = _week_for(0, BUILD2_MONDAY)
+    assert [d.strength_session for d in days].count(None) == 6
+    assert days[1].strength_session in ("A", "B")

@@ -9,13 +9,17 @@ from backend.engine.nutrition_calc import ACTIVITY_LEVELS, DEFAULT_ACTIVITY_LEVE
 from backend.engine.strength_alternatives import EQUIPMENT_OPTIONS
 from backend.engine.strength_benchmarks import DEFAULT_INTERVAL_WEEKS, MAX_INTERVAL_WEEKS, MIN_INTERVAL_WEEKS
 from backend.engine.strength_sessions import FOCUS_NONE, FOCUS_OPTIONS
+from backend.engine.week_plan import STANDARD_WEEK, STATUS_PLANNED, default_day_plan
 from backend.extensions import db
 from backend.models.baseline_measurements import BaselineMeasurement
+from backend.models.training_days import TrainingDay
 from backend.models.user_profile import UserProfile
 
 logger = logging.getLogger(__name__)
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/api/profile")
+
+DEFAULT_REST_WEEKDAY = 1  # Dienstag
 
 
 def _activity_level(value: object) -> str:
@@ -50,6 +54,28 @@ def _evening_training_days(value: object) -> str:
     if not valid:
         raise ValueError("evening_training_days muss eine Liste von Wochentagen 0 (Mo) bis 6 (So) sein")
     return ",".join(str(day) for day in sorted(set(value)))
+
+
+def _rest_weekday(value: object) -> int:
+    """Prueft den Ruhetag der Standardwoche (0 = Mo ... 6 = So)."""
+    if isinstance(value, bool) or (isinstance(value, float) and not value.is_integer()):
+        raise ValueError("rest_weekday muss ein Wochentag 0 (Mo) bis 6 (So) sein")
+    weekday = int(value)
+    if not 0 <= weekday <= len(STANDARD_WEEK) - 1:
+        raise ValueError("rest_weekday muss ein Wochentag 0 (Mo) bis 6 (So) sein")
+    return weekday
+
+
+def _replan_future_days(profile: UserProfile) -> None:
+    """Setzt heutige und kuenftige, unveraenderte Plan-Tage auf die Standardwoche des neuen Ruhetags."""
+    today = date.today()
+    rows = TrainingDay.query.filter(TrainingDay.day_date >= today, TrainingDay.status == STATUS_PLANNED).all()
+    for row in rows:
+        if row.planned_minutes is not None or row.note is not None:
+            continue  # vom Nutzer angepasst
+        row.cycling_slot, row.strength_session = default_day_plan(
+            profile.program_start_date, row.day_date, profile.rest_weekday
+        )
 
 
 def _interval_weeks(value: object) -> int:
@@ -127,6 +153,7 @@ def _serialize(profile: UserProfile) -> dict:
         "activity_level": profile.activity_level,
         "strength_focus": profile.strength_focus,
         "benchmark_interval_weeks": profile.benchmark_interval_weeks,
+        "rest_weekday": profile.rest_weekday,
         "equipment_missing": [item for item in profile.equipment_missing.split(",") if item],
         "evening_training_days": [int(d) for d in profile.evening_training_days.split(",") if d],
         "created_at": profile.created_at.isoformat(),
@@ -158,6 +185,7 @@ def create_profile():
             activity_level=_activity_level(body.get("activity_level", DEFAULT_ACTIVITY_LEVEL)),
             strength_focus=_strength_focus(body.get("strength_focus", FOCUS_NONE)),
             benchmark_interval_weeks=_interval_weeks(body.get("benchmark_interval_weeks", DEFAULT_INTERVAL_WEEKS)),
+            rest_weekday=_rest_weekday(body.get("rest_weekday", DEFAULT_REST_WEEKDAY)),
             equipment_missing=_equipment_missing(body.get("equipment_missing", [])),
             evening_training_days=_evening_training_days(body.get("evening_training_days", [1, 2, 3, 4])),
         )
@@ -195,9 +223,16 @@ def update_profile():
             profile.equipment_missing = _equipment_missing(body["equipment_missing"])
         if "evening_training_days" in body:
             profile.evening_training_days = _evening_training_days(body["evening_training_days"])
+        rest_changed = False
+        if "rest_weekday" in body:
+            new_rest = _rest_weekday(body["rest_weekday"])
+            rest_changed = new_rest != profile.rest_weekday
+            profile.rest_weekday = new_rest
         _apply_goal(profile, body)
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 
+    if rest_changed:
+        _replan_future_days(profile)
     db.session.commit()
     return jsonify(_serialize(profile)), 200

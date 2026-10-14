@@ -44,6 +44,12 @@ async function loadProfile() {
     option.value = f.id;
     return option;
   }));
+  form.elements.rest_weekday.replaceChildren(...data.weekday_options.map((o) => {
+    const option = el("option", o.label);
+    option.value = o.id;
+    return option;
+  }));
+  form.elements.rest_weekday.value = ok ? data.rest_weekday : 1; // Standard: Dienstag
   const current = ok ? data : NEW_PROFILE_DEFAULTS;
   $("equipment-missing").replaceChildren(
     $("equipment-missing").querySelector("legend"),
@@ -77,6 +83,7 @@ async function saveProfile(event) {
   const { goal_mode: goalMode, goal_value: goalValue } = body;
   delete body.goal_mode;
   delete body.goal_value;
+  body.rest_weekday = Number(body.rest_weekday);
   if (goalValue !== undefined) body[GOAL_MODES[goalMode].field] = Number(goalValue);
   body.equipment_missing = [...form.querySelectorAll("#equipment-missing input:checked")].map((box) => box.value);
   body.evening_training_days = [...form.querySelectorAll("#evening-days input:checked")].map((box) => Number(box.value));

@@ -14,7 +14,7 @@ NEXT_MONDAY = THIS_MONDAY + timedelta(weeks=1)
 @pytest.fixture()
 def profile(client):
     start = THIS_MONDAY - timedelta(weeks=2)  # diese Woche = Base Woche 1
-    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": start.isoformat()})
+    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": start.isoformat(), "rest_weekday": 4})
     client.post("/api/checkins", json={"weight_kg": 74, "bodyfat_pct": 23, "muscle_kg": 30})
     return client
 

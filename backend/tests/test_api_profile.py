@@ -71,3 +71,35 @@ def test_updates_and_validates_strength_focus(client):
     client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"})
     assert client.put("/api/profile", json={"strength_focus": "legs"}).get_json()["strength_focus"] == "legs"
     assert client.put("/api/profile", json={"strength_focus": "arme"}).status_code == 400
+
+
+def test_new_profile_defaults_to_tuesday_rest_day(client):
+    response = client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"})
+    assert response.get_json()["rest_weekday"] == 1
+
+
+def test_rejects_invalid_rest_weekday(client):
+    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"})
+    assert client.put("/api/profile", json={"rest_weekday": 7}).status_code == 400
+    assert client.put("/api/profile", json={"rest_weekday": "x"}).status_code == 400
+
+
+def test_changing_rest_day_replans_untouched_future_days_only(client):
+    from datetime import date, timedelta
+
+    this_monday = date.today() - timedelta(days=date.today().weekday())
+    start = this_monday - timedelta(weeks=3)  # naechste Woche liegt in der Base-Phase
+    client.post("/api/profile", json={
+        "age": 49, "height_cm": 173, "program_start_date": start.isoformat(), "rest_weekday": 4})
+    monday = this_monday + timedelta(weeks=1)
+    days = {d["date"]: d for d in client.get(f"/api/calendar/week/{monday}").get_json()["days"]}
+    tuesday, thursday, friday = ((monday + timedelta(days=i)).isoformat() for i in (1, 3, 4))
+    assert days[friday]["cycling"] is None and days[tuesday]["cycling"] is not None
+    assert client.put(f"/api/calendar/day/{thursday}/plan", json={"planned_minutes": 50}).status_code == 200
+
+    assert client.put("/api/profile", json={"rest_weekday": 1}).status_code == 200
+
+    days = {d["date"]: d for d in client.get(f"/api/calendar/week/{monday}").get_json()["days"]}
+    assert days[tuesday]["cycling"] is None  # neuer Ruhetag
+    assert days[friday]["cycling"] is not None
+    assert days[thursday]["cycling"]["minutes"] == 50  # vom Nutzer angepasster Tag bleibt
