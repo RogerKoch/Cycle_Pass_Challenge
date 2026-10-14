@@ -261,12 +261,14 @@ function renderPlan() {
     ? `Während der Fahrt: ${round(plan.fueling.carbs_g_per_hour_min)}–${round(plan.fueling.carbs_g_per_hour_max)} g KH/h `
       + `(gesamt ${round(plan.fueling.carbs_g_total_min)}–${round(plan.fueling.carbs_g_total_max)} g). ${plan.fueling.note}`
     : plan.fueling ? `Während der Fahrt: ${plan.fueling.note}` : null;
-  $("plan-card").replaceChildren(
+  // replaceChildren schreibt null als Text "null": nur echte Knoten uebergeben
+  $("plan-card").replaceChildren(...[
     el("h2", {}, `Soll: ${round(plan.nutrition.target_kcal)} kcal`),
     el("p", { class: "hint" }, `Protein ${round(m.protein_g)} g · KH ${round(m.carbs_g)} g · Fett ${round(m.fat_g)} g`),
     el("table", { class: "plan-meals" }, el("tbody", {}, ...meals)),
     fueling ? el("p", { class: "hint" }, fueling) : null,
-    ...plan.timing_hints.map((hint) => el("p", { class: "hint" }, hint)));
+    ...plan.timing_hints.map((hint) => el("p", { class: "hint" }, hint)),
+  ].filter((node) => node !== null));
 }
 
 function renderTotals() {

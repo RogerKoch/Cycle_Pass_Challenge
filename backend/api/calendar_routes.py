@@ -106,7 +106,7 @@ def ensure_week(profile: UserProfile, day: date) -> list[TrainingDay]:
     for offset in range(7):
         current = monday + timedelta(days=offset)
         if current not in rows:
-            slot, strength = default_day_plan(profile.program_start_date, current)
+            slot, strength = default_day_plan(profile.program_start_date, current, profile.rest_weekday)
             rows[current] = TrainingDay(day_date=current, cycling_slot=slot, strength_session=strength)
             db.session.add(rows[current])
             created = True
@@ -133,7 +133,7 @@ def peek_week(profile: UserProfile, day: date) -> list[TrainingDay]:
     for offset in range(7):
         current = monday + timedelta(days=offset)
         if current not in rows:
-            slot, strength = default_day_plan(profile.program_start_date, current)
+            slot, strength = default_day_plan(profile.program_start_date, current, profile.rest_weekday)
             rows[current] = TrainingDay(day_date=current, cycling_slot=slot, strength_session=strength, status=STATUS_PLANNED)
         week.append(rows[current])
     return week
@@ -663,7 +663,7 @@ def reset_week(day: str):
     for row in rows:
         if row.day_date < today or row.status not in SWAPPABLE_STATUSES:
             continue
-        row.cycling_slot, row.strength_session = default_day_plan(profile.program_start_date, row.day_date)
+        row.cycling_slot, row.strength_session = default_day_plan(profile.program_start_date, row.day_date, profile.rest_weekday)
         row.planned_minutes = row.note = None
         row.status = STATUS_PLANNED
     db.session.commit()

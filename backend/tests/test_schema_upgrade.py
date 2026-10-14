@@ -87,3 +87,44 @@ def test_adds_ftp_source_column_and_old_tests_count_as_manual(app):
     add_missing_columns()
 
     assert db.session.execute(text("SELECT source FROM ftp_tests")).scalar() == "manual"
+
+
+def test_adds_target_weight_column_to_existing_profile(app):
+    db.session.execute(text("ALTER TABLE user_profile DROP COLUMN target_weight_kg"))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert "target_weight_kg" in {c["name"] for c in inspect(db.engine).get_columns("user_profile")}
+
+
+def test_existing_profile_keeps_friday_as_rest_day_after_upgrade(app):
+    db.session.execute(text("ALTER TABLE user_profile DROP COLUMN rest_weekday"))
+    db.session.execute(text(
+        "INSERT INTO user_profile (id, age, height_cm, program_start_date, activity_level, strength_focus, "
+        "benchmark_interval_weeks, equipment_missing, evening_training_days, created_at, updated_at) "
+        "VALUES (1, 49, 173, '2026-10-01', 'buero', 'none', 4, '', '1,2,3,4', '2026-10-01 00:00:00', '2026-10-01 00:00:00')"
+    ))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert db.session.execute(text("SELECT rest_weekday FROM user_profile")).scalar() == 4
+
+
+def test_adds_weight_only_column_to_existing_checkins(app):
+    db.session.execute(text("ALTER TABLE checkins DROP COLUMN weight_only"))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert "weight_only" in {c["name"] for c in inspect(db.engine).get_columns("checkins")}
+
+
+def test_adds_row_variant_column_to_existing_benchmarks(app):
+    db.session.execute(text("ALTER TABLE strength_benchmarks DROP COLUMN row_variant"))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert "row_variant" in {c["name"] for c in inspect(db.engine).get_columns("strength_benchmarks")}

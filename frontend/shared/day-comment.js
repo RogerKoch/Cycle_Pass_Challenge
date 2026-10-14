@@ -5,7 +5,8 @@
 async function mountDayComment(container, { base, date }) {
   const url = `${base}api/day-comments/${date}`;
   const heading = document.createElement("h2");
-  heading.textContent = "📝 Kommentar";
+  const dayLabel = new Date(`${date}T12:00:00`).toLocaleDateString("de-CH", { weekday: "short", day: "numeric", month: "short" });
+  heading.textContent = `📝 Kommentar · ${dayLabel}`;
   const area = document.createElement("textarea");
   area.rows = 3;
   area.maxLength = 2000;

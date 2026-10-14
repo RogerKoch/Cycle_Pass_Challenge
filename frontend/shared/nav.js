@@ -28,9 +28,10 @@
   nav.className = "nav";
   nav.setAttribute("aria-label", "Hauptnavigation");
 
-  const brand = document.createElement("div");
+  const brand = document.createElement("a");
   brand.className = "nav-brand";
-  brand.textContent = "Alpenpässe";
+  brand.href = new URL("", base).href;
+  brand.textContent = "PassForm";
   nav.append(brand);
 
   for (const item of ITEMS) {

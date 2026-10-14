@@ -9,6 +9,17 @@ const METRICS = {
   muscle_kg: { label: "Muskelmasse", unit: "kg" },
 };
 
+// Fragebogen: Stufe 0-3 je Frage; Beschriftung je Stufe erscheint unter den Chips
+const SIGNAL_QUESTIONS = [
+  ["sleep", "Schlaf schlecht", ["erholt geschlafen", "etwas unruhig", "deutlich zu kurz / oft wach", "kaum geschlafen"]],
+  ["legs", "Beine platt", ["frisch", "leicht müde", "schwer, Watt fehlen", "leer, kein Antritt"]],
+  ["hunger", "Dauerhunger", ["normal", "öfter Appetit", "ständig hungrig trotz Plan", "Heisshunger, kaum zu stoppen"]],
+  ["back", "Rücken nach langen Fahrten",
+    ["keine Beschwerden", "leichtes Ziehen", "Schmerz, der nachwirkt", "stark, Alltag beeinträchtigt"]],
+  ["effort", "Anstrengung höher bei gleicher Leistung",
+    ["normal", "etwas höher", "Z2 fühlt sich wie Tempo an", "gleiche Watt kaum haltbar"]],
+];
+
 const state = { checkins: [], targetWeight: null, showAll: false };
 
 // ---------------------------------------------------------------- Reiter
@@ -29,7 +40,10 @@ function showTab() {
 function renderChart() {
   const key = $("chart-metric").value;
   const { label, unit } = METRICS[key];
-  const points = [...state.checkins].reverse().map((c) => ({ date: c.checkin_date, value: c[key] }));
+  // Nur-Gewicht-Check-ins tragen abgeleitete KF-/Muskelwerte: dort nicht als Messpunkt zeichnen
+  const points = [...state.checkins].reverse()
+    .filter((c) => key === "weight_kg" || !c.weight_only)
+    .map((c) => ({ date: c.checkin_date, value: c[key] }));
   lineChart($("checkin-chart"), points, {
     unit, label, target: key === "weight_kg" ? state.targetWeight : null,
   });
@@ -38,8 +52,11 @@ function renderChart() {
 function renderCheckinTable() {
   const shown = state.showAll ? state.checkins : state.checkins.slice(0, TABLE_ROWS);
   const rows = shown.map((c) => [
-    c.checkin_date, fmt(c.weight_kg, 1), fmt(c.bodyfat_pct, 1), fmt(c.muscle_kg, 1), fmt(c.ffm_kg, 1),
-    c.source === "intervals" ? "Garmin" : "manuell",
+    c.checkin_date, fmt(c.weight_kg, 1),
+    c.weight_only ? `${fmt(c.bodyfat_pct, 1)}*` : fmt(c.bodyfat_pct, 1),
+    c.weight_only ? `${fmt(c.muscle_kg, 1)}*` : fmt(c.muscle_kg, 1),
+    fmt(c.ffm_kg, 1),
+    c.source === "intervals" ? "Garmin" : c.weight_only ? "nur Gewicht" : "manuell",
   ]);
   const table = makeTable(["Datum", "Gewicht kg", "KF %", "Muskel kg", "FFM kg", "Quelle"], rows);
   table.id = "checkin-table";
@@ -77,13 +94,41 @@ async function loadSignals() {
   $("signals-table").replaceWith(table);
 }
 
+function renderSignalQuestions() {
+  const questions = SIGNAL_QUESTIONS.map(([name, label, texts]) => {
+    const group = el("fieldset", undefined, "chips");
+    const description = el("p", texts[0], "hint");
+    group.append(el("legend", label));
+    texts.forEach((text, level) => {
+      const radio = el("input");
+      radio.type = "radio";
+      radio.name = name;
+      radio.value = level;
+      radio.checked = level === 0;
+      radio.addEventListener("change", () => { description.textContent = `${level}: ${text}`; });
+      const chip = el("label", undefined, "chip");
+      chip.title = text;
+      chip.append(radio, ` ${level}`);
+      group.append(chip);
+    });
+    description.textContent = `0: ${texts[0]}`;
+    group.append(description);
+    return group;
+  });
+  $("signals-questions").replaceChildren(...questions);
+}
+
 async function saveSignals(event) {
   event.preventDefault();
   const body = {};
   for (const [key, value] of new FormData(event.target)) if (value !== "") body[key] = Number(value);
   const { ok, data } = await api("POST", "/api/signals", body);
   setMsg("signals-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadSignals(), loadReview()]);
+  if (ok) {
+    event.target.reset();
+    renderSignalQuestions();
+    await Promise.all([loadSignals(), loadReview()]);
+  }
 }
 
 // ---------------------------------------------------------------- Review
@@ -160,6 +205,7 @@ window.addEventListener("hashchange", showTab);
 const testOptions = { history: true, onSaved: loadReview };
 function loadAll() {
   loadCheckins();
+  renderSignalQuestions();
   loadSignals();
   loadReview();
   mountFtp($("ftp-box"), testOptions);

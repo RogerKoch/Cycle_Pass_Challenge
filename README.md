@@ -1,4 +1,4 @@
-# Alpenpässe-App
+# PassForm (Alpenpässe-App)
 
 Lokale Web-App (Einzelperson) für Rad-Trainings- und Ernährungsplanung im Hinblick auf die
 Passsaison. Projekt-Brief: [CLAUDE.md](CLAUDE.md), Architektur: [docs/architecture.md](docs/architecture.md),

@@ -16,7 +16,7 @@ def _next_weekday(weekday: int) -> date:
 def profile(client):
     # diese Woche = Base Woche 1 -> Defizit 350 aktiv
     start = THIS_MONDAY - timedelta(weeks=2)
-    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": start.isoformat()})
+    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": start.isoformat(), "rest_weekday": 4})
     return client
 
 
@@ -162,7 +162,7 @@ def test_low_energy_availability_from_intake_and_calendar(profile):
 def test_missing_ramp_test_result_is_reported(client):
     # Programmstart letzte Woche -> Phase-0-Samstag (Ramp-Test) liegt in der Vergangenheit
     start = THIS_MONDAY - timedelta(weeks=1)
-    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": start.isoformat()})
+    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": start.isoformat(), "rest_weekday": 4})
     week = client.get(f"/api/calendar/week/{start.isoformat()}").get_json()
     assert week["days"][5]["cycling"]["slot"] == "ftp_test"
     assert "ftp_test_missing" in _findings(client)

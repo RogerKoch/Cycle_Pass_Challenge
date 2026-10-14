@@ -84,3 +84,39 @@ def test_direct_ftp_rejects_non_positive_and_mixed_input(client):
     assert client.post("/api/checkins/ftp-tests", json={"ftp_watts": 0}).status_code == 400
     assert client.post("/api/checkins/ftp-tests", json={"ftp_watts": 240, "best_1min_power_watts": 300}).status_code == 400
     assert client.post("/api/checkins/ftp-tests", json={}).status_code == 400
+
+
+def test_weight_only_checkin_keeps_ffm_and_muscle_from_previous(client):
+    client.post("/api/checkins", json={"weight_kg": 74, "bodyfat_pct": 23, "muscle_kg": 30, "checkin_date": "2026-10-01"})
+    response = client.post("/api/checkins", json={"weight_kg": 73, "checkin_date": "2026-10-08"})
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["weight_only"] is True
+    assert body["muscle_kg"] == 30
+    assert abs(body["ffm_kg"] - 74 * 0.77) < 1e-6
+    assert abs(body["bodyfat_pct"] - 100 * (1 - 74 * 0.77 / 73)) < 1e-6
+
+
+def test_first_checkin_without_profile_cannot_estimate_bodyfat(client):
+    response = client.post("/api/checkins", json={"weight_kg": 74})
+    assert response.status_code == 400
+    assert "Profil" in response.get_json()["error"]
+
+
+def test_first_weight_only_checkin_estimates_bodyfat_from_profile(client):
+    client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"})
+    response = client.post("/api/checkins", json={"weight_kg": 74})
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["weight_only"] is True
+    bmi = 74 / 1.73**2
+    assert abs(body["bodyfat_pct"] - (1.2 * bmi + 0.23 * 49 - 16.2)) < 1e-6
+    assert abs(body["muscle_kg"] - body["ffm_kg"] * 0.5) < 1e-6
+    # die Schaetzung ist die Basis fuer weitere Nur-Gewicht-Check-ins (FFM konstant)
+    second = client.post("/api/checkins", json={"weight_kg": 73}).get_json()
+    assert abs(second["ffm_kg"] - body["ffm_kg"]) < 1e-6
+
+
+def test_weight_only_below_ffm_is_rejected(client):
+    client.post("/api/checkins", json={"weight_kg": 74, "bodyfat_pct": 23, "muscle_kg": 30})
+    assert client.post("/api/checkins", json={"weight_kg": 50}).status_code == 400

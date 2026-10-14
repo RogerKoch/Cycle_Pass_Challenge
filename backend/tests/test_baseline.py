@@ -47,3 +47,10 @@ def test_energy_availability_subtracts_training_and_divides_by_ffm():
 def test_energy_availability_rejects_non_positive_ffm():
     with pytest.raises(ValueError):
         calculate_energy_availability(2500.0, 700.0, 0.0)
+
+
+def test_estimate_bodyfat_uses_deurenberg_formula_for_men():
+    from backend.engine.baseline import estimate_bodyfat_pct
+
+    assert abs(estimate_bodyfat_pct(74, 173, 49) - (1.2 * 74 / 1.73**2 + 0.23 * 49 - 16.2)) < 1e-9
+    assert estimate_bodyfat_pct(40, 190, 20) >= 0.5  # nie negativ

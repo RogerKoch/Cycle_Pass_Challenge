@@ -8,9 +8,12 @@ from flask import Blueprint, jsonify, request
 
 from backend.engine.strength_benchmarks import (
     DEFAULT_INTERVAL_WEEKS,
+    DEFAULT_ROW_VARIANT,
     PUSHUP_VARIANTS,
+    ROW_VARIANTS,
     exercise_stages,
     milestones,
+    next_targets,
     next_due,
 )
 from backend.extensions import db
@@ -61,10 +64,12 @@ def get_benchmarks():
         "tests": [_serialize(t) for t in reversed(tests)],
         "current": {**asdict(current), "test_date": current.test_date.isoformat()} if current else None,
         "stages": asdict(exercise_stages(current)),
+        "targets": next_targets(current),
         "milestones": [asdict(m) for m in milestones(current)],
         "interval_weeks": interval,
         "next_due": next_due(tests[-1].test_date if tests else None, interval, date.today()).isoformat(),
         "pushup_variants": [{"id": key, "label": label} for key, label in PUSHUP_VARIANTS.items()],
+        "row_variants": [{"id": key, "label": label} for key, label in ROW_VARIANTS.items()],
     }), 200
 
 
@@ -84,6 +89,9 @@ def create_benchmark():
     variant = body.get("pushup_variant") or None
     if values["pushup_reps"] is not None and variant not in PUSHUP_VARIANTS:
         return jsonify({"error": f"pushup_variant muss einer von {', '.join(PUSHUP_VARIANTS)} sein"}), 400
+    row_variant = body.get("row_variant") or DEFAULT_ROW_VARIANT
+    if values["row_reps"] is not None and row_variant not in ROW_VARIANTS:
+        return jsonify({"error": f"row_variant muss einer von {', '.join(ROW_VARIANTS)} sein"}), 400
     straight = body.get("side_plank_straight")
     if values["side_plank_s"] is not None and not isinstance(straight, bool):
         return jsonify({"error": "side_plank_straight (true/false) erforderlich"}), 400
@@ -91,6 +99,7 @@ def create_benchmark():
     benchmark = StrengthBenchmark(
         test_date=test_date,
         pushup_variant=variant if values["pushup_reps"] is not None else None,
+        row_variant=row_variant if values["row_reps"] is not None else None,
         side_plank_straight=straight if values["side_plank_s"] is not None else None,
         **values,
     )

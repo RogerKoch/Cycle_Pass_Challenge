@@ -4,11 +4,13 @@ Quelle: docs/research/Trainingsplan Kraft.md – „Fortschrittsmessung / Meilen
 Meilensteine W8–W24), Uebungsbibliothek (Progressionsreihenfolgen) und Recommendations 5
 („Core-Benchmarks uebertroffen -> auf anti-rotatorische/Hollow-Body-Progression wechseln“).
 
-Annahme: Die naechste Stufe gilt ab dem oberen Ende des Rep-Bereichs (15 saubere Wdh.); die Recherche
-sagt nur „zuerst Wiederholungen steigern, dann Hebel verlaengern“.
+Progression (docs/research/Kraftprogression-Ergaenzung.md): naechste Stufe bei 12 sauberen Wdh. (Coach-Regel
+3 x 12), ab 20 Wdh. zwei Stufen; am Ende der Leiter Tempo 3 s exzentrisch statt Zusatzlast; Ziel des naechsten
+Tests = Testwert + 10 % (ACSM: 2-10 %).
 """
 
 import logging
+import math
 from dataclasses import dataclass, fields
 from datetime import date, timedelta
 
@@ -22,7 +24,20 @@ PUSHUP_VARIANTS: dict[str, str] = {
     "fuesse_erhoeht": "Füsse erhöht",
     "deficit": "Deficit",
 }
-LEVEL_UP_REPS = 15  # Annahme: oberes Ende des Rep-Bereichs 8–15
+# Ausfuehrung des Zug-Tests: Tisch/Handtuch haben einen Hebel (Fuesse erhoeht), Band/Rucksack nur Last
+ROW_VARIANTS: dict[str, str] = {
+    "table": "Tisch",
+    "towel": "Handtuch an Tür",
+    "band": "Band",
+    "backpack": "Rucksack",
+}
+DEFAULT_ROW_VARIANT = "table"  # Tests ohne Angabe (vor Einfuehrung der Ausfuehrung)
+LEVER_ROW_VARIANTS: frozenset[str] = frozenset({"table", "towel"})
+LOAD_STEP_TEXT: dict[str, str] = {"band": "Band stärker", "backpack": "Rucksack schwerer"}
+LEVEL_UP_REPS = 12  # 3 x 12 saubere Wdh. -> naechste Stufe (Coach-Regel, siehe Kraftprogression-Ergaenzung.md)
+TWO_STAGE_REPS = 20  # ab hier ueberspringt der Liegestuetz eine Stufe (Plateau bei 20–25 Wdh.)
+TARGET_GROWTH = 1.10  # Ziel des naechsten Tests: +10 % (mind. +1)
+NEW_STAGE_REPS = "8–12"  # Wdh., die in einer neuen Stufe zuerst aufgebaut werden
 SIDE_PLANK_STRAIGHT_FROM_S = 20  # Seitstuetz: Anfang 10–20 s mit gebeugten Knien, dann gestreckt
 SIDE_PLANK_TARGET_S = 30  # Meilenstein W12: Side Plank gestreckt 30 s
 SL_BRIDGE_TARGET_S = 60  # Benchmark: Single-Leg Glute Bridge 60 s je Bein
@@ -41,6 +56,7 @@ class BenchmarkResult:
     pushup_reps: int | None = None
     pushup_variant: str | None = None
     row_reps: int | None = None
+    row_variant: str | None = None  # None = Tisch (aeltere Tests)
     side_plank_s: int | None = None
     side_plank_straight: bool | None = None
     sl_bridge_s: int | None = None  # schwaechere Seite
@@ -56,6 +72,7 @@ class ExerciseStages:
     side_plank_straight: bool | None = None
     glute_bridge_single_leg: bool | None = None
     core_advanced: bool = False  # Hollow Body/Pallof vor ihrer Phase freischalten
+    pushup_slow_tempo: bool = False  # Liegestuetz-Leiter ausgereizt: Tempo 3 s exzentrisch statt Zusatzlast
 
 
 @dataclass
@@ -68,7 +85,11 @@ class Milestone:
 
 
 # Testpaare, die zusammengehoeren und deshalb nur gemeinsam uebernommen werden
-_PAIRED = {"pushup_reps": "pushup_variant", "side_plank_s": "side_plank_straight"}
+_PAIRED = {
+    "pushup_reps": "pushup_variant",
+    "row_reps": "row_variant",
+    "side_plank_s": "side_plank_straight",
+}
 
 
 def combine(results: list[BenchmarkResult]) -> BenchmarkResult | None:
@@ -102,9 +123,8 @@ def combine(results: list[BenchmarkResult]) -> BenchmarkResult | None:
 def _next_pushup_variant(variant: str, reps: int) -> str:
     keys = list(PUSHUP_VARIANTS)
     index = keys.index(variant)
-    if reps >= LEVEL_UP_REPS and index < len(keys) - 1:
-        index += 1
-    return keys[index]
+    steps = 2 if reps >= TWO_STAGE_REPS else 1 if reps >= LEVEL_UP_REPS else 0
+    return keys[min(index + steps, len(keys) - 1)]
 
 
 def exercise_stages(current: BenchmarkResult | None) -> ExerciseStages:
@@ -121,7 +141,12 @@ def exercise_stages(current: BenchmarkResult | None) -> ExerciseStages:
     stages = ExerciseStages()
     if current.pushup_reps is not None and current.pushup_variant in PUSHUP_VARIANTS:
         stages.pushup_variant = _next_pushup_variant(current.pushup_variant, current.pushup_reps)
-    if current.row_reps is not None:
+        stages.pushup_slow_tempo = (
+            current.pushup_variant == list(PUSHUP_VARIANTS)[-1] and current.pushup_reps >= TWO_STAGE_REPS
+        )
+    # Ein Wechsel der Ausfuehrung ist ein neuer Ausgangswert (combine nimmt den neuesten Test); Band/Rucksack
+    # haben keine Hebel-Stufe, dort steigert man die Last
+    if current.row_reps is not None and (current.row_variant or DEFAULT_ROW_VARIANT) in LEVER_ROW_VARIANTS:
         stages.rows_feet_elevated = current.row_reps >= LEVEL_UP_REPS
     if current.side_plank_s is not None:
         stages.side_plank_straight = bool(current.side_plank_straight) or (
@@ -135,6 +160,66 @@ def exercise_stages(current: BenchmarkResult | None) -> ExerciseStages:
         and (current.side_plank_s or 0) >= SIDE_PLANK_TARGET_S
     )
     return stages
+
+
+def _grow(value: int, cap: int | None = None) -> int:
+    """Ziel des naechsten Tests: Wert + 10 % (mind. +1), hoechstens `cap`."""
+    target = max(value + 1, math.ceil(value * TARGET_GROWTH))
+    return min(target, cap) if cap is not None else target
+
+
+def next_targets(current: BenchmarkResult | None) -> list[str]:
+    """Ziel je getesteter Uebung fuer den naechsten Benchmark-Termin (Anzeige).
+
+    Args:
+        current: kombinierte Testwerte (siehe combine) oder None.
+
+    Returns:
+        Zeilen wie "Liegestütz (Knie): 10 Wdh., ab 12 nächste Stufe"; leer ohne Tests.
+    """
+    if current is None:
+        return []
+    targets: list[str] = []
+    if current.pushup_reps is not None and current.pushup_variant in PUSHUP_VARIANTS:
+        label = PUSHUP_VARIANTS[current.pushup_variant]
+        stage = exercise_stages(current)
+        if stage.pushup_variant != current.pushup_variant:
+            targets.append(
+                f"Liegestütz: Stufe {PUSHUP_VARIANTS[stage.pushup_variant]}, dort zuerst {NEW_STAGE_REPS} Wdh. aufbauen"
+            )
+        elif stage.pushup_slow_tempo:
+            targets.append(f"Liegestütz ({label}): Tempo 3 s runter, {_grow(current.pushup_reps)} Wdh.")
+        else:
+            targets.append(
+                f"Liegestütz ({label}): {_grow(current.pushup_reps)} Wdh., ab {LEVEL_UP_REPS} nächste Stufe"
+            )
+    if current.row_reps is not None:
+        variant = current.row_variant or DEFAULT_ROW_VARIANT
+        label = "Inverted Rows" if variant == "table" else f"Rudern ({ROW_VARIANTS[variant]})"
+        step = "Füsse erhöht" if variant in LEVER_ROW_VARIANTS else LOAD_STEP_TEXT[variant]
+        if current.row_reps >= LEVEL_UP_REPS:
+            targets.append(f"{label}: {step}, dort zuerst {NEW_STAGE_REPS} Wdh. aufbauen")
+        else:
+            targets.append(f"{label}: {_grow(current.row_reps)} Wdh., ab {LEVEL_UP_REPS} {step}")
+    if current.side_plank_s is not None:
+        if bool(current.side_plank_straight) and current.side_plank_s >= SIDE_PLANK_TARGET_S:
+            targets.append(f"Side Plank: Ziel {SIDE_PLANK_TARGET_S} s gestreckt erreicht")
+        elif not current.side_plank_straight and current.side_plank_s >= SIDE_PLANK_STRAIGHT_FROM_S:
+            targets.append("Side Plank: Beine gestreckt, dort zuerst 15–20 s aufbauen")
+        else:
+            cap = SIDE_PLANK_TARGET_S if current.side_plank_straight else SIDE_PLANK_STRAIGHT_FROM_S
+            targets.append(f"Side Plank: {_grow(current.side_plank_s, cap)} s")
+    if current.sl_bridge_s is not None:
+        targets.append(
+            f"Single-Leg Glute Bridge: Ziel {SL_BRIDGE_TARGET_S} s erreicht" if current.sl_bridge_s >= SL_BRIDGE_TARGET_S
+            else f"Single-Leg Glute Bridge: {_grow(current.sl_bridge_s, SL_BRIDGE_TARGET_S)} s je Bein"
+        )
+    if current.plank_s is not None:
+        targets.append(
+            f"Plank: Ziel {PLANK_TARGET_S} s erreicht" if current.plank_s >= PLANK_TARGET_S
+            else f"Plank: {_grow(current.plank_s, PLANK_TARGET_S)} s"
+        )
+    return targets
 
 
 def milestones(current: BenchmarkResult | None) -> list[Milestone]:

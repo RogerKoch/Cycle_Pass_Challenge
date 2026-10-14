@@ -35,11 +35,15 @@ def test_phase3_adds_copenhagen_plank():
 
 
 def test_scaled_exercises_take_reps_and_rest_from_phase():
+    phase2 = build_strength_session("B", STRENGTH_PHASES[2])
+    split_squat = next(e for e in phase2.exercises if e.name == "Bulgarian Split Squat")
+    assert (split_squat.sets, split_squat.reps, split_squat.rest) == ("3", "8–12", "60–90 s")
+
+
+def test_staged_exercises_take_only_sets_and_rest_from_phase():
     phase1 = build_strength_session("A", STRENGTH_PHASES[1])
     glute = next(e for e in phase1.exercises if e.name.startswith("Glute Bridge"))
-    assert (glute.sets, glute.reps, glute.rest) == ("2–3", "15–25", "60–90 s")
-    phase2 = build_strength_session("A", STRENGTH_PHASES[2])
-    assert next(e for e in phase2.exercises if e.name.startswith("Glute Bridge")).reps == "8–12"
+    assert (glute.sets, glute.reps, glute.rest) == ("2–3", "12–15", "60–90 s")
 
 
 def test_holds_keep_their_library_values():

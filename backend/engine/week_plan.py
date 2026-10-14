@@ -57,6 +57,39 @@ STANDARD_WEEK: dict[int, tuple[str | None, str | None]] = {
     5: (SLOT_KEY_2, None),
     6: (SLOT_LONG, None),
 }
+STANDARD_REST_WEEKDAY = 4  # Ruhetag der STANDARD_WEEK (Freitag)
+
+
+def standard_week(rest_weekday: int = STANDARD_REST_WEEKDAY) -> dict[int, tuple[str | None, str | None]]:
+    """Standardwoche mit frei gewaehltem Ruhetag.
+
+    Die Rad-Slots behalten ihre Reihenfolge; der Ruhetag wird auf `rest_weekday` gelegt, die Slots dazwischen
+    ruecken auf. Krafteinheiten bleiben an ihrem Wochentag; faellt er auf den Ruhetag, geht die Einheit auf
+    den Folgetag. So treffen nie zwei Schluesseleinheiten aufeinander (KEY_1/KEY_2 liegen 3 Slots auseinander).
+
+    Args:
+        rest_weekday: 0 = Montag ... 6 = Sonntag.
+
+    Returns:
+        Wochentag -> (Rad-Slot, Krafteinheit).
+
+    Raises:
+        ValueError: wenn rest_weekday nicht in 0..6 liegt.
+    """
+    if not 0 <= rest_weekday <= 6:
+        raise ValueError(f"rest_weekday muss 0 (Mo) bis 6 (So) sein, war {rest_weekday}")
+    cycling = iter(STANDARD_WEEK[i][0] for i in range(7) if i != STANDARD_REST_WEEKDAY)
+    week: dict[int, tuple[str | None, str | None]] = {
+        weekday: (None if weekday == rest_weekday else next(cycling), None) for weekday in range(7)
+    }
+    for weekday, (_, strength) in STANDARD_WEEK.items():
+        if strength is None:
+            continue
+        target = (weekday + 1) % 7 if weekday == rest_weekday else weekday
+        week[target] = (week[target][0], strength)
+    return week
+
+
 # Ab Build 2 nur noch 1 Krafteinheit pro Woche (Montag), A/B im Wochenwechsel
 TWO_STRENGTH_SESSION_PHASES: frozenset[str] = frozenset({"phase0_wiedereinstieg", "base", "build1"})
 
@@ -103,12 +136,15 @@ def phase_week(program_start_date: date, day: date) -> tuple[PhaseInfo, int]:
     return phase, max((day - phase.phase_start).days // 7 + 1, 1)
 
 
-def default_day_plan(program_start_date: date, day: date) -> tuple[str | None, str | None]:
+def default_day_plan(
+    program_start_date: date, day: date, rest_weekday: int = STANDARD_REST_WEEKDAY
+) -> tuple[str | None, str | None]:
     """Rad-Slot und Krafteinheit der Standardwoche fuer ein Datum.
 
     Args:
         program_start_date: Programmstart.
         day: Datum.
+        rest_weekday: Ruhetag (0 = Montag ... 6 = Sonntag), siehe standard_week.
 
     Returns:
         (cycling_slot, strength_session). Vor dem Programmstart (None, None). Der Slot ist None,
@@ -117,13 +153,14 @@ def default_day_plan(program_start_date: date, day: date) -> tuple[str | None, s
     if day < program_start_date:
         return None, None
     phase, week = phase_week(program_start_date, day)
-    slot, strength = STANDARD_WEEK[day.weekday()]
+    slot, strength = standard_week(rest_weekday)[day.weekday()]
     if slot == SLOT_KEY_2 and (phase.phase_id, week) in RETEST_WEEKS:
         slot = SLOT_FTP_TEST
     if slot is not None and build_cycling_session(slot, phase.phase_id, week) is None:
         slot = None
     if phase.phase_id not in TWO_STRENGTH_SESSION_PHASES:
-        strength = ("A" if week % 2 == 1 else "B") if day.weekday() == 0 else None
+        strength_weekday = 1 if rest_weekday == 0 else 0  # Montag, bei Ruhetag Montag der Folgetag
+        strength = ("A" if week % 2 == 1 else "B") if day.weekday() == strength_weekday else None
     return slot, strength
 
 

@@ -1,8 +1,8 @@
 "use strict";
 
 // FTP-Test und Kraft-Benchmark (Erfassen + Anzeige), gebraucht auf Check-ins und Profil (Startwerte).
-// Braucht ui.js; mit history zusaetzlich chart.js. Optionen: { startOnly, history, onSaved }
-//   startOnly: Formular nur zeigen, solange noch kein Test existiert (Startwerte im Profil).
+// Braucht ui.js; mit history zusaetzlich chart.js. Optionen: { readOnly, history, onSaved }
+//   readOnly:  nur das letzte Ergebnis zeigen, Erfassen laeuft ueber die Check-ins (Profil).
 //   history:   Chart und Verlaufstabelle anzeigen (Check-ins).
 //   onSaved:   wird nach erfolgreichem Speichern aufgerufen (z.B. Review neu laden).
 
@@ -20,14 +20,23 @@ const FTP_HTML = `
 
 const BENCHMARK_HTML = `
   <div data-view></div>
+  <div data-targets-box hidden>
+    <h3>Ziele bis zum nächsten Test</h3>
+    <ul data-targets></ul>
+  </div>
   <div data-chart-box hidden>
-    <label>Übung <select data-metric></select></label>
+    <div class="chips" data-metric role="radiogroup" aria-label="Übung"></div>
     <div class="chart" data-chart></div>
   </div>
-  <form data-form>
+  <details class="sketches" data-sketches hidden>
+    <summary>Skizzen der Übungen</summary>
+    <div class="sketch-grid" data-sketch-grid></div>
+  </details>
+  <form data-form class="fields">
     <label>Liegestütze am Stück <input name="pushup_reps" type="number" min="0" step="1"></label>
     <label>Variante <select name="pushup_variant"></select></label>
-    <label>Inverted Rows am Stück <input name="row_reps" type="number" min="0" step="1"></label>
+    <label>Rudern am Stück (Wdh.) <input name="row_reps" type="number" min="0" step="1"></label>
+    <label>Ausführung Rudern <select name="row_variant"></select></label>
     <label>Side Plank (s, schwächere Seite) <input name="side_plank_s" type="number" min="0" step="1"></label>
     <label>Side Plank Ausführung <select name="side_plank_straight">
       <option value="false">Knie gebeugt</option><option value="true">Beine gestreckt</option></select></label>
@@ -47,10 +56,22 @@ const STAGE_TEXT = {
 
 const BENCHMARK_METRICS = [
   ["pushup_reps", "Liegestütze", "Wdh."],
-  ["row_reps", "Inverted Rows", "Wdh."],
+  ["row_reps", "Rudern", "Wdh."],
   ["side_plank_s", "Side Plank", "s"],
   ["sl_bridge_s", "Single-Leg Glute Bridge", "s"],
   ["plank_s", "Plank", "s"],
+];
+
+// Benchmark-Feld -> Uebungsname in training/img/exercises/index.json
+const BENCHMARK_SKETCHES = [
+  ["Liegestütze", "Liegestütz-Progression"],
+  ["Rudern: Tisch (Inverted Rows)", "Inverted Rows (Tischkanten-Rudern)"],
+  ["Rudern: Handtuch an Tür", "Handtuch-Rudern an Türklinke"],
+  ["Rudern: Band", "Band-Rudern"],
+  ["Rudern: Rucksack", "Rucksack-Rudern vorgebeugt"],
+  ["Side Plank", "Side Plank"],
+  ["Single-Leg Glute Bridge", "Single-Leg Glute Bridge"],
+  ["Plank", "Plank (Unterarmstütz)"],
 ];
 
 function checkinsLink(text) {
@@ -61,7 +82,7 @@ function checkinsLink(text) {
 
 const cell = (value, digits = 0) => (value === null || value === undefined ? "–" : fmt(value, digits));
 
-function mountFtp(box, { startOnly = false, history = false, onSaved = async () => {} } = {}) {
+function mountFtp(box, { readOnly = false, history = false, onSaved = async () => {} } = {}) {
   box.innerHTML = FTP_HTML;
   const view = box.querySelector("[data-view]");
   const form = box.querySelector("[data-form]");
@@ -76,9 +97,9 @@ function mountFtp(box, { startOnly = false, history = false, onSaved = async () 
     view.textContent = latest
       ? `Aktuelle FTP: ${latest.ftp_watts} W (Test ${latest.test_date})`
       : "FTP noch nicht getestet (Zwift-Ramp-Test steht aus), Zonen sind bis dahin gesperrt.";
-    if (startOnly) {
-      form.hidden = Boolean(latest);
-      if (latest) view.append(" · weitere Tests unter ", checkinsLink("Check-ins"));
+    if (readOnly) {
+      form.hidden = true;
+      view.append(" · erfassen unter ", checkinsLink("Check-ins"));
     }
     if (history) {
       chart.hidden = table.hidden = false;
@@ -102,7 +123,7 @@ function mountFtp(box, { startOnly = false, history = false, onSaved = async () 
   return load();
 }
 
-function mountBenchmark(box, { startOnly = false, history = false, onSaved = async () => {} } = {}) {
+function mountBenchmark(box, { readOnly = false, history = false, onSaved = async () => {} } = {}) {
   box.innerHTML = BENCHMARK_HTML;
   const view = box.querySelector("[data-view]");
   const form = box.querySelector("[data-form]");
@@ -114,15 +135,45 @@ function mountBenchmark(box, { startOnly = false, history = false, onSaved = asy
   const table = box.querySelector("[data-history]");
   let tests = [];
 
-  metric.replaceChildren(...BENCHMARK_METRICS.map(([key, label]) => {
-    const option = el("option", label);
-    option.value = key;
-    return option;
+  // Skizzen der Uebungen (Seite liegt unter <praefix>/<seite>/, die Bilder unter training/)
+  if (!readOnly) {
+    const base = "../training/img/exercises/";
+    fetch(`${base}index.json`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})).then((index) => {
+      const items = BENCHMARK_SKETCHES.filter(([, name]) => index[name]).map(([label, name]) => {
+        const figure = el("figure");
+        const image = el("img");
+        image.src = `${base}${index[name].img}`;
+        image.alt = label;
+        image.loading = "lazy";
+        figure.append(image, el("figcaption", label));
+        return figure;
+      });
+      if (!items.length) return;
+      box.querySelector("[data-sketch-grid]").replaceChildren(...items);
+      box.querySelector("[data-sketches]").hidden = false;
+    });
+  }
+
+  const radioName = `metric-${Math.random().toString(36).slice(2)}`;
+  metric.replaceChildren(...BENCHMARK_METRICS.map(([key, label], index) => {
+    const radio = el("input");
+    radio.type = "radio";
+    radio.name = radioName;
+    radio.value = key;
+    radio.checked = index === 0;
+    const chip = el("label", undefined, "chip");
+    chip.append(radio, ` ${label}`);
+    return chip;
   }));
 
   function renderChart() {
-    const [key, label, unit] = BENCHMARK_METRICS.find(([k]) => k === metric.value);
+    const selected = metric.querySelector("input:checked").value;
+    const [key, label, unit] = BENCHMARK_METRICS.find(([k]) => k === selected);
+    // Rudern: nur Tests derselben Ausfuehrung wie der neueste sind vergleichbar (Tisch/Handtuch/Band/Rucksack)
+    const rowVariant = (test) => test.row_variant || "table";
+    const latestRowTest = tests.find((t) => t.row_reps !== null);
     const points = [...tests].reverse().filter((t) => t[key] !== null && t[key] !== undefined)
+      .filter((t) => key !== "row_reps" || rowVariant(t) === rowVariant(latestRowTest))
       .map((t) => ({ date: t.test_date, value: t[key] }));
     lineChart(chart, points, { unit, decimals: 0, label });
   }
@@ -140,6 +191,18 @@ function mountBenchmark(box, { startOnly = false, history = false, onSaved = asy
       }));
       form.elements.pushup_variant.value = "knie";
     }
+    if (!form.elements.row_variant.options.length) {
+      form.elements.row_variant.replaceChildren(...data.row_variants.map((v) => {
+        const option = el("option", v.label);
+        option.value = v.id;
+        return option;
+      }));
+      // Ohne Tisch (Profil „Material fehlt“) wie im Training: Band, sonst Handtuch an der Tür
+      const profile = await api("GET", "/api/profile");
+      const missing = profile.ok ? profile.data.equipment_missing : [];
+      form.elements.row_variant.value = !missing.includes("table") ? "table"
+        : !missing.includes("bands") ? "band" : "towel";
+    }
     const variants = Object.fromEntries(data.pushup_variants.map((v) => [v.id, v.label]));
     const stages = [];
     if (data.stages.pushup_variant) stages.push(`Liegestütz: ${variants[data.stages.pushup_variant]}`);
@@ -147,21 +210,28 @@ function mountBenchmark(box, { startOnly = false, history = false, onSaved = asy
       if (data.stages[key] !== null) stages.push(text(data.stages[key]));
     }
     if (data.stages.core_advanced) stages.push("Hollow Body/Pallof freigeschaltet");
+    const targetsBox = box.querySelector("[data-targets-box]");
+    targetsBox.hidden = !data.targets.length;
+    box.querySelector("[data-targets]").replaceChildren(...data.targets.map((text) => el("li", text)));
     const due = data.next_due <= localToday() ? "fällig" : `nächster Test ${data.next_due}`;
     view.textContent = data.current
       ? `Letzter Test ${data.current.test_date} · ${due} (alle ${data.interval_weeks} Wochen) · Stufen: ${stages.join(", ") || "–"}`
       : `Noch kein Test – Woche-0-Baseline ${due}.`;
-    if (startOnly) {
-      form.hidden = Boolean(data.current);
+    if (readOnly) {
+      form.hidden = true;
       milestones.hidden = true;
-      if (data.current) view.append(" · weitere Tests unter ", checkinsLink("Check-ins"));
+      view.append(" · erfassen unter ", checkinsLink("Check-ins"));
       return;
     }
     if (history) {
-      chartBox.hidden = table.hidden = false;
-      renderChart();
-      table.replaceChildren(makeTable(["Datum", "Liegestütze", "Rows", "Side Plank s", "SL-Bridge s", "Plank s"],
-        tests.map((t) => [t.test_date, cell(t.pushup_reps), cell(t.row_reps), cell(t.side_plank_s), cell(t.sl_bridge_s), cell(t.plank_s)])));
+      // Verlauf erst ab dem zweiten Test: ein einzelner Punkt zeigt nichts, die Chips wirken sonst ins Leere
+      chartBox.hidden = tests.length < 2;
+      table.hidden = tests.length === 0;
+      if (tests.length >= 2) renderChart();
+      const rowLabels = Object.fromEntries(data.row_variants.map((v) => [v.id, v.label]));
+      const rows = (t) => (t.row_reps === null ? "–" : `${t.row_reps} (${rowLabels[t.row_variant || "table"]})`);
+      table.replaceChildren(makeTable(["Datum", "Liegestütze", "Rudern", "Side Plank s", "SL-Bridge s", "Plank s"],
+        tests.map((t) => [t.test_date, cell(t.pushup_reps), rows(t), cell(t.side_plank_s), cell(t.sl_bridge_s), cell(t.plank_s)])));
     }
     const mark = { true: "✓", false: "offen", null: "–" };
     milestones.replaceChildren(makeTable(["Woche", "Meilenstein", "Status"],
@@ -172,14 +242,17 @@ function mountBenchmark(box, { startOnly = false, history = false, onSaved = asy
     event.preventDefault();
     const body = formToObject(form);
     if (!body.pushup_reps) delete body.pushup_variant;
+    if (!body.row_reps) delete body.row_variant;
     if (body.side_plank_s) body.side_plank_straight = body.side_plank_straight === "true";
     else delete body.side_plank_straight;
     const { ok, data } = await api("POST", "/api/strength-benchmarks", body);
     msg.textContent = ok ? "" : data.error;
     if (ok) {
       const variant = form.elements.pushup_variant.value;
+      const rowVariant = form.elements.row_variant.value;
       form.reset();
       form.elements.pushup_variant.value = variant;
+      form.elements.row_variant.value = rowVariant;
       await Promise.all([load(), onSaved()]);
     }
   });

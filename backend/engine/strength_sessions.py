@@ -184,6 +184,12 @@ MCGILL_BIG_3: list[Exercise] = [
 # Core-Benchmarks uebertroffen -> diese Uebungen vor ihrer Phase (Kraft-Recherche, Recommendations 5)
 CORE_ADVANCED_UNLOCKS: frozenset[str] = frozenset({"Hollow Body Hold", "Anti-rotatorischer Band-Hold (Pallof)"})
 
+# Uebungen mit Benchmark-Stufe: Wdh.-Bereich der Bibliothek (8–15), die Phase bestimmt nur Saetze und Pause
+STAGED_EXERCISES: frozenset[str] = frozenset({
+    "Liegestütz-Progression", "Inverted Rows (Tischkanten-Rudern)", "Glute Bridge (Progression → Single-Leg)",
+})
+RIR_NOTE = "2–3 Wdh. in Reserve"
+
 REDUCED_NOTE = "Reduziert (Beine platt): Beinübungen entfallen, Volumen ~20 % runter (je Übung 1 Satz weniger)."
 
 
@@ -223,7 +229,8 @@ def mobility_routine(focus: str = FOCUS_NONE, core_daily: bool = False) -> list[
 def _stage_note(exercise: Exercise, stages: ExerciseStages) -> str | None:
     """Stufe aus dem Kraft-Benchmark fuer eine Uebung; None = keine Aussage."""
     if exercise.name == "Liegestütz-Progression" and stages.pushup_variant:
-        return f"Deine Stufe: {PUSHUP_VARIANTS[stages.pushup_variant]} · 2 s runter / 1 s hoch"
+        tempo = "3 s runter / 1 s Pause unten / 1 s hoch" if stages.pushup_slow_tempo else "2 s runter / 1 s hoch"
+        return f"Deine Stufe: {PUSHUP_VARIANTS[stages.pushup_variant]} · {tempo}"
     if exercise.name == "Inverted Rows (Tischkanten-Rudern)" and stages.rows_feet_elevated is not None:
         return "Deine Stufe: Füsse erhöht" if stages.rows_feet_elevated else "Deine Stufe: Füsse am Boden"
     if exercise.name == "Side Plank" and stages.side_plank_straight is not None:
@@ -300,7 +307,10 @@ def build_strength_session(
         if stage_note:
             exercise = replace(exercise, note=stage_note)
         if exercise.scaled:
-            exercise = replace(exercise, sets=phase.sets or exercise.sets, reps=phase.reps, rest=phase.rest)
+            reps = exercise.reps if exercise.name in STAGED_EXERCISES else phase.reps
+            exercise = replace(exercise, sets=phase.sets or exercise.sets, reps=reps, rest=phase.rest)
+        if exercise.name in STAGED_EXERCISES:
+            exercise = replace(exercise, note=" · ".join(n for n in (exercise.note, RIR_NOTE) if n))
         if strength_focus and exercise.group == focus:
             exercise = replace(exercise, sets=shift_numbers(exercise.sets, 1))
         exercises.append(exercise)

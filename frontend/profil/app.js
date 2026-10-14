@@ -2,52 +2,76 @@
 
 const SOURCE_LABEL = { measured: "gemessen", estimated: "geschätzt" };
 
+const GOAL_MODES = {
+  bodyfat: { label: "Ziel-Körperfett (%)", placeholder: "16", field: "target_bodyfat_pct" },
+  weight: { label: "Zielgewicht (kg)", placeholder: "68", field: "target_weight_kg" },
+};
+
+function setGoalMode(mode) {
+  const form = $("profile-form");
+  form.elements.goal_mode.value = mode;
+  $("goal-label").textContent = GOAL_MODES[mode].label;
+  form.elements.goal_value.placeholder = GOAL_MODES[mode].placeholder;
+}
+
+const NEW_PROFILE_DEFAULTS = { evening_training_days: [1, 2, 3, 4], equipment_missing: [] };
+
+// Rendert die Auswahllisten; die Backend-404-Antwort liefert sie auch ohne bestehendes Profil mit,
+// damit alles vor dem ersten Speichern ausfuellbar ist.
+function checkboxLabels(options, checked) {
+  return options.map((o) => {
+    const box = el("input");
+    box.type = "checkbox";
+    box.value = o.id;
+    box.checked = checked.includes(o.id);
+    const label = el("label");
+    label.className = "chip";
+    label.append(box, ` ${o.label}`);
+    return label;
+  });
+}
+
 async function loadProfile() {
   const { ok, data } = await api("GET", "/api/profile");
   const form = $("profile-form");
+  form.elements.activity_level.replaceChildren(...data.activity_levels.map((l) => {
+    const option = el("option", `${l.label} (× ${l.factor})`);
+    option.value = l.id;
+    return option;
+  }));
+  form.elements.strength_focus.replaceChildren(...data.focus_options.map((f) => {
+    const option = el("option", f.label);
+    option.value = f.id;
+    return option;
+  }));
+  form.elements.rest_weekday.replaceChildren(...data.weekday_options.map((o) => {
+    const option = el("option", o.label);
+    option.value = o.id;
+    return option;
+  }));
+  form.elements.rest_weekday.value = ok ? data.rest_weekday : 1; // Standard: Dienstag
+  const current = ok ? data : NEW_PROFILE_DEFAULTS;
+  $("equipment-missing").replaceChildren(
+    $("equipment-missing").querySelector("legend"),
+    ...checkboxLabels(data.equipment_options, current.equipment_missing));
+  $("evening-days").replaceChildren(
+    $("evening-days").querySelector("legend"),
+    ...checkboxLabels(data.weekday_options, current.evening_training_days));
   if (ok) {
     const level = data.activity_levels.find((l) => l.id === data.activity_level);
     const focus = data.focus_options.find((f) => f.id === data.strength_focus);
     $("profile-view").textContent =
       `Alter ${data.age}, Grösse ${data.height_cm} cm, Programmstart ${data.program_start_date}, Alltag ${level.label} (× ${level.factor}), Kraft-Fokus ${focus.label}`;
-    form.elements.activity_level.replaceChildren(...data.activity_levels.map((l) => {
-      const option = el("option", `${l.label} (× ${l.factor})`);
-      option.value = l.id;
-      return option;
-    }));
-    form.elements.strength_focus.replaceChildren(...data.focus_options.map((f) => {
-      const option = el("option", f.label);
-      option.value = f.id;
-      return option;
-    }));
-    $("equipment-missing").replaceChildren(
-      $("equipment-missing").querySelector("legend"),
-      ...data.equipment_options.map((o) => {
-        const box = el("input");
-        box.type = "checkbox";
-        box.value = o.id;
-        box.checked = data.equipment_missing.includes(o.id);
-        const label = el("label");
-        label.append(box, ` ${o.label}`);
-        return label;
-      }));
-    $("evening-days").replaceChildren(
-      $("evening-days").querySelector("legend"),
-      ...data.weekday_options.map((o) => {
-        const box = el("input");
-        box.type = "checkbox";
-        box.value = o.id;
-        box.checked = data.evening_training_days.includes(o.id);
-        const label = el("label");
-        label.append(box, ` ${o.label}`);
-        return label;
-      }));
     for (const key of ["age", "height_cm", "program_start_date", "activity_level", "strength_focus", "benchmark_interval_weeks"]) {
       form.elements[key].value = data[key];
     }
   } else {
     $("profile-view").textContent = "Noch kein Profil angelegt.";
   }
+  const weightGoal = ok && data.target_weight_kg !== null;
+  setGoalMode(weightGoal ? "weight" : "bodyfat");
+  const goal = weightGoal ? data.target_weight_kg : ok ? data.target_bodyfat_pct : null;
+  form.elements.goal_value.value = goal === null ? "" : goal;
   form.dataset.exists = ok ? "1" : "";
 }
 
@@ -56,11 +80,38 @@ async function saveProfile(event) {
   const form = event.target;
   const method = form.dataset.exists ? "PUT" : "POST";
   const body = formToObject(form);
+  const { goal_mode: goalMode, goal_value: goalValue } = body;
+  delete body.goal_mode;
+  delete body.goal_value;
+  body.rest_weekday = Number(body.rest_weekday);
+  if (goalValue !== undefined) body[GOAL_MODES[goalMode].field] = Number(goalValue);
   body.equipment_missing = [...form.querySelectorAll("#equipment-missing input:checked")].map((box) => box.value);
   body.evening_training_days = [...form.querySelectorAll("#evening-days input:checked")].map((box) => Number(box.value));
   const { ok, data } = await api(method, "/api/profile", body);
   setMsg("profile-msg", ok ? "" : data.error);
   if (ok) await Promise.all([loadProfile(), loadBaseline(), loadToday()]);
+}
+
+const BASELINE_LABELS = {
+  rmr_kcal: ["Ruheumsatz (kcal)", 0],
+  ffm_kg: ["Fettfreie Masse (kg)", 1],
+  bodyfat_pct: ["Körperfett (%)", 1],
+  skinfold_sum_mm: ["Hautfaltensumme (mm)", 1],
+  phase_angle_deg: ["Phasenwinkel (°)", 1],
+  vt1_hr: ["VT1 Puls (bpm)", 0],
+  vt1_watts: ["VT1 Leistung (W)", 0],
+  vt2_hr: ["VT2 Puls (bpm)", 0],
+  vt2_watts: ["VT2 Leistung (W)", 0],
+  fatmax_watts: ["FatMax Leistung (W)", 0],
+  fatmax_hr: ["FatMax Puls (bpm)", 0],
+  mfo_g_min: ["Max. Fettoxidation (g/min)", 2],
+  target_bodyfat_pct: ["Ziel-Körperfett (%)", 1],
+};
+
+async function saveBaselineField(name, input) {
+  const { ok, data } = await api("PUT", `/api/baseline/${name}`, { value: Number(input.value) });
+  setMsg("baseline-msg", ok ? "" : data.error);
+  if (ok) await Promise.all([loadBaseline(), loadProfile(), loadToday()]);
 }
 
 async function loadBaseline() {
@@ -70,28 +121,51 @@ async function loadBaseline() {
     view.textContent = data.error || "Messwerte nicht verfügbar.";
     return;
   }
-  const select = $("baseline-field");
-  if (!select.options.length) {
-    for (const name of Object.keys(data.fields)) select.add(new Option(name, name));
+  const hasEstimates = data.fields.rmr_kcal.value !== null; // Schaetzwerte entstehen erst aus einem Check-in
+  const hint = $("baseline-hint");
+  if (hasEstimates) {
+    hint.textContent = "Bis zur Messung gelten Schätzwerte aus den Berechnungen.";
+  } else {
+    const link = el("a", "Zu den Check-ins");
+    link.href = "../checkins/";
+    hint.replaceChildren("Initialer Check-in fehlt: Schätzwerte entstehen aus dem ersten Check-in. ", link);
   }
-  const rows = Object.entries(data.fields).map(([name, f]) => [
-    name,
-    f.value === null ? "–" : fmt(f.value, 1),
-    f.source ? SOURCE_LABEL[f.source] : "–",
-  ]);
-  rows.push(["rmr_ratio (abgeleitet)", fmt(data.derived.rmr_ratio, 2), "berechnet"]);
-  rows.push(["target_weight_kg (abgeleitet)", fmt(data.derived.target_weight_kg, 1), "berechnet"]);
-  view.replaceChildren(makeTable(["Feld", "Wert", "Quelle"], rows));
-}
-
-async function saveBaseline(event) {
-  event.preventDefault();
-  const form = event.target;
-  const { ok, data } = await api("PUT", `/api/baseline/${form.elements.field.value}`, {
-    value: Number(form.elements.value.value),
-  });
-  setMsg("baseline-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadBaseline(), loadToday()]);
+  const table = document.createElement("table");
+  const head = table.insertRow();
+  for (const title of ["Feld", "Wert", "Quelle", ""]) head.append(el("th", title));
+  const names = [...Object.keys(BASELINE_LABELS), ...Object.keys(data.fields)];
+  for (const name of new Set(names)) {
+    const f = data.fields[name];
+    if (!f) continue;
+    const [label, digits] = BASELINE_LABELS[name] || [name, 1];
+    const row = table.insertRow();
+    row.insertCell().textContent = label;
+    const input = el("input");
+    input.type = "number";
+    input.step = "any";
+    input.min = "0";
+    input.value = f.value === null ? "" : fmt(f.value, digits);
+    input.placeholder = "–";
+    input.setAttribute("aria-label", label);
+    row.insertCell().append(input);
+    row.insertCell().textContent = f.source ? SOURCE_LABEL[f.source] : "–";
+    const save = el("button", "Speichern");
+    save.type = "button";
+    save.addEventListener("click", () => saveBaselineField(name, input));
+    row.insertCell().append(save);
+  }
+  const derived = [
+    ["Verhältnis RMR (abgeleitet)", data.derived.rmr_ratio === null ? "–" : fmt(data.derived.rmr_ratio, 2)],
+    ["Zielgewicht (abgeleitet)", data.derived.target_weight_kg === null ? "–" : `${fmt(data.derived.target_weight_kg, 1)} kg`],
+  ];
+  for (const [label, value] of derived) {
+    const row = table.insertRow();
+    row.insertCell().textContent = label;
+    row.insertCell().textContent = value;
+    row.insertCell().textContent = "berechnet";
+    row.insertCell();
+  }
+  view.replaceChildren(table);
 }
 
 function renderToday(plan) {
@@ -176,11 +250,13 @@ async function loadToday() {
 
 $("profile-form").addEventListener("submit", saveProfile);
 $("today-refresh").addEventListener("click", loadToday);
-$("baseline-form").addEventListener("submit", saveBaseline);
+for (const radio of $("profile-form").elements.goal_mode) {
+  radio.addEventListener("change", () => setGoalMode(radio.value));
+}
 $("intervals-sync").addEventListener("click", () => syncIntervals(false));
 
-// Startwerte: Formulare nur, solange noch kein Test existiert; ein neuer FTP aendert die Zonen
-const startwerte = { startOnly: true, onSaved: loadToday };
+// Startwerte: nur Anzeige; Erfassen laeuft ueber die Check-ins
+const startwerte = { readOnly: true };
 function loadAll() {
   loadProfile();
   loadBaseline();

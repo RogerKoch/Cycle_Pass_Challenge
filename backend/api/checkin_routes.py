@@ -5,11 +5,13 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
+from backend.engine.baseline import MUSCLE_SHARE_OF_FFM, estimate_bodyfat_pct
 from backend.engine.cycling_zones import calculate_ftp_from_ramp_test
 from backend.extensions import db
 from backend.models.checkins import Checkin
 from backend.models.ftp_tests import FtpTest
 from backend.models.intervals import IcuWellness
+from backend.models.user_profile import UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,7 @@ def _serialize_checkin(checkin: Checkin) -> dict:
         "bodyfat_pct": checkin.bodyfat_pct,
         "muscle_kg": checkin.muscle_kg,
         "ffm_kg": checkin.ffm_kg,
+        "weight_only": checkin.weight_only,
     }
 
 
@@ -39,17 +42,45 @@ def _serialize_ftp_test(ftp_test: FtpTest) -> dict:
     }
 
 
+def _carry_forward(weight_kg: float, checkin_date: date) -> tuple[float, float]:
+    """Koerperfett und Muskelmasse fuer einen Nur-Gewicht-Check-in: FFM und Muskel des letzten Check-ins bleiben.
+
+    Der erste Check-in ohne Werte schaetzt Koerperfett (Deurenberg) und Muskel (50 % der FFM) aus dem Profil.
+
+    Raises:
+        ValueError: ohne Check-in und ohne Profil oder wenn die FFM das Gewicht uebersteigt.
+    """
+    base = Checkin.query.filter(Checkin.checkin_date <= checkin_date).order_by(
+        Checkin.checkin_date.desc(), Checkin.created_at.desc()
+    ).first() or Checkin.query.order_by(Checkin.checkin_date.asc(), Checkin.created_at.asc()).first()
+    if base is None:
+        # erster Check-in ohne Koerperzusammensetzung (z.B. keine Koerperfettwaage): Schaetzung aus Alter/Groesse
+        profile = UserProfile.query.first()
+        if profile is None:
+            raise ValueError("ohne Körperfett zuerst das Profil anlegen (Alter, Grösse für die Schätzung)")
+        bodyfat_pct = estimate_bodyfat_pct(weight_kg, profile.height_cm, profile.age)
+        return bodyfat_pct, weight_kg * (1 - bodyfat_pct / 100) * MUSCLE_SHARE_OF_FFM
+    bodyfat_pct = 100 * (1 - base.ffm_kg / weight_kg)
+    if not 0 <= bodyfat_pct < 100:
+        raise ValueError("Gewicht liegt unter der letzten fettfreien Masse – bitte Körperfett und Muskelmasse erfassen")
+    return bodyfat_pct, base.muscle_kg
+
+
 @checkins_bp.post("")
 def create_checkin():
     """Legt einen neuen Check-in an."""
     body = request.get_json(force=True, silent=True) or {}
+    weight_only = body.get("bodyfat_pct") is None and body.get("muscle_kg") is None
     try:
         weight_kg = float(body["weight_kg"])
-        bodyfat_pct = float(body["bodyfat_pct"])
-        muscle_kg = float(body["muscle_kg"])
         checkin_date = date.fromisoformat(body["checkin_date"]) if "checkin_date" in body else date.today()
         if weight_kg <= 0:
             raise ValueError(f"weight_kg muss positiv sein, war {weight_kg}")
+        if weight_only:
+            bodyfat_pct, muscle_kg = _carry_forward(weight_kg, checkin_date)
+        else:
+            bodyfat_pct = float(body["bodyfat_pct"])
+            muscle_kg = float(body["muscle_kg"])
         if not 0 <= bodyfat_pct <= 100:
             raise ValueError(f"bodyfat_pct muss zwischen 0 und 100 liegen, war {bodyfat_pct}")
         if muscle_kg <= 0:
@@ -58,7 +89,8 @@ def create_checkin():
         return jsonify({"error": f"ungueltige Check-in-Daten: {exc}"}), 400
 
     checkin = Checkin(
-        checkin_date=checkin_date, weight_kg=weight_kg, bodyfat_pct=bodyfat_pct, muscle_kg=muscle_kg
+        checkin_date=checkin_date, weight_kg=weight_kg, bodyfat_pct=bodyfat_pct, muscle_kg=muscle_kg,
+        weight_only=weight_only,
     )
     db.session.add(checkin)
     db.session.commit()

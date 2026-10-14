@@ -18,17 +18,25 @@
         <label>Alter <input name="age" type="number" min="1" required></label>
         <label>Grösse (cm) <input name="height_cm" type="number" step="0.1" required></label>
         <label>Programmstart <input name="program_start_date" type="date" required></label>
-        <label>Alltag/Beruf <a class="info" href="../hilfe/#alltag" aria-label="Erklärung">ⓘ</a>
+        <label><span class="lbl">Alltag/Beruf <a class="info" href="../hilfe/#alltag" aria-label="Erklärung">ⓘ</a></span>
           <select name="activity_level"><option value="buero">Büro</option></select></label>
-        <label>Kraft-Fokus <a class="info" href="../hilfe/#kraft-fokus" aria-label="Erklärung">ⓘ</a>
+        <label><span class="lbl">Kraft-Fokus <a class="info" href="../hilfe/#kraft-fokus" aria-label="Erklärung">ⓘ</a></span>
           <select name="strength_focus"><option value="none">Kein Fokus</option></select></label>
-        <fieldset id="equipment-missing">
+        <label>Ruhetag <select name="rest_weekday"></select></label>
+        <label>Kraft-Benchmark alle (Wochen) <input name="benchmark_interval_weeks" type="number" min="2" max="8" step="1" placeholder="4"></label>
+        <fieldset id="goal" class="chips">
+          <legend>Ziel <a class="info" href="../hilfe/#kcalziel" aria-label="Erklärung">ⓘ</a></legend>
+          <label class="chip"><input type="radio" name="goal_mode" value="bodyfat" checked> Körperfett %</label>
+          <label class="chip"><input type="radio" name="goal_mode" value="weight"> Gewicht kg</label>
+        </fieldset>
+        <label><span id="goal-label">Ziel-Körperfett (%)</span>
+          <input name="goal_value" type="number" step="0.1" min="3" placeholder="16"></label>
+        <fieldset id="equipment-missing" class="chips">
           <legend>Material fehlt <a class="info" href="../hilfe/#uebungen-tauschen" aria-label="Erklärung">ⓘ</a></legend>
         </fieldset>
-        <fieldset id="evening-days">
+        <fieldset id="evening-days" class="chips">
           <legend>Training nach der Arbeit (vor dem Abendessen)</legend>
         </fieldset>
-        <label>Kraft-Benchmark alle (Wochen) <input name="benchmark_interval_weeks" type="number" min="2" max="8" step="1"></label>
         <button type="submit">Speichern</button>
       </form>
       <p class="msg" id="profile-msg"></p>
@@ -42,8 +50,8 @@
     </section>
 
     <section id="startwerte">
-      <h2>Startwerte</h2>
-      <p class="hint">FTP und Kraft-Benchmark einmal erfassen. Weitere Tests: <a href="../checkins/">Check-ins</a>.</p>
+      <h2>Testwerte</h2>
+      <p class="hint">Letzte Testwerte. Erfassen und Verlauf unter <a href="../checkins/">Check-ins</a>.</p>
       <h3>FTP <a class="info" href="../hilfe/#ftp" aria-label="Erklärung">ⓘ</a></h3>
       <div id="ftp-box"></div>
       <h3>Kraft-Benchmark <a class="info" href="../hilfe/#kraft-benchmark" aria-label="Erklärung">ⓘ</a></h3>
@@ -52,13 +60,8 @@
 
     <section id="baseline">
       <h2>Messwerte (Diagnostik) <a class="info" href="../hilfe/#grundumsatz" aria-label="Erklärung">ⓘ</a></h2>
-      <p class="hint">Bis zur Messung gelten Schätzwerte aus den Berechnungen.</p>
+      <p class="hint" id="baseline-hint">Bis zur Messung gelten Schätzwerte aus den Berechnungen.</p>
       <div id="baseline-view"></div>
-      <form id="baseline-form">
-        <label>Feld <select name="field" id="baseline-field"></select></label>
-        <label>Messwert <input name="value" type="number" step="any" min="0" required></label>
-        <button type="submit">Messwert speichern</button>
-      </form>
       <p class="msg" id="baseline-msg"></p>
     </section>
 

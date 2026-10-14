@@ -319,14 +319,17 @@ Ist er fällig, erinnert das Check-in-Review. Teiltests sind erlaubt; es zählt 
 
 | Test | So testen | Was die App daraus macht |
 |---|---|---|
-| Liegestütze am Stück | saubere Wdh. in deiner Variante | ab 15 Wdh. → nächste Variante (Wand → Inkline → Knie → Standard → Füsse erhöht → Deficit) |
-| Inverted Rows am Stück | saubere Wdh. | ab 15 → Füsse erhöht |
+| Liegestütze am Stück | saubere Wdh. in deiner Variante | ab 12 Wdh. → nächste Variante, ab 20 Wdh. zwei Stufen (Wand → Inkline → Knie → Standard → Füsse erhöht → Deficit); auf der letzten Stufe: Tempo 3 s runter |
+| Rudern am Stück | saubere Wdh., Ausführung wählen: Tisch (Inverted Rows), Handtuch an der Tür, Band oder Rucksack | Tisch/Handtuch: ab 12 → Füsse erhöht; Band/Rucksack: ab 12 → Band stärker bzw. Rucksack schwerer. Wechselst du die Ausführung, gilt der neue Test als neuer Ausgangswert (Diagramm nur je Ausführung). Ohne Tisch (Profil „Material fehlt“) ist Band bzw. Handtuch vorbelegt. |
 | Side Plank | Sekunden, schwächere Seite, Knie/gestreckt | Knie ab 20 s → gestreckt |
 | Single-Leg Glute Bridge | Halten in s, schwächere Seite | ab 60 s → einbeinig, sonst beidbeinig |
 | Plank | Halten in s | Plank ≥ 2 min **und** Side Plank gestreckt ≥ 30 s → Hollow Body/Pallof schon vor ihrer Phase |
 
-In der Krafteinheit steht dann „Deine Stufe: …“ statt der ganzen Progressionsliste.
-Die Schwelle 15 Wdh. ist eine Annahme (oberes Ende des Rep-Bereichs); Reihenfolgen und Zielwerte stammen aus der Kraft-Recherche.
+In der Krafteinheit steht dann „Deine Stufe: …“ statt der ganzen Progressionsliste. Stufen-Übungen (Liegestütz, Rows,
+Glute Bridge) laufen mit 8–15 Wdh. und 2–3 Wdh. in Reserve; die Phase bestimmt nur Sätze und Pause.
+Unter den Testwerten zeigt die App das **Ziel bis zum nächsten Test** (Testwert + 10 %, mindestens +1).
+Die Schwelle 12 Wdh. ist eine Coach-Regel (3 × 12 sauber), Details und Quellen in `docs/research/Kraftprogression-Ergaenzung.md`;
+Reihenfolgen und Meilensteine stammen aus der Kraft-Recherche.
 
 **Meilensteine** (Kraft-Recherche): W8 Standard-Liegestütz sauber · W12 Single-Leg Glute Bridge 60 s, Side Plank
 gestreckt 30 s · W16 Bulgarian Split Squat 3× 10 · W20 Plank 2 min · W24 Re-Test aller Werte.

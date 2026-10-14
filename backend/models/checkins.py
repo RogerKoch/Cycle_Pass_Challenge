@@ -16,6 +16,8 @@ class Checkin(db.Model):
     weight_kg: float = db.Column(db.Float, nullable=False)
     bodyfat_pct: float = db.Column(db.Float, nullable=False)
     muscle_kg: float = db.Column(db.Float, nullable=False)
+    # True: nur Gewicht erfasst; Koerperfett/Muskel sind vom letzten Check-in abgeleitet (FFM konstant)
+    weight_only: bool = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     @property

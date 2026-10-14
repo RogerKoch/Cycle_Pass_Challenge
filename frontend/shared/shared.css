@@ -111,7 +111,7 @@ dialog.sheet::backdrop { background: rgb(0 0 0 / 0.45); }
 
 /* App-Shell: Navigation (Sidebar ab 900px, darunter Tab-Leiste unten) */
 .nav { position: fixed; z-index: 10; background: var(--card); border: 0 solid var(--line); }
-.nav-brand { font-weight: 700; color: var(--accent); }
+.nav-brand { font-weight: 700; color: var(--accent); text-decoration: none; }
 .nav-item {
   display: flex; align-items: center; gap: 10px;
   color: var(--muted); text-decoration: none;
@@ -151,7 +151,24 @@ dialog.sheet::backdrop { background: rgb(0 0 0 / 0.45); }
 
 /* Kalender (Basis: Monatsraster, Zellen, Legende; Zustandsfarben je Seite) */
 .cal-layout { display: grid; gap: 0 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
-@media (min-width: 900px) { .cal-layout.has-side { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); } }
+/* Woche/Monat am Desktop: Kalender bzw. Wochenleiste ueber die ganze Breite, Detailkarten darunter
+   in 2 Spalten, Kommentar volle Breite. Unter 900px bleibt die einspaltige Liste. */
+@media (min-width: 900px) {
+  body[data-nav]:has(.cal-layout.has-side) main { max-width: 1180px; }
+  body[data-nav]:has(.cal-layout.has-side) .topbar { padding-inline: max(8px, calc((100% - 1180px) / 2 + 8px)); }
+  .cal-layout.has-side .cal-detail, .cal-layout.has-side #day {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; align-items: start;
+  }
+  .cal-layout.has-side #meals { display: contents; }
+  .cal-layout.has-side #comment-card, .cal-layout.has-side .day-comment,
+  .cal-layout.has-side #day > p, .cal-layout.has-side #day > .phase-line { grid-column: 1 / -1; }
+  .cal-layout.has-side #week-list { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+  .cal-layout.has-side #week-list li {
+    flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 4px;
+    padding: 8px; border: 1px solid var(--line); border-radius: 10px;
+  }
+  .cal-layout.has-side #week-list li:last-child { border-bottom: 1px solid var(--line); }
+}
 .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .month-grid .dh { font-size: 0.75rem; color: var(--muted); text-align: center; }
 .cell {
