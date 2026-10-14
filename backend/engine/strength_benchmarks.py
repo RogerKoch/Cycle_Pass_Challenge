@@ -24,6 +24,16 @@ PUSHUP_VARIANTS: dict[str, str] = {
     "fuesse_erhoeht": "Füsse erhöht",
     "deficit": "Deficit",
 }
+# Ausfuehrung des Zug-Tests: Tisch/Handtuch haben einen Hebel (Fuesse erhoeht), Band/Rucksack nur Last
+ROW_VARIANTS: dict[str, str] = {
+    "table": "Tisch",
+    "towel": "Handtuch an Tür",
+    "band": "Band",
+    "backpack": "Rucksack",
+}
+DEFAULT_ROW_VARIANT = "table"  # Tests ohne Angabe (vor Einfuehrung der Ausfuehrung)
+LEVER_ROW_VARIANTS: frozenset[str] = frozenset({"table", "towel"})
+LOAD_STEP_TEXT: dict[str, str] = {"band": "Band stärker", "backpack": "Rucksack schwerer"}
 LEVEL_UP_REPS = 12  # 3 x 12 saubere Wdh. -> naechste Stufe (Coach-Regel, siehe Kraftprogression-Ergaenzung.md)
 TWO_STAGE_REPS = 20  # ab hier ueberspringt der Liegestuetz eine Stufe (Plateau bei 20–25 Wdh.)
 TARGET_GROWTH = 1.10  # Ziel des naechsten Tests: +10 % (mind. +1)
@@ -46,6 +56,7 @@ class BenchmarkResult:
     pushup_reps: int | None = None
     pushup_variant: str | None = None
     row_reps: int | None = None
+    row_variant: str | None = None  # None = Tisch (aeltere Tests)
     side_plank_s: int | None = None
     side_plank_straight: bool | None = None
     sl_bridge_s: int | None = None  # schwaechere Seite
@@ -74,7 +85,11 @@ class Milestone:
 
 
 # Testpaare, die zusammengehoeren und deshalb nur gemeinsam uebernommen werden
-_PAIRED = {"pushup_reps": "pushup_variant", "side_plank_s": "side_plank_straight"}
+_PAIRED = {
+    "pushup_reps": "pushup_variant",
+    "row_reps": "row_variant",
+    "side_plank_s": "side_plank_straight",
+}
 
 
 def combine(results: list[BenchmarkResult]) -> BenchmarkResult | None:
@@ -129,7 +144,9 @@ def exercise_stages(current: BenchmarkResult | None) -> ExerciseStages:
         stages.pushup_slow_tempo = (
             current.pushup_variant == list(PUSHUP_VARIANTS)[-1] and current.pushup_reps >= TWO_STAGE_REPS
         )
-    if current.row_reps is not None:
+    # Ein Wechsel der Ausfuehrung ist ein neuer Ausgangswert (combine nimmt den neuesten Test); Band/Rucksack
+    # haben keine Hebel-Stufe, dort steigert man die Last
+    if current.row_reps is not None and (current.row_variant or DEFAULT_ROW_VARIANT) in LEVER_ROW_VARIANTS:
         stages.rows_feet_elevated = current.row_reps >= LEVEL_UP_REPS
     if current.side_plank_s is not None:
         stages.side_plank_straight = bool(current.side_plank_straight) or (
@@ -177,10 +194,13 @@ def next_targets(current: BenchmarkResult | None) -> list[str]:
                 f"Liegestütz ({label}): {_grow(current.pushup_reps)} Wdh., ab {LEVEL_UP_REPS} nächste Stufe"
             )
     if current.row_reps is not None:
+        variant = current.row_variant or DEFAULT_ROW_VARIANT
+        label = "Inverted Rows" if variant == "table" else f"Rudern ({ROW_VARIANTS[variant]})"
+        step = "Füsse erhöht" if variant in LEVER_ROW_VARIANTS else LOAD_STEP_TEXT[variant]
         if current.row_reps >= LEVEL_UP_REPS:
-            targets.append(f"Inverted Rows: Füsse erhöht, dort zuerst {NEW_STAGE_REPS} Wdh. aufbauen")
+            targets.append(f"{label}: {step}, dort zuerst {NEW_STAGE_REPS} Wdh. aufbauen")
         else:
-            targets.append(f"Inverted Rows: {_grow(current.row_reps)} Wdh., ab {LEVEL_UP_REPS} Füsse erhöht")
+            targets.append(f"{label}: {_grow(current.row_reps)} Wdh., ab {LEVEL_UP_REPS} {step}")
     if current.side_plank_s is not None:
         if bool(current.side_plank_straight) and current.side_plank_s >= SIDE_PLANK_TARGET_S:
             targets.append(f"Side Plank: Ziel {SIDE_PLANK_TARGET_S} s gestreckt erreicht")

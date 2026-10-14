@@ -119,3 +119,12 @@ def test_adds_weight_only_column_to_existing_checkins(app):
     add_missing_columns()
 
     assert "weight_only" in {c["name"] for c in inspect(db.engine).get_columns("checkins")}
+
+
+def test_adds_row_variant_column_to_existing_benchmarks(app):
+    db.session.execute(text("ALTER TABLE strength_benchmarks DROP COLUMN row_variant"))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert "row_variant" in {c["name"] for c in inspect(db.engine).get_columns("strength_benchmarks")}

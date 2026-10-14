@@ -141,3 +141,25 @@ def test_standard_milestone_needs_clean_reps_for_harder_variants():
 
     assert achieved("deficit", 1) is False
     assert achieved("fuesse_erhoeht", 8) is True
+
+
+def test_row_variants_with_lever_get_feet_elevated_stage_but_loaded_ones_do_not():
+    assert exercise_stages(BenchmarkResult(DAY, row_reps=12, row_variant="towel")).rows_feet_elevated is True
+    assert exercise_stages(BenchmarkResult(DAY, row_reps=12, row_variant=None)).rows_feet_elevated is True  # alt = Tisch
+    assert exercise_stages(BenchmarkResult(DAY, row_reps=15, row_variant="band")).rows_feet_elevated is None
+    assert exercise_stages(BenchmarkResult(DAY, row_reps=15, row_variant="backpack")).rows_feet_elevated is None
+
+
+def test_row_targets_name_the_variant_and_the_load_step():
+    assert next_targets(BenchmarkResult(DAY, row_reps=8, row_variant="band")) == [
+        "Rudern (Band): 9 Wdh., ab 12 Band stärker"]
+    assert next_targets(BenchmarkResult(DAY, row_reps=14, row_variant="backpack")) == [
+        "Rudern (Rucksack): Rucksack schwerer, dort zuerst 8–12 Wdh. aufbauen"]
+    assert next_targets(BenchmarkResult(DAY, row_reps=5, row_variant="towel"))[0].startswith("Rudern (Handtuch an Tür): 6")
+
+
+def test_combine_keeps_row_variant_with_its_reps():
+    old = BenchmarkResult(DAY - timedelta(weeks=4), row_reps=10, row_variant="table")
+    new = BenchmarkResult(DAY, row_reps=6, row_variant="band")
+    combined = combine([old, new])
+    assert (combined.row_reps, combined.row_variant) == (6, "band")

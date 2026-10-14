@@ -320,7 +320,7 @@ Ist er fällig, erinnert das Check-in-Review. Teiltests sind erlaubt; es zählt 
 | Test | So testen | Was die App daraus macht |
 |---|---|---|
 | Liegestütze am Stück | saubere Wdh. in deiner Variante | ab 12 Wdh. → nächste Variante, ab 20 Wdh. zwei Stufen (Wand → Inkline → Knie → Standard → Füsse erhöht → Deficit); auf der letzten Stufe: Tempo 3 s runter |
-| Inverted Rows am Stück | saubere Wdh. | ab 12 → Füsse erhöht |
+| Rudern am Stück | saubere Wdh., Ausführung wählen: Tisch (Inverted Rows), Handtuch an der Tür, Band oder Rucksack | Tisch/Handtuch: ab 12 → Füsse erhöht; Band/Rucksack: ab 12 → Band stärker bzw. Rucksack schwerer. Wechselst du die Ausführung, gilt der neue Test als neuer Ausgangswert (Diagramm nur je Ausführung). Ohne Tisch (Profil „Material fehlt“) ist Band bzw. Handtuch vorbelegt. |
 | Side Plank | Sekunden, schwächere Seite, Knie/gestreckt | Knie ab 20 s → gestreckt |
 | Single-Leg Glute Bridge | Halten in s, schwächere Seite | ab 60 s → einbeinig, sonst beidbeinig |
 | Plank | Halten in s | Plank ≥ 2 min **und** Side Plank gestreckt ≥ 30 s → Hollow Body/Pallof schon vor ihrer Phase |

@@ -16,6 +16,7 @@ class StrengthBenchmark(db.Model):
     pushup_reps: int | None = db.Column(db.Integer, nullable=True)
     pushup_variant: str | None = db.Column(db.String(20), nullable=True)
     row_reps: int | None = db.Column(db.Integer, nullable=True)
+    row_variant: str | None = db.Column(db.String(12), nullable=True)  # engine.strength_benchmarks.ROW_VARIANTS
     side_plank_s: int | None = db.Column(db.Integer, nullable=True)
     side_plank_straight: bool | None = db.Column(db.Boolean, nullable=True)
     sl_bridge_s: int | None = db.Column(db.Integer, nullable=True)  # schwaechere Seite
@@ -29,6 +30,7 @@ class StrengthBenchmark(db.Model):
             pushup_reps=self.pushup_reps,
             pushup_variant=self.pushup_variant,
             row_reps=self.row_reps,
+            row_variant=self.row_variant,
             side_plank_s=self.side_plank_s,
             side_plank_straight=self.side_plank_straight,
             sl_bridge_s=self.sl_bridge_s,

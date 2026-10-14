@@ -35,7 +35,8 @@ const BENCHMARK_HTML = `
   <form data-form class="fields">
     <label>Liegestütze am Stück <input name="pushup_reps" type="number" min="0" step="1"></label>
     <label>Variante <select name="pushup_variant"></select></label>
-    <label>Inverted Rows am Stück <input name="row_reps" type="number" min="0" step="1"></label>
+    <label>Rudern am Stück (Wdh.) <input name="row_reps" type="number" min="0" step="1"></label>
+    <label>Ausführung Rudern <select name="row_variant"></select></label>
     <label>Side Plank (s, schwächere Seite) <input name="side_plank_s" type="number" min="0" step="1"></label>
     <label>Side Plank Ausführung <select name="side_plank_straight">
       <option value="false">Knie gebeugt</option><option value="true">Beine gestreckt</option></select></label>
@@ -55,7 +56,7 @@ const STAGE_TEXT = {
 
 const BENCHMARK_METRICS = [
   ["pushup_reps", "Liegestütze", "Wdh."],
-  ["row_reps", "Inverted Rows", "Wdh."],
+  ["row_reps", "Rudern", "Wdh."],
   ["side_plank_s", "Side Plank", "s"],
   ["sl_bridge_s", "Single-Leg Glute Bridge", "s"],
   ["plank_s", "Plank", "s"],
@@ -64,7 +65,10 @@ const BENCHMARK_METRICS = [
 // Benchmark-Feld -> Uebungsname in training/img/exercises/index.json
 const BENCHMARK_SKETCHES = [
   ["Liegestütze", "Liegestütz-Progression"],
-  ["Inverted Rows", "Inverted Rows (Tischkanten-Rudern)"],
+  ["Rudern: Tisch (Inverted Rows)", "Inverted Rows (Tischkanten-Rudern)"],
+  ["Rudern: Handtuch an Tür", "Handtuch-Rudern an Türklinke"],
+  ["Rudern: Band", "Band-Rudern"],
+  ["Rudern: Rucksack", "Rucksack-Rudern vorgebeugt"],
   ["Side Plank", "Side Plank"],
   ["Single-Leg Glute Bridge", "Single-Leg Glute Bridge"],
   ["Plank", "Plank (Unterarmstütz)"],
@@ -165,7 +169,11 @@ function mountBenchmark(box, { readOnly = false, history = false, onSaved = asyn
   function renderChart() {
     const selected = metric.querySelector("input:checked").value;
     const [key, label, unit] = BENCHMARK_METRICS.find(([k]) => k === selected);
+    // Rudern: nur Tests derselben Ausfuehrung wie der neueste sind vergleichbar (Tisch/Handtuch/Band/Rucksack)
+    const rowVariant = (test) => test.row_variant || "table";
+    const latestRowTest = tests.find((t) => t.row_reps !== null);
     const points = [...tests].reverse().filter((t) => t[key] !== null && t[key] !== undefined)
+      .filter((t) => key !== "row_reps" || rowVariant(t) === rowVariant(latestRowTest))
       .map((t) => ({ date: t.test_date, value: t[key] }));
     lineChart(chart, points, { unit, decimals: 0, label });
   }
@@ -182,6 +190,18 @@ function mountBenchmark(box, { readOnly = false, history = false, onSaved = asyn
         return option;
       }));
       form.elements.pushup_variant.value = "knie";
+    }
+    if (!form.elements.row_variant.options.length) {
+      form.elements.row_variant.replaceChildren(...data.row_variants.map((v) => {
+        const option = el("option", v.label);
+        option.value = v.id;
+        return option;
+      }));
+      // Ohne Tisch (Profil „Material fehlt“) wie im Training: Band, sonst Handtuch an der Tür
+      const profile = await api("GET", "/api/profile");
+      const missing = profile.ok ? profile.data.equipment_missing : [];
+      form.elements.row_variant.value = !missing.includes("table") ? "table"
+        : !missing.includes("bands") ? "band" : "towel";
     }
     const variants = Object.fromEntries(data.pushup_variants.map((v) => [v.id, v.label]));
     const stages = [];
@@ -208,8 +228,10 @@ function mountBenchmark(box, { readOnly = false, history = false, onSaved = asyn
       chartBox.hidden = tests.length < 2;
       table.hidden = tests.length === 0;
       if (tests.length >= 2) renderChart();
-      table.replaceChildren(makeTable(["Datum", "Liegestütze", "Rows", "Side Plank s", "SL-Bridge s", "Plank s"],
-        tests.map((t) => [t.test_date, cell(t.pushup_reps), cell(t.row_reps), cell(t.side_plank_s), cell(t.sl_bridge_s), cell(t.plank_s)])));
+      const rowLabels = Object.fromEntries(data.row_variants.map((v) => [v.id, v.label]));
+      const rows = (t) => (t.row_reps === null ? "–" : `${t.row_reps} (${rowLabels[t.row_variant || "table"]})`);
+      table.replaceChildren(makeTable(["Datum", "Liegestütze", "Rudern", "Side Plank s", "SL-Bridge s", "Plank s"],
+        tests.map((t) => [t.test_date, cell(t.pushup_reps), rows(t), cell(t.side_plank_s), cell(t.sl_bridge_s), cell(t.plank_s)])));
     }
     const mark = { true: "✓", false: "offen", null: "–" };
     milestones.replaceChildren(makeTable(["Woche", "Meilenstein", "Status"],
@@ -220,14 +242,17 @@ function mountBenchmark(box, { readOnly = false, history = false, onSaved = asyn
     event.preventDefault();
     const body = formToObject(form);
     if (!body.pushup_reps) delete body.pushup_variant;
+    if (!body.row_reps) delete body.row_variant;
     if (body.side_plank_s) body.side_plank_straight = body.side_plank_straight === "true";
     else delete body.side_plank_straight;
     const { ok, data } = await api("POST", "/api/strength-benchmarks", body);
     msg.textContent = ok ? "" : data.error;
     if (ok) {
       const variant = form.elements.pushup_variant.value;
+      const rowVariant = form.elements.row_variant.value;
       form.reset();
       form.elements.pushup_variant.value = variant;
+      form.elements.row_variant.value = rowVariant;
       await Promise.all([load(), onSaved()]);
     }
   });

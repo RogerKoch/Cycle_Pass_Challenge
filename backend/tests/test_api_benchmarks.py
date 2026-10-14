@@ -85,3 +85,13 @@ def test_same_day_retest_replaces_earlier_value(profile):
     body = profile.get("/api/strength-benchmarks").get_json()
     assert body["current"]["plank_s"] == 90
     assert [t["plank_s"] for t in body["tests"]] == [90, 60]
+
+
+def test_row_variant_is_stored_defaults_to_table_and_is_validated(client):
+    created = client.post("/api/strength-benchmarks", json={"row_reps": 8, "row_variant": "band"})
+    assert created.status_code == 201 and created.get_json()["row_variant"] == "band"
+    default = client.post("/api/strength-benchmarks", json={"row_reps": 9})
+    assert default.get_json()["row_variant"] == "table"
+    assert client.post("/api/strength-benchmarks", json={"row_reps": 9, "row_variant": "kabel"}).status_code == 400
+    body = client.get("/api/strength-benchmarks").get_json()
+    assert {v["id"] for v in body["row_variants"]} == {"table", "towel", "band", "backpack"}
