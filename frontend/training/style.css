@@ -74,3 +74,7 @@ label.check input { width: auto; min-height: 0; }
   .cal-layout.has-side #week-list li { padding: 6px 8px; gap: 2px; }
   .cal-layout.has-side #week-list .kcal { line-height: 1.2; }
 }
+
+/* Monatszelle: Rad/Kraft-Symbole auf einer Zeile */
+.cell .line.parts { display: flex; flex-wrap: wrap; gap: 0 8px; white-space: normal; overflow: visible; }
+.cell .line.parts span { white-space: nowrap; }
