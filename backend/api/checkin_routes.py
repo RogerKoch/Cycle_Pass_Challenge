@@ -5,11 +5,13 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
+from backend.engine.baseline import MUSCLE_SHARE_OF_FFM, estimate_bodyfat_pct
 from backend.engine.cycling_zones import calculate_ftp_from_ramp_test
 from backend.extensions import db
 from backend.models.checkins import Checkin
 from backend.models.ftp_tests import FtpTest
 from backend.models.intervals import IcuWellness
+from backend.models.user_profile import UserProfile
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +45,21 @@ def _serialize_ftp_test(ftp_test: FtpTest) -> dict:
 def _carry_forward(weight_kg: float, checkin_date: date) -> tuple[float, float]:
     """Koerperfett und Muskelmasse fuer einen Nur-Gewicht-Check-in: FFM und Muskel des letzten Check-ins bleiben.
 
+    Der erste Check-in ohne Werte schaetzt Koerperfett (Deurenberg) und Muskel (50 % der FFM) aus dem Profil.
+
     Raises:
-        ValueError: ohne vorherigen Check-in (der erste braucht alle Werte) oder wenn die FFM das Gewicht uebersteigt.
+        ValueError: ohne Check-in und ohne Profil oder wenn die FFM das Gewicht uebersteigt.
     """
     base = Checkin.query.filter(Checkin.checkin_date <= checkin_date).order_by(
         Checkin.checkin_date.desc(), Checkin.created_at.desc()
     ).first() or Checkin.query.order_by(Checkin.checkin_date.asc(), Checkin.created_at.asc()).first()
     if base is None:
-        raise ValueError("der erste Check-in braucht Körperfett und Muskelmasse")
+        # erster Check-in ohne Koerperzusammensetzung (z.B. keine Koerperfettwaage): Schaetzung aus Alter/Groesse
+        profile = UserProfile.query.first()
+        if profile is None:
+            raise ValueError("ohne Körperfett zuerst das Profil anlegen (Alter, Grösse für die Schätzung)")
+        bodyfat_pct = estimate_bodyfat_pct(weight_kg, profile.height_cm, profile.age)
+        return bodyfat_pct, weight_kg * (1 - bodyfat_pct / 100) * MUSCLE_SHARE_OF_FFM
     bodyfat_pct = 100 * (1 - base.ffm_kg / weight_kg)
     if not 0 <= bodyfat_pct < 100:
         raise ValueError("Gewicht liegt unter der letzten fettfreien Masse – bitte Körperfett und Muskelmasse erfassen")

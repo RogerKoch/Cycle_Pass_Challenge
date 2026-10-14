@@ -54,6 +54,27 @@ def resolve(measured: float | None, estimated: float | None) -> ResolvedValue:
     return ResolvedValue(value=None, source=None)
 
 
+MUSCLE_SHARE_OF_FFM = 0.5  # grobe Annahme: Skelettmuskel ca. die Haelfte der fettfreien Masse
+
+
+def estimate_bodyfat_pct(weight_kg: float, height_cm: float, age: int) -> float:
+    """Koerperfett-Schaetzung ohne Messgeraet (Deurenberg-Formel, Mann).
+
+    Formel: 1,20 * BMI + 0,23 * Alter - 16,2 (Mann: -10,8 * 1 - 5,4). Nur Naeherung (typisch +-5 Prozentpunkte);
+    gemessene Werte (Waage/Caliper) ersetzen sie, sobald vorhanden.
+
+    Args:
+        weight_kg: Koerpergewicht in kg.
+        height_cm: Koerpergroesse in cm.
+        age: Alter in Jahren.
+
+    Returns:
+        Geschaetztes Koerperfett in Prozent, auf 0,5-100 begrenzt.
+    """
+    bmi = weight_kg / (height_cm / 100) ** 2
+    return min(max(1.2 * bmi + 0.23 * age - 16.2, 0.5), 100.0)
+
+
 def calculate_rmr_ratio(rmr_kcal: float, ffm_kg: float) -> float:
     """Verhaeltnis gemessener/geschaetzter RMR zum Erwartungswert: rmr / (500 + 22 * ffm).
 
