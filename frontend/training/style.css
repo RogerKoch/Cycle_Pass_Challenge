@@ -78,3 +78,8 @@ label.check input { width: auto; min-height: 0; }
 /* Monatszelle: Rad/Kraft-Symbole auf einer Zeile */
 .cell .line.parts { display: flex; flex-wrap: wrap; gap: 0 8px; white-space: normal; overflow: visible; }
 .cell .line.parts span { white-space: nowrap; }
+
+/* Abstaende: Kopfzeilen-Button (Tauschen) und Entfernen nicht an den Inhalt kleben */
+#week .meal-head { margin-bottom: 12px; }
+#week #swap-hint { margin-top: 0; }
+.card li > button { margin-top: 10px; }
