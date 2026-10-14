@@ -82,4 +82,4 @@ label.check input { width: auto; min-height: 0; }
 /* Abstaende: Kopfzeilen-Button (Tauschen) und Entfernen nicht an den Inhalt kleben */
 #week .meal-head { margin-bottom: 12px; }
 #week #swap-hint { margin-top: 0; }
-#day .card > ul:not(.exercises) > li > button { margin-top: 10px; }
+.exercises li > button:not(.timer) { margin-top: 10px; }
