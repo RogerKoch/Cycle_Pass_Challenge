@@ -41,10 +41,12 @@
 
       <section id="checkin">
         <h2>Check-in <a class="info" href="../hilfe/#ffm" aria-label="Erklärung">ⓘ</a></h2>
+        <p class="hint">Nur Gewicht reicht: Körperfett und Muskelmasse werden vom letzten Check-in übernommen
+          (fettfreie Masse bleibt konstant, in der Tabelle mit * markiert). Der erste Check-in braucht alle Werte.</p>
         <form id="checkin-form">
           <label>Gewicht (kg) <input name="weight_kg" type="number" step="0.1" required></label>
-          <label>Körperfett (%) <input name="bodyfat_pct" type="number" step="0.1" required></label>
-          <label>Muskelmasse (kg) <input name="muscle_kg" type="number" step="0.1" required></label>
+          <label>Körperfett (%) <input name="bodyfat_pct" type="number" step="0.1"></label>
+          <label>Muskelmasse (kg) <input name="muscle_kg" type="number" step="0.1"></label>
           <button type="submit">Erfassen</button>
         </form>
         <p class="msg" id="checkin-msg"></p>

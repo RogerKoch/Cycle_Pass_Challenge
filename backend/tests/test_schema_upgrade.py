@@ -110,3 +110,12 @@ def test_existing_profile_keeps_friday_as_rest_day_after_upgrade(app):
     add_missing_columns()
 
     assert db.session.execute(text("SELECT rest_weekday FROM user_profile")).scalar() == 4
+
+
+def test_adds_weight_only_column_to_existing_checkins(app):
+    db.session.execute(text("ALTER TABLE checkins DROP COLUMN weight_only"))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert "weight_only" in {c["name"] for c in inspect(db.engine).get_columns("checkins")}

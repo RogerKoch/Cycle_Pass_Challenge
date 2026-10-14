@@ -29,7 +29,10 @@ function showTab() {
 function renderChart() {
   const key = $("chart-metric").value;
   const { label, unit } = METRICS[key];
-  const points = [...state.checkins].reverse().map((c) => ({ date: c.checkin_date, value: c[key] }));
+  // Nur-Gewicht-Check-ins tragen abgeleitete KF-/Muskelwerte: dort nicht als Messpunkt zeichnen
+  const points = [...state.checkins].reverse()
+    .filter((c) => key === "weight_kg" || !c.weight_only)
+    .map((c) => ({ date: c.checkin_date, value: c[key] }));
   lineChart($("checkin-chart"), points, {
     unit, label, target: key === "weight_kg" ? state.targetWeight : null,
   });
@@ -38,8 +41,11 @@ function renderChart() {
 function renderCheckinTable() {
   const shown = state.showAll ? state.checkins : state.checkins.slice(0, TABLE_ROWS);
   const rows = shown.map((c) => [
-    c.checkin_date, fmt(c.weight_kg, 1), fmt(c.bodyfat_pct, 1), fmt(c.muscle_kg, 1), fmt(c.ffm_kg, 1),
-    c.source === "intervals" ? "Garmin" : "manuell",
+    c.checkin_date, fmt(c.weight_kg, 1),
+    c.weight_only ? `${fmt(c.bodyfat_pct, 1)}*` : fmt(c.bodyfat_pct, 1),
+    c.weight_only ? `${fmt(c.muscle_kg, 1)}*` : fmt(c.muscle_kg, 1),
+    fmt(c.ffm_kg, 1),
+    c.source === "intervals" ? "Garmin" : c.weight_only ? "nur Gewicht" : "manuell",
   ]);
   const table = makeTable(["Datum", "Gewicht kg", "KF %", "Muskel kg", "FFM kg", "Quelle"], rows);
   table.id = "checkin-table";

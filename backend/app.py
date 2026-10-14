@@ -20,6 +20,7 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "evening_training_days", "VARCHAR(20) NOT NULL DEFAULT '1,2,3,4'"),
     ("user_profile", "target_weight_kg", "FLOAT"),
     ("user_profile", "rest_weekday", "INTEGER NOT NULL DEFAULT 4"),  # bestehende Wochen haben Freitag als Ruhetag
+    ("checkins", "weight_only", "BOOLEAN NOT NULL DEFAULT 0"),
     ("ftp_tests", "source", "VARCHAR(12) NOT NULL DEFAULT 'manual'"),
     ("icu_activities", "ignored", "BOOLEAN NOT NULL DEFAULT 0"),
     ("food_log_entries", "status", "VARCHAR(10) NOT NULL DEFAULT 'eaten'"),

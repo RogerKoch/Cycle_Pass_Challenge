@@ -84,3 +84,25 @@ def test_direct_ftp_rejects_non_positive_and_mixed_input(client):
     assert client.post("/api/checkins/ftp-tests", json={"ftp_watts": 0}).status_code == 400
     assert client.post("/api/checkins/ftp-tests", json={"ftp_watts": 240, "best_1min_power_watts": 300}).status_code == 400
     assert client.post("/api/checkins/ftp-tests", json={}).status_code == 400
+
+
+def test_weight_only_checkin_keeps_ffm_and_muscle_from_previous(client):
+    client.post("/api/checkins", json={"weight_kg": 74, "bodyfat_pct": 23, "muscle_kg": 30, "checkin_date": "2026-10-01"})
+    response = client.post("/api/checkins", json={"weight_kg": 73, "checkin_date": "2026-10-08"})
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["weight_only"] is True
+    assert body["muscle_kg"] == 30
+    assert abs(body["ffm_kg"] - 74 * 0.77) < 1e-6
+    assert abs(body["bodyfat_pct"] - 100 * (1 - 74 * 0.77 / 73)) < 1e-6
+
+
+def test_first_checkin_needs_all_values(client):
+    response = client.post("/api/checkins", json={"weight_kg": 74})
+    assert response.status_code == 400
+    assert "erste" in response.get_json()["error"]
+
+
+def test_weight_only_below_ffm_is_rejected(client):
+    client.post("/api/checkins", json={"weight_kg": 74, "bodyfat_pct": 23, "muscle_kg": 30})
+    assert client.post("/api/checkins", json={"weight_kg": 50}).status_code == 400
