@@ -203,7 +203,8 @@ function renderMonth() {
     const title = [fmtDate(d.date, { weekday: "long", day: "numeric", month: "long" }), ...parts, ds.icon].filter(Boolean).join(" · ");
     return el("button", { class: classes, type: "button", title, "aria-label": title, onclick: () => onMonthDay(d.date) },
       el("span", { class: "num" }, String(Number(d.date.slice(8)))),
-      ...parts.map((text) => el("span", { class: "line" }, text)),
+      // Symbole nebeneinander (umbrechen bei wenig Platz), Status-Haken eigene Zeile
+      parts.length ? el("span", { class: "line parts" }, ...parts.map((text) => el("span", {}, text))) : null,
       ds.icon ? el("span", { class: "line" }, ds.icon) : null);
   });
   $("month-grid").replaceChildren(...head, ...cells);
