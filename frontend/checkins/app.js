@@ -9,6 +9,17 @@ const METRICS = {
   muscle_kg: { label: "Muskelmasse", unit: "kg" },
 };
 
+// Fragebogen: Stufe 0-3 je Frage; Beschriftung je Stufe erscheint unter den Chips
+const SIGNAL_QUESTIONS = [
+  ["sleep", "Schlaf schlecht", ["erholt geschlafen", "etwas unruhig", "deutlich zu kurz / oft wach", "kaum geschlafen"]],
+  ["legs", "Beine platt", ["frisch", "leicht müde", "schwer, Watt fehlen", "leer, kein Antritt"]],
+  ["hunger", "Dauerhunger", ["normal", "öfter Appetit", "ständig hungrig trotz Plan", "Heisshunger, kaum zu stoppen"]],
+  ["back", "Rücken nach langen Fahrten",
+    ["keine Beschwerden", "leichtes Ziehen", "Schmerz, der nachwirkt", "stark, Alltag beeinträchtigt"]],
+  ["effort", "Anstrengung höher bei gleicher Leistung",
+    ["normal", "etwas höher", "Z2 fühlt sich wie Tempo an", "gleiche Watt kaum haltbar"]],
+];
+
 const state = { checkins: [], targetWeight: null, showAll: false };
 
 // ---------------------------------------------------------------- Reiter
@@ -83,13 +94,41 @@ async function loadSignals() {
   $("signals-table").replaceWith(table);
 }
 
+function renderSignalQuestions() {
+  const questions = SIGNAL_QUESTIONS.map(([name, label, texts]) => {
+    const group = el("fieldset", undefined, "chips");
+    const description = el("p", texts[0], "hint");
+    group.append(el("legend", label));
+    texts.forEach((text, level) => {
+      const radio = el("input");
+      radio.type = "radio";
+      radio.name = name;
+      radio.value = level;
+      radio.checked = level === 0;
+      radio.addEventListener("change", () => { description.textContent = `${level}: ${text}`; });
+      const chip = el("label", undefined, "chip");
+      chip.title = text;
+      chip.append(radio, ` ${level}`);
+      group.append(chip);
+    });
+    description.textContent = `0: ${texts[0]}`;
+    group.append(description);
+    return group;
+  });
+  $("signals-questions").replaceChildren(...questions);
+}
+
 async function saveSignals(event) {
   event.preventDefault();
   const body = {};
   for (const [key, value] of new FormData(event.target)) if (value !== "") body[key] = Number(value);
   const { ok, data } = await api("POST", "/api/signals", body);
   setMsg("signals-msg", ok ? "" : data.error);
-  if (ok) await Promise.all([loadSignals(), loadReview()]);
+  if (ok) {
+    event.target.reset();
+    renderSignalQuestions();
+    await Promise.all([loadSignals(), loadReview()]);
+  }
 }
 
 // ---------------------------------------------------------------- Review
@@ -166,6 +205,7 @@ window.addEventListener("hashchange", showTab);
 const testOptions = { history: true, onSaved: loadReview };
 function loadAll() {
   loadCheckins();
+  renderSignalQuestions();
   loadSignals();
   loadReview();
   mountFtp($("ftp-box"), testOptions);

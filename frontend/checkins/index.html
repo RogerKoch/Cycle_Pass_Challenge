@@ -43,7 +43,7 @@
         <h2>Check-in <a class="info" href="../hilfe/#ffm" aria-label="Erklärung">ⓘ</a></h2>
         <p class="hint">Nur Gewicht reicht: Körperfett und Muskelmasse werden vom letzten Check-in übernommen
           (fettfreie Masse bleibt konstant, in der Tabelle mit * markiert). Der erste Check-in braucht alle Werte.</p>
-        <form id="checkin-form">
+        <form id="checkin-form" class="fields">
           <label>Gewicht (kg) <input name="weight_kg" type="number" step="0.1" required></label>
           <label>Körperfett (%) <input name="bodyfat_pct" type="number" step="0.1"></label>
           <label>Muskelmasse (kg) <input name="muscle_kg" type="number" step="0.1"></label>
@@ -57,12 +57,8 @@
       <section id="fragebogen">
         <h2>Fragebogen (wöchentlich)</h2>
         <p>Wie war die letzte Woche? 0 = kein Problem … 3 = starkes Problem; ab 2 prüft die App eine Regel. <a class="info" href="../hilfe/#skala" aria-label="Erklärung">ⓘ</a></p>
-        <form id="signals-form">
-          <label>Schlaf schlecht <select name="sleep"><option value="0">0 erholt geschlafen</option><option value="1">1 etwas unruhig</option><option value="2">2 deutlich zu kurz / oft wach</option><option value="3">3 kaum geschlafen</option></select></label>
-          <label>Beine platt <select name="legs"><option value="0">0 frisch</option><option value="1">1 leicht müde</option><option value="2">2 schwer, Watt fehlen</option><option value="3">3 leer, kein Antritt</option></select></label>
-          <label>Dauerhunger <select name="hunger"><option value="0">0 normal</option><option value="1">1 öfter Appetit</option><option value="2">2 ständig hungrig trotz Plan</option><option value="3">3 Heisshunger, kaum zu stoppen</option></select></label>
-          <label>Rücken nach langen Fahrten <select name="back"><option value="0">0 keine Beschwerden</option><option value="1">1 leichtes Ziehen</option><option value="2">2 Schmerz, der nachwirkt</option><option value="3">3 stark, Alltag beeinträchtigt</option></select></label>
-          <label>Anstrengung höher bei gleicher Leistung <select name="effort"><option value="0">0 normal</option><option value="1">1 etwas höher</option><option value="2">2 Z2 fühlt sich wie Tempo an</option><option value="3">3 gleiche Watt kaum haltbar</option></select></label>
+        <form id="signals-form" class="fields">
+          <div id="signals-questions" class="signal-questions"></div>
           <label>Ruhe-HF (optional) <input name="resting_hr" type="number" min="30" max="120" step="1"></label>
           <button type="submit">Erfassen</button>
         </form>

@@ -255,8 +255,8 @@ for (const radio of $("profile-form").elements.goal_mode) {
 }
 $("intervals-sync").addEventListener("click", () => syncIntervals(false));
 
-// Startwerte: Formulare nur, solange noch kein Test existiert; ein neuer FTP aendert die Zonen
-const startwerte = { startOnly: true, onSaved: loadToday };
+// Startwerte: nur Anzeige; Erfassen laeuft ueber die Check-ins
+const startwerte = { readOnly: true };
 function loadAll() {
   loadProfile();
   loadBaseline();

@@ -1,8 +1,8 @@
 "use strict";
 
 // FTP-Test und Kraft-Benchmark (Erfassen + Anzeige), gebraucht auf Check-ins und Profil (Startwerte).
-// Braucht ui.js; mit history zusaetzlich chart.js. Optionen: { startOnly, history, onSaved }
-//   startOnly: Formular nur zeigen, solange noch kein Test existiert (Startwerte im Profil).
+// Braucht ui.js; mit history zusaetzlich chart.js. Optionen: { readOnly, history, onSaved }
+//   readOnly:  nur das letzte Ergebnis zeigen, Erfassen laeuft ueber die Check-ins (Profil).
 //   history:   Chart und Verlaufstabelle anzeigen (Check-ins).
 //   onSaved:   wird nach erfolgreichem Speichern aufgerufen (z.B. Review neu laden).
 
@@ -61,7 +61,7 @@ function checkinsLink(text) {
 
 const cell = (value, digits = 0) => (value === null || value === undefined ? "–" : fmt(value, digits));
 
-function mountFtp(box, { startOnly = false, history = false, onSaved = async () => {} } = {}) {
+function mountFtp(box, { readOnly = false, history = false, onSaved = async () => {} } = {}) {
   box.innerHTML = FTP_HTML;
   const view = box.querySelector("[data-view]");
   const form = box.querySelector("[data-form]");
@@ -76,9 +76,9 @@ function mountFtp(box, { startOnly = false, history = false, onSaved = async () 
     view.textContent = latest
       ? `Aktuelle FTP: ${latest.ftp_watts} W (Test ${latest.test_date})`
       : "FTP noch nicht getestet (Zwift-Ramp-Test steht aus), Zonen sind bis dahin gesperrt.";
-    if (startOnly) {
-      form.hidden = Boolean(latest);
-      if (latest) view.append(" · weitere Tests unter ", checkinsLink("Check-ins"));
+    if (readOnly) {
+      form.hidden = true;
+      view.append(" · erfassen unter ", checkinsLink("Check-ins"));
     }
     if (history) {
       chart.hidden = table.hidden = false;
@@ -102,7 +102,7 @@ function mountFtp(box, { startOnly = false, history = false, onSaved = async () 
   return load();
 }
 
-function mountBenchmark(box, { startOnly = false, history = false, onSaved = async () => {} } = {}) {
+function mountBenchmark(box, { readOnly = false, history = false, onSaved = async () => {} } = {}) {
   box.innerHTML = BENCHMARK_HTML;
   const view = box.querySelector("[data-view]");
   const form = box.querySelector("[data-form]");
@@ -158,15 +158,17 @@ function mountBenchmark(box, { startOnly = false, history = false, onSaved = asy
     view.textContent = data.current
       ? `Letzter Test ${data.current.test_date} · ${due} (alle ${data.interval_weeks} Wochen) · Stufen: ${stages.join(", ") || "–"}`
       : `Noch kein Test – Woche-0-Baseline ${due}.`;
-    if (startOnly) {
-      form.hidden = Boolean(data.current);
+    if (readOnly) {
+      form.hidden = true;
       milestones.hidden = true;
-      if (data.current) view.append(" · weitere Tests unter ", checkinsLink("Check-ins"));
+      view.append(" · erfassen unter ", checkinsLink("Check-ins"));
       return;
     }
     if (history) {
-      chartBox.hidden = table.hidden = false;
-      renderChart();
+      // Verlauf erst ab dem zweiten Test: ein einzelner Punkt zeigt nichts, die Chips wirken sonst ins Leere
+      chartBox.hidden = tests.length < 2;
+      table.hidden = tests.length === 0;
+      if (tests.length >= 2) renderChart();
       table.replaceChildren(makeTable(["Datum", "Liegestütze", "Rows", "Side Plank s", "SL-Bridge s", "Plank s"],
         tests.map((t) => [t.test_date, cell(t.pushup_reps), cell(t.row_reps), cell(t.side_plank_s), cell(t.sl_bridge_s), cell(t.plank_s)])));
     }
