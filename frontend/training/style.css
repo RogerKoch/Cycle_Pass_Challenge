@@ -64,3 +64,11 @@ label.check input { width: auto; min-height: 0; }
 #week-list li.modified .kcal { color: var(--warn); }
 #week-list li.open .name { color: var(--muted); }
 #week-list li.current .name { font-weight: 700; }
+
+/* Wochenansicht: Liste mit Text; Desktop (Wochenleiste) nur Symbole */
+#week-list .name .compact { display: none; }
+@media (min-width: 900px) {
+  .cal-layout.has-side #week-list .name .full { display: none; }
+  .cal-layout.has-side #week-list .name .compact { display: block; min-height: 2.6em; }
+  .cal-layout.has-side #week-list .name .compact .line { display: block; font-size: 0.85rem; }
+}

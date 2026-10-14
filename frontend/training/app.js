@@ -621,8 +621,13 @@ function renderWeek() {
     ].join(" ");
     return el("li", { class: classes, onclick: () => onWeekDay(d.date) },
       el("span", { class: "day-tag" }, fmtDate(d.date, { weekday: "short", day: "numeric" })),
-      el("span", { class: "name" }, parts.length ? parts.join(" · ") : (d.started ? "Ruhetag" : "–"),
-        d.warnings.length ? el("span", { class: "sub" }, `⚠ ${d.warnings[0].message}`) : null),
+      el("span", { class: "name", title: [...parts, ds.icon].filter(Boolean).join(" · ") },
+        el("span", { class: "full" }, parts.length ? parts.join(" · ") : (d.started ? "Ruhetag" : "–"),
+          d.warnings.length ? el("span", { class: "sub" }, `⚠ ${d.warnings[0].message}`) : null),
+        // Desktop-Wochenleiste: nur Symbole wie im Monat (Details im Tooltip und im Tag)
+        el("span", { class: "compact" },
+          ...cellText(d).map((text) => el("span", { class: "line" }, text)),
+          d.warnings.length ? el("span", { class: "line" }, "⚠") : null)),
       el("span", { class: "kcal" }, ds.icon));
   });
   $("week-list").replaceChildren(...items);
