@@ -58,3 +58,9 @@ form.fields button[type="submit"] { grid-column: 1 / -1; justify-self: start; }
 .sketch-grid figure { margin: 0; }
 .sketch-grid img { display: block; width: 100%; height: auto; }
 .sketch-grid figcaption { font-size: 0.85rem; color: var(--muted); }
+
+/* Erfassen-Button auf der Linie der Felder (Check-in: Gewicht, KF, Muskel + Button) */
+@media (min-width: 700px) {
+  form.fields.inline-submit { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; }
+  form.fields.inline-submit button[type="submit"] { grid-column: auto; justify-self: stretch; min-height: 44px; }
+}
