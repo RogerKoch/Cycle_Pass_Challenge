@@ -19,3 +19,5 @@ h1 { font-size: 1.3rem; margin: 20px 0 4px; }
 .week-strip a.today { outline: 2px solid var(--accent); font-weight: 600; }
 .week-strip .mark { display: block; font-size: 0.75rem; min-height: 1.1em; }
 .action-link { display: inline-block; margin-top: 8px; }
+.week-strip a.selected { box-shadow: inset 0 0 0 2px var(--text); }
+#greeting .action-link { font-size: 0.9rem; font-weight: 400; margin-left: 8px; }

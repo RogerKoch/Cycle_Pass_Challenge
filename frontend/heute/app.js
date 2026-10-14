@@ -57,8 +57,8 @@ function fmtDate(iso, options) {
 
 // ---------------------------------------------------------------- Training
 
-function trainingCard(day) {
-  const head = el("h2", {}, "🚴 Training heute");
+function trainingCard(day, isToday) {
+  const head = el("h2", {}, isToday ? "🚴 Training heute" : "🚴 Training");
   if (!day.started) {
     return [head, el("p", { class: "hint" }, "Vor dem Programmstart ist nichts geplant.")];
   }
@@ -76,7 +76,10 @@ function trainingCard(day) {
   if (day.strength) lines.push(el("p", {}, `💪 ${day.strength.title} · ${day.strength.duration_minutes} min`));
   if (!day.cycling && !day.strength) lines.push(el("p", {}, el("strong", {}, "Ruhetag"), " · nur Mobility"));
   for (const warning of day.warnings) lines.push(el("p", { class: "hint" }, `⚠ ${warning.message}`));
-  return [head, badges, ...lines, el("a", { class: "action-link", href: "training/#tag" }, "Details und Anpassen →")];
+  const link = isToday
+    ? el("a", { class: "action-link", href: "training/#tag" }, "Details und Anpassen →")
+    : el("a", { class: "action-link", href: "training/#woche" }, "Zur Wochenansicht →");
+  return [head, badges, ...lines, link];
 }
 
 // ---------------------------------------------------------------- Ernaehrung
@@ -91,15 +94,16 @@ function macroRow(name, value, target) {
     el("span", { class: "num" }, `${round(value)} / ${round(target)} g`));
 }
 
-function nutritionCard(plan, totals) {
-  const head = el("h2", {}, "🍽 Ernährung heute");
+function nutritionCard(plan, totals, isToday) {
+  const head = el("h2", {}, isToday ? "🍽 Ernährung heute" : "🍽 Ernährung");
   if (plan.error) {
     return [head, el("p", { class: "hint" }, `Nicht verfügbar: ${plan.error}`),
       el("a", { class: "action-link", href: "profil/" }, "Zum Profil →")];
   }
   const target = plan.nutrition.target_kcal;
   const m = plan.macros;
-  const meals = MEALS.map(([meal, name]) => el("a", { href: `ernaehrung/?add=${meal}` }, `+ ${name}`));
+  // Schnell-Erfassen gilt fuer heute (die Ernaehrungsseite kennt keinen Datums-Parameter)
+  const meals = isToday ? MEALS.map(([meal, name]) => el("a", { href: `ernaehrung/?add=${meal}` }, `+ ${name}`)) : [];
   return [
     head,
     el("div", { class: "kcal-head" },
@@ -116,10 +120,10 @@ function nutritionCard(plan, totals) {
 
 // ---------------------------------------------------------------- Woche
 
-function weekCard(week) {
+function weekCard(week, selected) {
   const days = week.days.map((d) => el("a", {
-    href: "training/#woche",
-    class: [d.date === today() ? "today" : "", d.status === "done" || d.status === "modified" ? "done" : "",
+    href: d.date === today() ? "./" : `./?date=${d.date}`,
+    class: [d.date === today() ? "today" : "", d.date === selected ? "selected" : "", d.status === "done" || d.status === "modified" ? "done" : "",
       d.status === "skipped" ? "skipped" : ""].join(" "),
   }, fmtDate(d.date, { weekday: "short" }), el("span", { class: "mark" }, `${d.cycling ? "🚴" : ""}${d.strength ? "💪" : ""}`),
     el("span", { class: "mark" }, STATUS_MARKS[d.status])));
@@ -141,12 +145,23 @@ async function loadReviewBanner() {
 
 // ---------------------------------------------------------------- Laden
 
+function requestedDate() {
+  const value = new URLSearchParams(location.search).get("date");
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : today();
+}
+
 async function load() {
-  const iso = today();
-  $("greeting").textContent = `Heute, ${fmtDate(iso, { weekday: "long", day: "numeric", month: "long" })}`;
+  const iso = requestedDate();
+  const isToday = iso === today();
+  const dayText = fmtDate(iso, { weekday: "long", day: "numeric", month: "long" });
+  const greeting = $("greeting");
+  greeting.textContent = isToday ? `Heute, ${dayText}` : dayText;
+  if (!isToday) {
+    greeting.append(" ", el("a", { class: "action-link", href: "./" }, "← zurück zu heute"));
+  }
   const [week, plan, log] = await Promise.all([
     api(`/api/calendar/week/${iso}`),
-    api("/api/plan/today"),
+    api(isToday ? "/api/plan/today" : `/api/plan/${iso}`),
     api(`/api/food-log/${iso}`),
   ]);
   if (!week.ok) {
@@ -154,10 +169,10 @@ async function load() {
     return;
   }
   const day = week.data.days.find((d) => d.date === iso);
-  $("training-card").replaceChildren(...trainingCard(day));
+  $("training-card").replaceChildren(...trainingCard(day, isToday));
   $("nutrition-card").replaceChildren(
-    ...nutritionCard(plan.ok ? plan.data : { error: plan.data.error }, log.ok ? log.data.totals : NO_TOTALS));
-  $("week-card").replaceChildren(...weekCard(week.data));
+    ...nutritionCard(plan.ok ? plan.data : { error: plan.data.error }, log.ok ? log.data.totals : NO_TOTALS, isToday));
+  $("week-card").replaceChildren(...weekCard(week.data, iso));
   mountDayComment($("comment-card"), { base: "", date: iso });
   loadReviewBanner();
 }
