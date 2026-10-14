@@ -69,6 +69,8 @@ label.check input { width: auto; min-height: 0; }
 #week-list .name .compact { display: none; }
 @media (min-width: 900px) {
   .cal-layout.has-side #week-list .name .full { display: none; }
-  .cal-layout.has-side #week-list .name .compact { display: block; min-height: 2.6em; }
-  .cal-layout.has-side #week-list .name .compact .line { display: block; font-size: 0.85rem; }
+  .cal-layout.has-side #week-list .name .compact { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+  .cal-layout.has-side #week-list .name .compact .line { display: inline; font-size: 0.85rem; white-space: nowrap; }
+  .cal-layout.has-side #week-list li { padding: 6px 8px; gap: 2px; }
+  .cal-layout.has-side #week-list .kcal { line-height: 1.2; }
 }
