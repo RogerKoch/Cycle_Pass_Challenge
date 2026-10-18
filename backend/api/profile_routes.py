@@ -5,11 +5,11 @@ from datetime import date
 
 from flask import Blueprint, jsonify, request
 
-from backend.engine.nutrition_calc import ACTIVITY_LEVELS, DEFAULT_ACTIVITY_LEVEL
+from backend.engine.nutrition_calc import ACTIVITY_LEVELS, DEFAULT_ACTIVITY_LEVEL, SEX_BMR_CONSTANT, SEX_MALE
 from backend.engine.strength_alternatives import EQUIPMENT_OPTIONS
 from backend.engine.strength_benchmarks import DEFAULT_INTERVAL_WEEKS, MAX_INTERVAL_WEEKS, MIN_INTERVAL_WEEKS
 from backend.engine.strength_sessions import FOCUS_NONE, FOCUS_OPTIONS
-from backend.engine.week_plan import STANDARD_WEEK, STATUS_PLANNED, default_day_plan
+from backend.engine.week_plan import SPORT_CYCLING, SPORTS, STANDARD_WEEK, STATUS_PLANNED, default_day_plan
 from backend.extensions import db
 from backend.models.baseline_measurements import BaselineMeasurement
 from backend.models.training_days import TrainingDay
@@ -26,6 +26,20 @@ def _activity_level(value: object) -> str:
     """Prueft die Alltags-/Beruf-Stufe gegen ACTIVITY_LEVELS."""
     if value not in ACTIVITY_LEVELS:
         raise ValueError(f"unbekannte Alltags-Stufe: {value}")
+    return value
+
+
+def _sex(value: object) -> str:
+    """Prueft das Geschlecht gegen SEX_BMR_CONSTANT."""
+    if value not in SEX_BMR_CONSTANT:
+        raise ValueError(f"sex muss einer von {', '.join(SEX_BMR_CONSTANT)} sein")
+    return value
+
+
+def _sport(value: object) -> str:
+    """Prueft den Ausdauersport gegen SPORTS."""
+    if value not in SPORTS:
+        raise ValueError(f"sport muss einer von {', '.join(SPORTS)} sein")
     return value
 
 
@@ -74,7 +88,7 @@ def _replan_future_days(profile: UserProfile) -> None:
         if row.planned_minutes is not None or row.note is not None:
             continue  # vom Nutzer angepasst
         row.cycling_slot, row.strength_session = default_day_plan(
-            profile.program_start_date, row.day_date, profile.rest_weekday
+            profile.program_start_date, row.day_date, profile.rest_weekday, profile.sport
         )
 
 
@@ -96,6 +110,8 @@ def _options() -> dict:
         "activity_levels": [
             {"id": key, "label": label, "factor": factor} for key, (label, factor) in ACTIVITY_LEVELS.items()
         ],
+        "sex_options": [{"id": "m", "label": "Mann"}, {"id": "f", "label": "Frau"}],
+        "sport_options": [{"id": "cycling", "label": "Rad"}, {"id": "running", "label": "Laufen"}],
         "weekday_options": [{"id": i, "label": label} for i, label in enumerate(WEEKDAYS)],
         "equipment_options": [{"id": key, "label": label} for key, label in EQUIPMENT_OPTIONS.items()],
         "focus_options": [{"id": key, "label": label} for key, label in FOCUS_OPTIONS.items()],
@@ -151,6 +167,8 @@ def _serialize(profile: UserProfile) -> dict:
         "height_cm": profile.height_cm,
         "program_start_date": profile.program_start_date.isoformat(),
         "activity_level": profile.activity_level,
+        "sex": profile.sex,
+        "sport": profile.sport,
         "strength_focus": profile.strength_focus,
         "benchmark_interval_weeks": profile.benchmark_interval_weeks,
         "rest_weekday": profile.rest_weekday,
@@ -183,6 +201,8 @@ def create_profile():
             height_cm=float(body["height_cm"]),
             program_start_date=date.fromisoformat(body["program_start_date"]),
             activity_level=_activity_level(body.get("activity_level", DEFAULT_ACTIVITY_LEVEL)),
+            sex=_sex(body.get("sex", SEX_MALE)),
+            sport=_sport(body.get("sport", SPORT_CYCLING)),
             strength_focus=_strength_focus(body.get("strength_focus", FOCUS_NONE)),
             benchmark_interval_weeks=_interval_weeks(body.get("benchmark_interval_weeks", DEFAULT_INTERVAL_WEEKS)),
             rest_weekday=_rest_weekday(body.get("rest_weekday", DEFAULT_REST_WEEKDAY)),
@@ -215,6 +235,13 @@ def update_profile():
             profile.program_start_date = date.fromisoformat(body["program_start_date"])
         if "activity_level" in body:
             profile.activity_level = _activity_level(body["activity_level"])
+        if "sex" in body:
+            profile.sex = _sex(body["sex"])
+        sport_changed = False
+        if "sport" in body:
+            new_sport = _sport(body["sport"])
+            sport_changed = new_sport != profile.sport
+            profile.sport = new_sport
         if "strength_focus" in body:
             profile.strength_focus = _strength_focus(body["strength_focus"])
         if "benchmark_interval_weeks" in body:
@@ -232,7 +259,7 @@ def update_profile():
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 
-    if rest_changed:
+    if rest_changed or sport_changed:
         _replan_future_days(profile)
     db.session.commit()
     return jsonify(_serialize(profile)), 200

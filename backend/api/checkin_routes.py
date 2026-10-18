@@ -58,7 +58,7 @@ def _carry_forward(weight_kg: float, checkin_date: date) -> tuple[float, float]:
         profile = UserProfile.query.first()
         if profile is None:
             raise ValueError("ohne Körperfett zuerst das Profil anlegen (Alter, Grösse für die Schätzung)")
-        bodyfat_pct = estimate_bodyfat_pct(weight_kg, profile.height_cm, profile.age)
+        bodyfat_pct = estimate_bodyfat_pct(weight_kg, profile.height_cm, profile.age, profile.sex)
         return bodyfat_pct, weight_kg * (1 - bodyfat_pct / 100) * MUSCLE_SHARE_OF_FFM
     bodyfat_pct = 100 * (1 - base.ffm_kg / weight_kg)
     if not 0 <= bodyfat_pct < 100:

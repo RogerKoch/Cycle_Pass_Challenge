@@ -28,6 +28,10 @@ class UserProfile(db.Model):
     target_weight_kg: float | None = db.Column(db.Float, nullable=True)
     # Ruhetag der Standardwoche (0 = Mo ... 6 = So); Standard fuer neue Profile Dienstag
     rest_weekday: int = db.Column(db.Integer, nullable=False, default=1, server_default="1")
+    # Geschlecht fuer den geschaetzten Grundumsatz ("m" | "f", engine.nutrition_calc.SEX_BMR_CONSTANT)
+    sex: str = db.Column(db.String(1), nullable=False, default="m", server_default="m")
+    # Ausdauersport ("cycling" | "running", engine.week_plan.SPORTS); running = nur erfassen, kein Radplan
+    sport: str = db.Column(db.String(10), nullable=False, default="cycling", server_default="cycling")
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,

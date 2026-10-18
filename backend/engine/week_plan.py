@@ -38,6 +38,10 @@ from backend.engine.training_phase import PhaseInfo, get_current_phase
 
 logger = logging.getLogger(__name__)
 
+SPORT_CYCLING = "cycling"
+SPORT_RUNNING = "running"  # nur erfassen: keine Rad-Slots, kein FTP
+SPORTS: tuple[str, ...] = (SPORT_CYCLING, SPORT_RUNNING)
+
 STATUS_PLANNED = "planned"
 STATUS_DONE = "done"
 STATUS_MODIFIED = "modified"
@@ -137,7 +141,7 @@ def phase_week(program_start_date: date, day: date) -> tuple[PhaseInfo, int]:
 
 
 def default_day_plan(
-    program_start_date: date, day: date, rest_weekday: int = STANDARD_REST_WEEKDAY
+    program_start_date: date, day: date, rest_weekday: int = STANDARD_REST_WEEKDAY, sport: str = SPORT_CYCLING
 ) -> tuple[str | None, str | None]:
     """Rad-Slot und Krafteinheit der Standardwoche fuer ein Datum.
 
@@ -145,10 +149,11 @@ def default_day_plan(
         program_start_date: Programmstart.
         day: Datum.
         rest_weekday: Ruhetag (0 = Montag ... 6 = Sonntag), siehe standard_week.
+        sport: SPORT_RUNNING plant keine Radeinheiten (nur Kraft).
 
     Returns:
         (cycling_slot, strength_session). Vor dem Programmstart (None, None). Der Slot ist None,
-        wenn die Phase dafuer keine Radeinheit vorsieht.
+        wenn die Phase dafuer keine Radeinheit vorsieht oder der Sport nicht Rad ist.
     """
     if day < program_start_date:
         return None, None
@@ -156,7 +161,7 @@ def default_day_plan(
     slot, strength = standard_week(rest_weekday)[day.weekday()]
     if slot == SLOT_KEY_2 and (phase.phase_id, week) in RETEST_WEEKS:
         slot = SLOT_FTP_TEST
-    if slot is not None and build_cycling_session(slot, phase.phase_id, week) is None:
+    if sport != SPORT_CYCLING or (slot is not None and build_cycling_session(slot, phase.phase_id, week) is None):
         slot = None
     if phase.phase_id not in TWO_STRENGTH_SESSION_PHASES:
         strength_weekday = 1 if rest_weekday == 0 else 0  # Montag, bei Ruhetag Montag der Folgetag
@@ -173,6 +178,7 @@ def resolve_strength(
     stages: ExerciseStages | None = None,
     swaps: dict[str, str] | None = None,
     missing_equipment: frozenset[str] = frozenset(),
+    sport: str = SPORT_CYCLING,
 ) -> StrengthSession:
     """Krafteinheit fuer Phase und Woche, im Taper mit Reduktionshinweis.
 
@@ -188,15 +194,17 @@ def resolve_strength(
         stages: Stufen aus dem Kraft-Benchmark.
         swaps: dauerhaft getauschte Uebungen (Originalname -> Alternative).
         missing_equipment: fehlendes Material aus dem Profil (automatischer Tausch).
+        sport: nur SPORT_CYCLING kennt Peak/Taper und pausiert den Bein-Fokus; sonst laeuft die Kraft unveraendert.
 
     Returns:
         StrengthSession der zugehoerigen Kraftphase.
     """
     notes = []
-    if phase_id == "peak_taper" and week_in_phase > PEAK_SPECIFIC_WEEKS:
+    if sport == SPORT_CYCLING and phase_id == "peak_taper" and week_in_phase > PEAK_SPECIFIC_WEEKS:
         notes.append("Taper: Erhalt, reduziert auf ~40 min.")
     taper = bool(notes)
-    if focus == GROUP_LEGS and (reduced or phase_id in LEG_FOCUS_PAUSED_PHASES):
+    legs_paused = reduced or (sport == SPORT_CYCLING and phase_id in LEG_FOCUS_PAUSED_PHASES)
+    if focus == GROUP_LEGS and legs_paused:
         notes.append("Bein-Fokus pausiert (Beine schonen fürs Radtraining).")
         focus = FOCUS_NONE
     session = build_strength_session(

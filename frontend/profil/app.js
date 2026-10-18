@@ -39,6 +39,13 @@ async function loadProfile() {
     option.value = l.id;
     return option;
   }));
+  for (const [name, options] of [["sex", data.sex_options], ["sport", data.sport_options]]) {
+    form.elements[name].replaceChildren(...options.map((o) => {
+      const option = el("option", o.label);
+      option.value = o.id;
+      return option;
+    }));
+  }
   form.elements.strength_focus.replaceChildren(...data.focus_options.map((f) => {
     const option = el("option", f.label);
     option.value = f.id;
@@ -60,9 +67,10 @@ async function loadProfile() {
   if (ok) {
     const level = data.activity_levels.find((l) => l.id === data.activity_level);
     const focus = data.focus_options.find((f) => f.id === data.strength_focus);
+    $("ftp-heading").hidden = $("ftp-box").hidden = data.sport === "running";
     $("profile-view").textContent =
       `Alter ${data.age}, Grösse ${data.height_cm} cm, Programmstart ${data.program_start_date}, Alltag ${level.label} (× ${level.factor}), Kraft-Fokus ${focus.label}`;
-    for (const key of ["age", "height_cm", "program_start_date", "activity_level", "strength_focus", "benchmark_interval_weeks"]) {
+    for (const key of ["age", "height_cm", "program_start_date", "activity_level", "sex", "sport", "strength_focus", "benchmark_interval_weeks"]) {
       form.elements[key].value = data[key];
     }
   } else {
@@ -179,7 +187,7 @@ function renderToday(plan) {
 
   const t = plan.training;
   const parts = [];
-  const imported = t.imported.filter((a) => a.is_ride || a.is_strength);
+  const imported = t.imported.filter((a) => a.is_ride || a.is_run || a.is_strength);
   if (imported.length) {
     for (const a of imported) parts.push(`Garmin: ${a.name || a.type}${a.minutes ? ` (${fmt(a.minutes)} min)` : ""}`);
   } else if (t.status === "skipped") parts.push("abgesagt");

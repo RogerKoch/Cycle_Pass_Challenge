@@ -203,6 +203,7 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
             deficit_kcal=effective_deficit(day, phase.phase_id, spans) * (event_nut.deficit_factor if event_nut else 1.0),
             cycling_kcal=measured_cycling_kcal,
             non_exercise_factor=ACTIVITY_LEVELS[profile.activity_level][1],
+            sex=profile.sex,
         )
     except ValueError as exc:
         raise _PlanError(f"ungueltige Trainingsparameter: {exc}", 400) from exc

@@ -23,6 +23,20 @@ def _week(monday):
     return [DayPlan(monday + timedelta(days=i), *default_day_plan(PROGRAM_START, monday + timedelta(days=i))) for i in range(7)]
 
 
+def test_running_sport_plans_strength_but_no_cycling_slots():
+    week = [default_day_plan(PROGRAM_START, BASE_MONDAY + timedelta(days=i), sport="running") for i in range(7)]
+    assert all(slot is None for slot, _ in week)
+    assert [s for _, s in week if s] == ["A", "B"]
+
+
+def test_running_sport_keeps_leg_focus_and_full_session_in_peak_taper():
+    session = resolve_strength("A", "peak_taper", 4, focus="legs", sport="running")
+    assert session.note is None or "Taper" not in session.note
+    assert session.duration_minutes != "40"
+    assert "Bein-Fokus pausiert" not in (session.note or "")
+    assert "Bein-Fokus pausiert" in (resolve_strength("A", "peak_taper", 4, focus="legs").note or "")
+
+
 def test_week_start_is_monday():
     assert week_start(date(2026, 10, 8)) == date(2026, 10, 5)
 

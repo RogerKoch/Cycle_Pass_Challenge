@@ -242,7 +242,9 @@ function renderDay() {
   if (day.note) cards.push(el("p", { class: "hint" }, `Notiz: ${day.note}`));
   if (day.imported.length) cards.push(importedCard(day.imported));
   if (!day.cycling && !day.strength) {
-    cards.push(el("section", { class: "card" }, el("h2", {}, "Ruhetag"), el("p", { class: "card-sub" }, "Nur Mobility.")));
+    const running = day.sport === "running";
+    cards.push(el("section", { class: "card" }, el("h2", {}, running ? "Kein Plan" : "Ruhetag"),
+      el("p", { class: "card-sub" }, running ? "Lauf über „Angepasst“ erfassen oder per intervals.icu importieren." : "Nur Mobility.")));
   }
   if (day.cycling) cards.push(cyclingCard(day.cycling));
   if (day.strength) cards.push(strengthCard(day.strength));
@@ -276,7 +278,7 @@ function phaseLine(day) {
 // ⓘ-Link auf einen Abschnitt der Erklaer-Seite
 const infoLink = (anchor) => el("a", { class: "info", href: `../hilfe/#${anchor}`, "aria-label": "Erklärung" }, "ⓘ");
 
-const hasImportedTraining = (day) => day.imported.some((a) => a.is_ride || a.is_strength);
+const hasImportedTraining = (day) => day.imported.some((a) => a.is_ride || a.is_run || a.is_strength);
 
 // Blendet die Aktivitaet nur in dieser App aus (intervals.icu/Garmin bleiben unveraendert)
 async function removeImported(activity) {
@@ -297,7 +299,7 @@ function importedCard(activities) {
       a.training_load ? `Load ${round(a.training_load)}` : null,
     ].filter(Boolean).join(" · ");
     const remove = el("button", { type: "button", onclick: () => removeImported(a) }, "Entfernen");
-    return el("li", {}, `${a.is_ride ? "🚴" : a.is_strength ? "💪" : "•"} ${a.name || a.type}`,
+    return el("li", {}, `${a.is_ride ? "🚴" : a.is_run ? "🏃" : a.is_strength ? "💪" : "•"} ${a.name || a.type}`,
       el("span", { class: "sub" }, facts), remove);
   });
   return el("section", { class: "card" },
@@ -480,7 +482,7 @@ function actionsCard(day) {
     if (!isPast) buttons.push(el("button", { onclick: openPlan }, "Anpassen"));
     if (!isFuture) {
       buttons.push(el("button", { class: "primary", onclick: () => setStatus({ status: "done" }) }, "✓ Erledigt"));
-      buttons.push(el("button", { onclick: openModified }, "✎ Angepasst"));
+      buttons.push(el("button", { onclick: openModified }, day.sport === "running" ? "✎ Lauf erfassen" : "✎ Angepasst"));
     }
     buttons.push(el("button", { class: "danger", onclick: () => openDialog("cancel-dialog") }, isFuture ? "Absagen" : "✗ Ausgefallen"));
   } else {
@@ -554,6 +556,9 @@ async function submitPlan(event) {
 function openModified() {
   const form = $("modified-form");
   const cycling = state.day.cycling;
+  const running = state.day.sport === "running";
+  $("modified-title").textContent = running ? "Training erfassen" : "Angepasst gefahren";
+  $("modified-minutes-label").textContent = running ? "Minuten Lauf" : "Minuten Rad";
   form.elements.actual_minutes.value = cycling ? round(cycling.minutes) : 0;
   form.elements.actual_intensity.value = cycling ? cycling.intensity : "moderat_base";
   form.elements.actual_strength_done.checked = Boolean(state.day.strength);

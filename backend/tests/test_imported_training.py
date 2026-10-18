@@ -26,7 +26,18 @@ def test_kcal_from_kilojoules_and_garmin_calories_are_ignored():
 def test_ride_without_power_uses_met_estimate_instead_of_garmin_calories():
     # 3 h ohne Leistung, Garmin meldet 351 kcal -> MET moderat (592 kcal/h bei 74 kg)
     day = summarize_day([_activity("Ride", seconds=10800, calories=351)], weight_kg=74.0)
-    assert day.ride_kcal == pytest.approx(592 * 3)
+    assert day.endurance_kcal == pytest.approx(592 * 3)
+
+
+def test_run_counts_as_endurance_with_met_kcal_regardless_of_joules():
+    day = summarize_day([_activity("Run", seconds=3600, joules=300_000, calories=500)], weight_kg=65.0)
+    assert day.endurance_minutes == 60
+    assert day.endurance_kcal == pytest.approx(9.8 * 65)
+    assert day.has_training
+
+
+def test_run_kcal_is_unknown_without_weight():
+    assert summarize_day([_activity("TrailRun", seconds=3600)]).endurance_kcal is None
 
 
 def test_mixed_day_combines_kilojoules_and_met_per_ride():
@@ -34,7 +45,7 @@ def test_mixed_day_combines_kilojoules_and_met_per_ride():
         _activity(icu_id="a", seconds=3600, joules=700_000, intensity=70),
         _activity("Ride", icu_id="b", seconds=3600),
     ], weight_kg=74.0)
-    assert day.ride_kcal == pytest.approx(700 + 592)
+    assert day.endurance_kcal == pytest.approx(700 + 592)
 
 
 @pytest.mark.parametrize("intensity_pct,expected", [
@@ -57,19 +68,19 @@ def test_summary_adds_rides_weights_intensity_by_time_and_detects_strength():
         _activity("WeightTraining", icu_id="c", seconds=3000),
         _activity("Walk", icu_id="d", seconds=1200, calories=100),
     ])
-    assert day.ride_minutes == 90
-    assert day.ride_kcal == pytest.approx(1100)
-    assert day.ride_intensity == CyclingIntensity.ZUEGIG_TEMPO  # (70*60 + 100*30) / 90 = 80 %
+    assert day.endurance_minutes == 90
+    assert day.endurance_kcal == pytest.approx(1100)
+    assert day.endurance_intensity == CyclingIntensity.ZUEGIG_TEMPO  # (70*60 + 100*30) / 90 = 80 %
     assert day.strength_done is True
     assert day.has_training
 
 
 def test_without_weight_unpowered_rides_leave_kcal_to_the_caller():
     day = summarize_day([_activity(icu_id="a", joules=500_000), _activity(icu_id="b")])
-    assert day.ride_kcal is None
+    assert day.endurance_kcal is None
 
 
 def test_non_training_activities_do_not_count():
     day = summarize_day([_activity("Walk", calories=150)])
     assert not day.has_training
-    assert day.ride_intensity is None
+    assert day.endurance_intensity is None

@@ -62,7 +62,7 @@ function trainingCard(day, isToday) {
   if (!day.started) {
     return [head, el("p", { class: "hint" }, "Vor dem Programmstart ist nichts geplant.")];
   }
-  const done = day.imported.some((a) => a.is_ride || a.is_strength);
+  const done = day.imported.some((a) => a.is_ride || a.is_run || a.is_strength);
   const badges = el("p", { class: "card-sub" },
     el("span", { class: "badge" }, `${PHASE_NAMES[day.phase.phase_id] || day.phase.phase_id} · Woche ${day.phase.week_in_phase}`),
     " ",

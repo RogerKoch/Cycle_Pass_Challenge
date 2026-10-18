@@ -48,7 +48,7 @@ def resolve_baseline(profile: UserProfile, checkin: Checkin | None) -> dict[str,
     estimate_updated_at: dict[str, str] = {}
     if checkin is not None:
         estimates.update(
-            rmr_kcal=calculate_bmr(checkin.weight_kg, profile.height_cm, profile.age),
+            rmr_kcal=calculate_bmr(checkin.weight_kg, profile.height_cm, profile.age, profile.sex),
             ffm_kg=checkin.ffm_kg,
             bodyfat_pct=checkin.bodyfat_pct,
         )

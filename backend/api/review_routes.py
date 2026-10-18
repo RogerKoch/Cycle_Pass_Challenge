@@ -205,6 +205,7 @@ def _review_state(profile: UserProfile, today: date) -> tuple[list[Finding], dic
         "target_weight_kg": target_weight,
         "trend_kg_per_week": trend.kg_per_week if trend else None,
         "trend_pct_per_week": trend.pct_per_week if trend else None,
+        "sport": profile.sport,
         "ftp_watts": latest_ftp.ftp_watts if latest_ftp else None,
         "watts_per_kg": latest_ftp.ftp_watts / latest.weight_kg if latest_ftp and latest else None,
         "deficit_kcal": deficit_on(today),
