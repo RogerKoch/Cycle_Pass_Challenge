@@ -650,6 +650,11 @@ async function openScan() {
   }
   $("scan-video").hidden = false;
   try {
+    // Android/Chrome (Samsung): nativer Detector ist deutlich robuster als ZXing-JS.
+    if ("BarcodeDetector" in window) {
+      state.scanControls = await startNativeScan();
+      return;
+    }
     await loadZxing();
     // Nur Produkt-Barcodes, gruendlich suchen. DecodeHintType exportiert das UMD-Bundle nicht:
     // 2 = POSSIBLE_FORMATS, 3 = TRY_HARDER.
@@ -671,6 +676,43 @@ async function openScan() {
     $("scan-msg").textContent = `Kamera nicht verfügbar (${error.message}) – Ziffern eingeben.`;
     $("scan-video").hidden = true;
   }
+}
+
+async function startNativeScan() {
+  const detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
+  const video = $("scan-video");
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+  });
+  // Samsung liefert ohne Zusatz oft festen Fokus; Dauerfokus nachziehen, falls unterstuetzt.
+  const track = stream.getVideoTracks()[0];
+  const caps = track.getCapabilities ? track.getCapabilities() : {};
+  if (caps.focusMode && caps.focusMode.includes("continuous")) {
+    await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+  }
+  video.srcObject = stream;
+  await video.play();
+  let active = true;
+  const tick = async () => {
+    if (!active) return;
+    try {
+      const codes = await detector.detect(video);
+      if (codes.length) {
+        stopScan();
+        lookupBarcode(codes[0].rawValue);
+        return;
+      }
+    } catch (error) { /* Frame noch nicht bereit */ }
+    setTimeout(tick, 150);
+  };
+  tick();
+  return {
+    stop() {
+      active = false;
+      stream.getTracks().forEach((t) => t.stop());
+      video.srcObject = null;
+    },
+  };
 }
 
 function stopScan() {
