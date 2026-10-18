@@ -20,6 +20,8 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "evening_training_days", "VARCHAR(20) NOT NULL DEFAULT '1,2,3,4'"),
     ("user_profile", "target_weight_kg", "FLOAT"),
     ("user_profile", "rest_weekday", "INTEGER NOT NULL DEFAULT 4"),  # bestehende Wochen haben Freitag als Ruhetag
+    ("user_profile", "sex", "VARCHAR(1) NOT NULL DEFAULT 'm'"),
+    ("user_profile", "sport", "VARCHAR(10) NOT NULL DEFAULT 'cycling'"),
     ("strength_benchmarks", "row_variant", "VARCHAR(12)"),
     ("checkins", "weight_only", "BOOLEAN NOT NULL DEFAULT 0"),
     ("ftp_tests", "source", "VARCHAR(12) NOT NULL DEFAULT 'manual'"),
@@ -110,6 +112,9 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         return send_from_directory(SHARED_DIR, filename)
 
     db.init_app(app)
+    from backend.shared_foods import copy_legacy_tables, register_shared_foods
+
+    register_shared_foods(app)
 
     from backend.api.admin_routes import admin_bp
     from backend.api.baseline_routes import baseline_bp
@@ -158,5 +163,6 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         with app.app_context():
             db.create_all()
             add_missing_columns()
+            copy_legacy_tables()
 
     return app

@@ -89,10 +89,10 @@
   <dialog id="modified-dialog" class="sheet">
     <div class="sheet-head">
       <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
-      <h2>Angepasst gefahren</h2>
+      <h2 id="modified-title">Angepasst gefahren</h2>
     </div>
     <form id="modified-form" class="grid">
-      <label>Minuten Rad<input name="actual_minutes" type="number" min="0" max="600" step="1" inputmode="numeric" required></label>
+      <label><span id="modified-minutes-label">Minuten Rad</span><input name="actual_minutes" type="number" min="0" max="600" step="1" inputmode="numeric" required></label>
       <label>Intensität
         <select name="actual_intensity">
           <option value="leicht_rekom">leicht/Rekom</option>

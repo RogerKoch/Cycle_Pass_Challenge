@@ -17,6 +17,8 @@ from backend.engine.nutrition_calc import CyclingIntensity, calculate_cycling_kc
 logger = logging.getLogger(__name__)
 
 STRENGTH_TYPES: frozenset[str] = frozenset({"WeightTraining"})
+RUN_TYPES: frozenset[str] = frozenset({"Run", "TrailRun", "VirtualRun"})
+RUN_MET = 9.8  # Laufen ~9,7 km/h (Compendium of Physical Activities); kcal = MET x kg x h
 KCAL_PER_KJ = 1.0
 UNPOWERED_INTENSITY = CyclingIntensity.MODERAT_BASE
 
@@ -44,6 +46,11 @@ class ActivityRecord:
         return self.type.endswith("Ride")
 
     @property
+    def is_run(self) -> bool:
+        """Lauf (Run, TrailRun, VirtualRun)."""
+        return self.type in RUN_TYPES
+
+    @property
     def is_strength(self) -> bool:
         """Krafteinheit."""
         return self.type in STRENGTH_TYPES
@@ -60,16 +67,16 @@ class ActivityRecord:
 class ImportedDay:
     """Zusammenfassung der importierten Aktivitaeten eines Tages."""
 
-    ride_minutes: float = 0.0
-    ride_kcal: float | None = None  # None nur, wenn ohne Gewicht Fahrten ohne Leistung dabei sind
-    ride_intensity: CyclingIntensity | None = None
+    endurance_minutes: float = 0.0
+    endurance_kcal: float | None = None  # None nur, wenn ohne Gewicht Fahrten ohne Leistung oder Laeufe dabei sind
+    endurance_intensity: CyclingIntensity | None = None
     strength_done: bool = False
     activities: list[ActivityRecord] = field(default_factory=list)
 
     @property
     def has_training(self) -> bool:
-        """True, wenn eine Fahrt oder Krafteinheit importiert ist."""
-        return self.ride_minutes > 0 or self.strength_done
+        """True, wenn eine Fahrt, ein Lauf oder eine Krafteinheit importiert ist."""
+        return self.endurance_minutes > 0 or self.strength_done
 
 
 def intensity_from_if(intensity_pct: float | None) -> CyclingIntensity:
@@ -87,8 +94,12 @@ def intensity_from_if(intensity_pct: float | None) -> CyclingIntensity:
     return CyclingIntensity.SEHR_HART
 
 
-def ride_kcal(activity: ActivityRecord, weight_kg: float | None) -> float | None:
-    """Verbrauch einer Fahrt: kJ, sonst MET-Schaetzung (braucht das Gewicht)."""
+def activity_kcal(activity: ActivityRecord, weight_kg: float | None) -> float | None:
+    """Verbrauch einer Fahrt (kJ, sonst MET-Schaetzung) oder eines Laufs (MET); braucht ohne kJ das Gewicht."""
+    if activity.is_run:
+        if weight_kg is None or not activity.moving_seconds:
+            return None
+        return RUN_MET * weight_kg * activity.moving_seconds / 3600
     if activity.kcal is not None:
         return activity.kcal
     if weight_kg is None or not activity.moving_seconds:
@@ -101,13 +112,13 @@ def summarize_day(activities: list[ActivityRecord], weight_kg: float | None = No
 
     Args:
         activities: importierte Aktivitaeten desselben Tages.
-        weight_kg: aktuelles Gewicht fuer die MET-Schaetzung von Fahrten ohne Leistungsmesser.
+        weight_kg: aktuelles Gewicht fuer die MET-Schaetzung von Fahrten ohne Leistungsmesser und von Laeufen.
 
     Returns:
-        ImportedDay mit Rad-Minuten, Rad-kcal (pro Fahrt kJ oder MET; None nur ohne Gewicht bei
-        Fahrten ohne Leistung), zeitgewichteter Intensitaet und Kraft ja/nein.
+        ImportedDay mit Ausdauer-Minuten (Rad und Lauf), Ausdauer-kcal (pro Fahrt kJ oder MET, pro Lauf MET;
+        None nur ohne Gewicht bei Fahrten ohne Leistung oder Laeufen), zeitgewichteter Intensitaet und Kraft ja/nein.
     """
-    rides = [a for a in activities if a.is_ride and (a.moving_seconds or 0) > 0]
+    rides = [a for a in activities if (a.is_ride or a.is_run) and (a.moving_seconds or 0) > 0]
     minutes = sum(a.moving_seconds for a in rides) / 60
     intensity = None
     if rides:
@@ -117,11 +128,11 @@ def summarize_day(activities: list[ActivityRecord], weight_kg: float | None = No
             intensity = intensity_from_if(weighted)
         else:
             intensity = UNPOWERED_INTENSITY
-    per_ride = [ride_kcal(a, weight_kg) for a in rides]
+    per_ride = [activity_kcal(a, weight_kg) for a in rides]
     return ImportedDay(
-        ride_minutes=minutes,
-        ride_kcal=sum(per_ride) if rides and None not in per_ride else None,
-        ride_intensity=intensity,
+        endurance_minutes=minutes,
+        endurance_kcal=sum(per_ride) if rides and None not in per_ride else None,
+        endurance_intensity=intensity,
         strength_done=any(a.is_strength for a in activities),
         activities=list(activities),
     )

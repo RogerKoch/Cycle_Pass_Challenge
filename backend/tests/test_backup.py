@@ -67,3 +67,18 @@ def test_failed_backup_leaves_no_partial_file(tmp_path, monkeypatch):
     with pytest.raises(sqlite3.OperationalError):
         backup_database(source, tmp_path / "backups")
     assert list((tmp_path / "backups").iterdir()) == []
+
+
+def test_backup_command_also_backs_up_shared_foods_db(tmp_path):
+    db_file, shared_file = tmp_path / "app.db", tmp_path / "shared.db"
+    _make_db(db_file)
+    _make_db(shared_file)
+
+    class FileConfig(TestConfig):
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{db_file}"
+        SHARED_DB_PATH = str(shared_file)
+
+    result = create_app(FileConfig).test_cli_runner().invoke(backup_db_command, ["--target", str(tmp_path / "out")])
+    assert result.exit_code == 0, result.output
+    assert len(list((tmp_path / "out").glob("alpenpaesse-*.db"))) == 1
+    assert len(list((tmp_path / "out").glob("shared-foods-*.db"))) == 1

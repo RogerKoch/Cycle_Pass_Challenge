@@ -26,6 +26,25 @@ def test_calculates_bmr_matching_reference_person():
     assert round(bmr) == 1581
 
 
+def test_female_bmr_is_166_kcal_below_male():
+    male = calculate_bmr(REFERENCE_WEIGHT_KG, REFERENCE_HEIGHT_CM, REFERENCE_AGE, "m")
+    female = calculate_bmr(REFERENCE_WEIGHT_KG, REFERENCE_HEIGHT_CM, REFERENCE_AGE, "f")
+    assert male - female == 166
+
+
+def test_bmr_rejects_unknown_sex():
+    with pytest.raises(ValueError):
+        calculate_bmr(REFERENCE_WEIGHT_KG, REFERENCE_HEIGHT_CM, REFERENCE_AGE, "x")
+
+
+def test_daily_target_uses_sex_for_estimated_bmr():
+    args = dict(weight_kg=65.0, height_cm=168.0, age=45, phase_id="base", cycling_hours=0.0,
+                cycling_intensity=CyclingIntensity.LEICHT_REKOM, strength_sessions=0)
+    male = calculate_daily_kcal_target(**args)
+    female = calculate_daily_kcal_target(**args, sex="f")
+    assert male.bmr_kcal - female.bmr_kcal == 166
+
+
 def test_non_exercise_kcal_applies_1_45_factor_to_bmr():
     assert calculate_non_exercise_kcal(1000.0) == pytest.approx(1450.0)
 

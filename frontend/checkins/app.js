@@ -142,12 +142,13 @@ async function loadReview() {
   setMsg("review-msg", "");
   const s = data.summary;
   state.targetWeight = s.target_weight_kg ?? null;
+  document.querySelector('[data-tab="ftp"]').hidden = s.sport === "running";
   renderChart();
   const num = (v, d = 0, unit = "") => (v === null || v === undefined ? "–" : `${fmt(v, d)}${unit}`);
   $("review-summary").replaceChildren(makeTable(["Kennzahl", "Wert"], [
     ["Gewicht / Ziel", `${num(s.weight_kg, 1, " kg")} / ${num(s.target_weight_kg, 1, " kg")}`],
     ["Trend (2 Wochen)", s.trend_kg_per_week === null ? "–" : `${num(s.trend_kg_per_week, 2, " kg")}/Woche (${num(s.trend_pct_per_week, 2, " %")})`],
-    ["FTP / W/kg", `${num(s.ftp_watts, 0, " W")} / ${num(s.watts_per_kg, 2)}`],
+    ...(s.sport === "running" ? [] : [["FTP / W/kg", `${num(s.ftp_watts, 0, " W")} / ${num(s.watts_per_kg, 2)}`]]),
     ["Defizit heute", num(s.deficit_kcal, 0, " kcal")],
     ["Ø Energy Availability 7 Tage", num(s.energy_availability_avg, 1, " kcal/kg FFM")],
   ]));

@@ -1,10 +1,15 @@
-"""Lebensmittel, Tagebuch-Eintraege und Mahlzeit-Vorlagen."""
+"""Lebensmittel, Tagebuch-Eintraege und Mahlzeit-Vorlagen.
+
+Lebensmittel und Mahlzeit-Vorlagen liegen im angehaengten Schema `shared` (eigene SQLite-Datei, siehe
+backend.shared_foods) und gelten fuer alle Instanzen; das Tagebuch bleibt je Instanz in der Haupt-DB.
+"""
 
 from datetime import date, datetime, timezone
 
 from backend.extensions import db
 
 MEALS: tuple[str, ...] = ("fruehstueck", "mittag", "abend", "snack", "training")
+SHARED_SCHEMA = "shared"
 FOOD_SOURCES: tuple[str, ...] = ("blv", "custom", "off")
 ENTRY_STATUSES: tuple[str, ...] = ("eaten", "planned")  # planned zaehlt nie als Ist
 
@@ -13,7 +18,7 @@ class Food(db.Model):
     """Lebensmittel mit Naehrwerten pro 100 g. Quelle: BLV-Datenbank, Open Food Facts oder eigene Eingabe."""
 
     __tablename__ = "foods"
-    __table_args__ = (db.UniqueConstraint("source", "source_id"),)
+    __table_args__ = (db.UniqueConstraint("source", "source_id"), {"schema": SHARED_SCHEMA})
 
     id: int = db.Column(db.Integer, primary_key=True)
     name: str = db.Column(db.String(200), nullable=False)
@@ -39,7 +44,7 @@ class FoodLogEntry(db.Model):
     id: int = db.Column(db.Integer, primary_key=True)
     entry_date: date = db.Column(db.Date, nullable=False, index=True)
     meal: str = db.Column(db.String(20), nullable=False)
-    food_id: int | None = db.Column(db.Integer, db.ForeignKey("foods.id"))
+    food_id: int | None = db.Column(db.Integer, db.ForeignKey(f"{SHARED_SCHEMA}.foods.id"))
     grams: float | None = db.Column(db.Float)
     label: str = db.Column(db.String(200), nullable=False)
     kcal: float = db.Column(db.Float, nullable=False)
@@ -56,6 +61,7 @@ class MealTemplate(db.Model):
     """Wiederverwendbare Mahlzeit (z.B. "Fruehstueck Standard")."""
 
     __tablename__ = "meal_templates"
+    __table_args__ = {"schema": SHARED_SCHEMA}
 
     id: int = db.Column(db.Integer, primary_key=True)
     name: str = db.Column(db.String(100), nullable=False)
@@ -68,10 +74,11 @@ class MealTemplateItem(db.Model):
     """Ein Lebensmittel mit Menge innerhalb einer Vorlage."""
 
     __tablename__ = "meal_template_items"
+    __table_args__ = {"schema": SHARED_SCHEMA}
 
     id: int = db.Column(db.Integer, primary_key=True)
-    template_id: int = db.Column(db.Integer, db.ForeignKey("meal_templates.id"), nullable=False)
-    food_id: int = db.Column(db.Integer, db.ForeignKey("foods.id"), nullable=False)
+    template_id: int = db.Column(db.Integer, db.ForeignKey(f"{SHARED_SCHEMA}.meal_templates.id"), nullable=False)
+    food_id: int = db.Column(db.Integer, db.ForeignKey(f"{SHARED_SCHEMA}.foods.id"), nullable=False)
     grams: float = db.Column(db.Float, nullable=False)
 
     food = db.relationship(Food)

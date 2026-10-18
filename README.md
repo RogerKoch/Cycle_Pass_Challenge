@@ -50,6 +50,77 @@ INTERVALS_ICU_API_KEY = "..."  # optional: intervals.icu → Settings → Develo
 Lokal ohne `instance/config.py` gibt es keinen Login. Um den Login lokal über HTTP zu testen, zusätzlich
 `SESSION_COOKIE_SECURE = False` setzen.
 
+### Zweite Instanz (weitere Person, z. B. Läuferin)
+
+Gleicher Code und gleiche Checkout, aber eigene Daten, eigenes Passwort, eigener Port. Foods und Mahlzeit-Vorlagen
+sind zwischen den Instanzen geteilt (`shared_foods.db` im Repo-Root, Schema `shared`); Tagebuch, Check-ins,
+Training und Profil bleiben getrennt.
+
+**1. Deployment der neuen Version (einmalig, vor dem Reset)**
+
+```bash
+flask --app main.py backup-db                   # sichert alpenpaesse.db und shared_foods.db
+git pull                                        # feature/partner-instance gemergt
+# Dienst der ersten Instanz neu starten
+```
+
+Beim ersten Start entsteht `shared_foods.db`, die vorhandenen Foods und Vorlagen werden mit gleichen IDs hineinkopiert
+(`flask --app main.py copy-shared-foods` macht dasselbe von Hand, idempotent). Die alten Tabellen in `alpenpaesse.db`
+bleiben als Sicherung stehen. Der Reset unter Profil (`/api/admin/reset`) lässt Foods und Vorlagen stehen.
+
+**2. Instance-Ordner der zweiten Instanz anlegen**
+
+```bash
+mkdir -p instance2 backups2
+python -c "import secrets; print(secrets.token_hex(32))"      # -> SECRET_KEY
+CPC_INSTANCE_DIR=instance2 flask --app main.py hash-password  # -> PASSWORD_HASH
+```
+
+`instance2/config.py` (nicht versioniert):
+
+```python
+SECRET_KEY = "..."
+PASSWORD_HASH = "..."
+SESSION_COOKIE_NAME = "cpc2_session"      # sonst überschreiben sich die Cookies beider Instanzen
+INTERVALS_ICU_API_KEY = "..."             # ihr eigener Key, siehe unten
+```
+
+**3. Zweiten Dienst starten** (Umgebungsvariablen je Instanz)
+
+| Variable | Instanz 1 (Default) | Instanz 2 |
+|---|---|---|
+| `CPC_PORT` | 8101 | 8102 |
+| `CPC_INSTANCE_DIR` | `instance/` | `instance2` |
+| `CPC_DB_PATH` | `alpenpaesse.db` | `instance2/alpenpaesse.db` |
+| `CPC_BACKUP_DIR` | `backups/` | `backups2` |
+| `CPC_SHARED_DB_PATH` | `shared_foods.db` | gleiche Datei (Default, wenn derselbe Checkout) |
+
+```bash
+CPC_PORT=8102 CPC_INSTANCE_DIR=instance2 CPC_DB_PATH=instance2/alpenpaesse.db CPC_BACKUP_DIR=backups2 python serve.py
+```
+
+Dazu ein zweiter Service-Eintrag und ein zweiter Caddy-Pfad (z. B. `/cpc2/` → `127.0.0.1:8102`, mit
+`X-Forwarded-Prefix /cpc2`) im Repo `server-infra`. Das Backup-Cron für die zweite Instanz braucht dieselben
+Umgebungsvariablen.
+
+**4. intervals.icu mit ihrem Garmin verbinden**
+
+1. In *ihrem* intervals.icu-Konto: Settings → Connections → Garmin verbinden (Aktivitäten und Wellness).
+2. Settings → Developer Settings → API Key erzeugen, in `instance2/config.py` als `INTERVALS_ICU_API_KEY` eintragen.
+   Der Athlet ist immer der Key-Inhaber (`0`), es braucht keine ID.
+3. Instanz 2 neu starten, dann unter Profil → intervals.icu „Jetzt synchronisieren“. Läufe (`Run`, `TrailRun`,
+   `VirtualRun`) zählen als Ausdauer-Training (kcal per MET 9,8 × kg × h), Krafteinheiten als `WeightTraining`.
+
+**5. Erster Start (ihr Konto)**
+
+1. `/cpc2/` öffnen, mit ihrem Passwort anmelden.
+2. Profil: Alter, Grösse, Programmstart, **Geschlecht = Frau**, **Ausdauersport = Laufen**, Alltag/Beruf,
+   Zielgewicht (ohne Zielgewicht gilt der Männer-Default 16 % Körperfett), Kraft-Fokus, Ruhetag, fehlendes Material.
+3. Check-in: Gewicht (Körperfett/Muskelmasse optional, sonst Schätzung).
+4. Kraft-Benchmark unter Check-ins; danach wöchentlich Gewicht und Fragebogen, Review alle 2–4 Wochen.
+5. Training: kommt aus intervals.icu oder über Training → Tag → „Lauf erfassen“. Es gibt keinen Laufplan.
+6. Ernährung: Defizit nur in den Phasen `base` und `build1` (ab Woche 3 nach Programmstart, 16 Wochen).
+
 ## Profil (`/profil/`) und Check-ins (`/checkins/`)
 
 | Abschnitt | Zweck |
@@ -114,7 +185,7 @@ Werte: `cycling_intensity` = `leicht_rekom` · `moderat_base` · `zuegig_tempo` 
 
 | Thema | Regel |
 |---|---|
-| BMR | Mifflin-St Jeor (Mann) |
+| BMR | Mifflin-St Jeor (Mann +5, Frau −161 kcal je nach Profil-Geschlecht) |
 | Erhaltung | BMR × 1.45 + Rad-kcal (MET-Tabelle, auf aktuelles Gewicht skaliert) + 300 kcal je Krafteinheit |
 | Defizit | 350 kcal nur in Phase `base` und `build1`, sonst 0 |
 | Phasen | ab Programmstart: phase0 2 Wo → base 8 → build1 8 → build2 5 → peak_taper 5 → passsaison (Längen sind Annahmen, siehe `backend/engine/training_phase.py`) |

@@ -73,6 +73,25 @@ def test_updates_and_validates_strength_focus(client):
     assert client.put("/api/profile", json={"strength_focus": "arme"}).status_code == 400
 
 
+def test_profile_defaults_to_male_cyclist_and_validates_both(client):
+    response = client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"})
+    assert (response.get_json()["sex"], response.get_json()["sport"]) == ("m", "cycling")
+    assert client.put("/api/profile", json={"sex": "x"}).status_code == 400
+    assert client.put("/api/profile", json={"sport": "swimming"}).status_code == 400
+    updated = client.put("/api/profile", json={"sex": "f", "sport": "running"}).get_json()
+    assert (updated["sex"], updated["sport"]) == ("f", "running")
+
+
+def test_switching_to_running_removes_cycling_slots_from_future_plan_days(client):
+    from datetime import date, timedelta
+
+    client.post("/api/profile", json={"age": 45, "height_cm": 168, "program_start_date": "2026-10-01"})
+    url = f"/api/calendar/week/{date.today() + timedelta(days=14)}"
+    assert any(day["cycling"] for day in client.get(url).get_json()["days"])
+    client.put("/api/profile", json={"sport": "running"})
+    assert all(day["cycling"] is None for day in client.get(url).get_json()["days"])
+
+
 def test_new_profile_defaults_to_tuesday_rest_day(client):
     response = client.post("/api/profile", json={"age": 49, "height_cm": 173, "program_start_date": "2026-10-01"})
     assert response.get_json()["rest_weekday"] == 1

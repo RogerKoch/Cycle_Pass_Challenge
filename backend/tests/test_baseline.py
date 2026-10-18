@@ -54,3 +54,9 @@ def test_estimate_bodyfat_uses_deurenberg_formula_for_men():
 
     assert abs(estimate_bodyfat_pct(74, 173, 49) - (1.2 * 74 / 1.73**2 + 0.23 * 49 - 16.2)) < 1e-9
     assert estimate_bodyfat_pct(40, 190, 20) >= 0.5  # nie negativ
+
+
+def test_estimate_bodyfat_for_women_is_10_8_points_above_men():
+    from backend.engine.baseline import estimate_bodyfat_pct
+
+    assert estimate_bodyfat_pct(65, 168, 45, "f") - estimate_bodyfat_pct(65, 168, 45, "m") == pytest.approx(10.8)

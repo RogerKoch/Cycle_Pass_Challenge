@@ -18,6 +18,8 @@
         <label>Alter <input name="age" type="number" min="1" required></label>
         <label>Grösse (cm) <input name="height_cm" type="number" step="0.1" required></label>
         <label>Programmstart <input name="program_start_date" type="date" required></label>
+        <label>Geschlecht <select name="sex"><option value="m">Mann</option></select></label>
+        <label>Ausdauersport <select name="sport"><option value="cycling">Rad</option></select></label>
         <label><span class="lbl">Alltag/Beruf <a class="info" href="../hilfe/#alltag" aria-label="Erklärung">ⓘ</a></span>
           <select name="activity_level"><option value="buero">Büro</option></select></label>
         <label><span class="lbl">Kraft-Fokus <a class="info" href="../hilfe/#kraft-fokus" aria-label="Erklärung">ⓘ</a></span>
@@ -52,7 +54,7 @@
     <section id="startwerte">
       <h2>Testwerte</h2>
       <p class="hint">Letzte Testwerte. Erfassen und Verlauf unter <a href="../checkins/">Check-ins</a>.</p>
-      <h3>FTP <a class="info" href="../hilfe/#ftp" aria-label="Erklärung">ⓘ</a></h3>
+      <h3 id="ftp-heading">FTP <a class="info" href="../hilfe/#ftp" aria-label="Erklärung">ⓘ</a></h3>
       <div id="ftp-box"></div>
       <h3>Kraft-Benchmark <a class="info" href="../hilfe/#kraft-benchmark" aria-label="Erklärung">ⓘ</a></h3>
       <div id="benchmark-box"></div>

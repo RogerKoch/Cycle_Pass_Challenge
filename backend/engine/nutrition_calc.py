@@ -48,6 +48,10 @@ _CARBS_G_PER_KG_BY_DAYTYPE: dict[DayType, float] = {
     DayType.LANGER_HARTER_TAG: 7.0,  # Mittelwert aus data-model.yaml [6, 8]
 }
 
+SEX_MALE = "m"
+SEX_FEMALE = "f"
+SEX_BMR_CONSTANT: dict[str, int] = {SEX_MALE: 5, SEX_FEMALE: -161}  # Mifflin-St Jeor
+
 ACTIVE_DEFICIT_PHASES = {"base", "build1"}
 DEFAULT_DEFICIT_KCAL = 350.0  # Mittelwert aus data-model.yaml [300, 400]
 STRENGTH_KCAL_PER_SESSION = 300.0
@@ -89,18 +93,24 @@ class MacroTargets:
     carbs_g: float
 
 
-def calculate_bmr(weight_kg: float, height_cm: float, age: int) -> float:
-    """Grundumsatz nach Mifflin-St Jeor (Formel fuer Maenner).
+def calculate_bmr(weight_kg: float, height_cm: float, age: int, sex: str = SEX_MALE) -> float:
+    """Grundumsatz nach Mifflin-St Jeor.
 
     Args:
         weight_kg: Koerpergewicht in kg.
         height_cm: Koerpergroesse in cm.
         age: Alter in Jahren.
+        sex: SEX_MALE (+5) oder SEX_FEMALE (-161).
 
     Returns:
         BMR in kcal/Tag.
+
+    Raises:
+        ValueError: bei unbekanntem Geschlecht.
     """
-    return 10 * weight_kg + 6.25 * height_cm - 5 * age + 5
+    if sex not in SEX_BMR_CONSTANT:
+        raise ValueError(f"unbekanntes Geschlecht: {sex}")
+    return 10 * weight_kg + 6.25 * height_cm - 5 * age + SEX_BMR_CONSTANT[sex]
 
 
 def calculate_non_exercise_kcal(bmr_kcal: float, factor: float = NON_EXERCISE_FACTOR) -> float:
@@ -179,6 +189,7 @@ def calculate_daily_kcal_target(
     deficit_kcal: float | None = None,
     cycling_kcal: float | None = None,
     non_exercise_factor: float = NON_EXERCISE_FACTOR,
+    sex: str = SEX_MALE,
 ) -> NutritionTarget:
     """Berechnet das vollstaendige taegliche kcal-Ziel aus den Tagesparametern.
 
@@ -194,11 +205,12 @@ def calculate_daily_kcal_target(
         deficit_kcal: Defizit nach Review-Anpassungen (engine.plan_adjustments); None = Phasen-Default.
         cycling_kcal: gemessener Rad-Verbrauch (kJ bzw. Garmin, engine.imported_training); None = MET-Schaetzung.
         non_exercise_factor: Alltagsfaktor auf den BMR (siehe ACTIVITY_LEVELS).
+        sex: Geschlecht fuer den geschaetzten BMR (SEX_MALE / SEX_FEMALE).
 
     Returns:
         NutritionTarget mit voller Komponenten-Aufschluesselung.
     """
-    bmr = rmr_kcal if rmr_kcal is not None else calculate_bmr(weight_kg, height_cm, age)
+    bmr = rmr_kcal if rmr_kcal is not None else calculate_bmr(weight_kg, height_cm, age, sex)
     non_exercise = calculate_non_exercise_kcal(bmr, non_exercise_factor)
     if cycling_kcal is not None:
         cycling = cycling_kcal

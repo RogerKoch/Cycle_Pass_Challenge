@@ -106,7 +106,7 @@ def ensure_week(profile: UserProfile, day: date) -> list[TrainingDay]:
     for offset in range(7):
         current = monday + timedelta(days=offset)
         if current not in rows:
-            slot, strength = default_day_plan(profile.program_start_date, current, profile.rest_weekday)
+            slot, strength = default_day_plan(profile.program_start_date, current, profile.rest_weekday, profile.sport)
             rows[current] = TrainingDay(day_date=current, cycling_slot=slot, strength_session=strength)
             db.session.add(rows[current])
             created = True
@@ -133,7 +133,7 @@ def peek_week(profile: UserProfile, day: date) -> list[TrainingDay]:
     for offset in range(7):
         current = monday + timedelta(days=offset)
         if current not in rows:
-            slot, strength = default_day_plan(profile.program_start_date, current, profile.rest_weekday)
+            slot, strength = default_day_plan(profile.program_start_date, current, profile.rest_weekday, profile.sport)
             rows[current] = TrainingDay(day_date=current, cycling_slot=slot, strength_session=strength, status=STATUS_PLANNED)
         week.append(rows[current])
     return week
@@ -217,14 +217,14 @@ def training_params(
         return base
     if row.day_date < date.today():
         return TrainingParams(
-            imported.ride_minutes,
-            imported.ride_intensity,
+            imported.endurance_minutes,
+            imported.endurance_intensity,
             int(imported.strength_done),
-            cycling_kcal=imported.ride_kcal,
+            cycling_kcal=imported.endurance_kcal,
             source="intervals",
         )
-    if imported.ride_minutes > 0:
-        minutes, intensity, kcal = imported.ride_minutes, imported.ride_intensity, imported.ride_kcal
+    if imported.endurance_minutes > 0:
+        minutes, intensity, kcal = imported.endurance_minutes, imported.endurance_intensity, imported.endurance_kcal
     else:
         minutes, intensity, kcal = base.cycling_minutes, base.cycling_intensity, None
     strength = max(base.strength_sessions, int(imported.strength_done))
@@ -273,6 +273,7 @@ def _serialize_imported(activity: ActivityRecord) -> dict:
         "name": activity.name,
         "type": activity.type,
         "is_ride": activity.is_ride,
+        "is_run": activity.is_run,
         "is_strength": activity.is_strength,
         "minutes": activity.moving_seconds / 60 if activity.moving_seconds else None,
         "kilojoules": activity.joules / 1000 if activity.joules else None,
@@ -327,6 +328,7 @@ def serialize_day(
             stages,
             exercise_swaps(),
             frozenset(item for item in profile.equipment_missing.split(",") if item),
+            profile.sport,
         )
         if row.strength_session and not strength_blocked(event_ctx)
         else None
@@ -339,6 +341,7 @@ def serialize_day(
         "status": row.status,
         "note": row.note,
         "started": started,
+        "sport": profile.sport,
         "phase": {"phase_id": phase.phase_id, "week_in_phase": week, "deload": deload},
         "adjustments": sorted(kinds),
         "event": _serialize_event(event_ctx),
@@ -663,7 +666,7 @@ def reset_week(day: str):
     for row in rows:
         if row.day_date < today or row.status not in SWAPPABLE_STATUSES:
             continue
-        row.cycling_slot, row.strength_session = default_day_plan(profile.program_start_date, row.day_date, profile.rest_weekday)
+        row.cycling_slot, row.strength_session = default_day_plan(profile.program_start_date, row.day_date, profile.rest_weekday, profile.sport)
         row.planned_minutes = row.note = None
         row.status = STATUS_PLANNED
     db.session.commit()
