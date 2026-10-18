@@ -4,11 +4,11 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 # Zweite Instanz (z.B. fuer eine weitere Person): eigenes Instance-Dir, eigene DB, eigenes Backup-Verzeichnis
-INSTANCE_DIR = Path(os.environ.get("CPC_INSTANCE_DIR", REPO_ROOT / "instance"))
-DB_PATH = Path(os.environ.get("CPC_DB_PATH", REPO_ROOT / "alpenpaesse.db"))
+INSTANCE_DIR = Path(os.environ.get("CPC_INSTANCE_DIR", REPO_ROOT / "instance")).resolve()
+DB_PATH = Path(os.environ.get("CPC_DB_PATH", REPO_ROOT / "alpenpaesse.db")).resolve()  # sonst relativ zu instance/
 # Geteilte Lebensmittel und Mahlzeit-Vorlagen: eine SQLite-Datei, die alle Instanzen als Schema `shared` anhaengen
-SHARED_DB_PATH = os.environ.get("CPC_SHARED_DB_PATH", str(REPO_ROOT / "shared_foods.db"))
-BACKUP_DIR = Path(os.environ.get("CPC_BACKUP_DIR", REPO_ROOT / "backups"))
+SHARED_DB_PATH = str(Path(os.environ.get("CPC_SHARED_DB_PATH", REPO_ROOT / "shared_foods.db")).resolve())
+BACKUP_DIR = Path(os.environ.get("CPC_BACKUP_DIR", REPO_ROOT / "backups")).resolve()
 
 
 class Config:
