@@ -652,8 +652,10 @@ async function openScan() {
   try {
     // Android/Chrome (Samsung): nativer Detector ist deutlich robuster als ZXing-JS.
     if ("BarcodeDetector" in window) {
-      state.scanControls = await startNativeScan();
-      return;
+      try {
+        state.scanControls = await startNativeScan();
+        return;
+      } catch (error) { /* schwarzes Bild o.ae.: weiter mit ZXing */ }
     }
     await loadZxing();
     // Nur Produkt-Barcodes, gruendlich suchen. DecodeHintType exportiert das UMD-Bundle nicht:
@@ -684,14 +686,26 @@ async function startNativeScan() {
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
   });
-  // Samsung liefert ohne Zusatz oft festen Fokus; Dauerfokus nachziehen, falls unterstuetzt.
-  const track = stream.getVideoTracks()[0];
-  const caps = track.getCapabilities ? track.getCapabilities() : {};
-  if (caps.focusMode && caps.focusMode.includes("continuous")) {
-    await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
-  }
+  const stopStream = () => stream.getTracks().forEach((t) => t.stop());
   video.srcObject = stream;
-  await video.play();
+  try {
+    await video.play();
+    // Samsung liefert ohne Zusatz oft festen Fokus; Dauerfokus erst nach dem Start nachziehen (davor
+    // blieb das Bild auf manchen Geraeten schwarz), falls unterstuetzt.
+    const track = stream.getVideoTracks()[0];
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.focusMode && caps.focusMode.includes("continuous")) {
+      await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+    }
+    // Kamerabild muss laufen, sonst auf ZXing ausweichen
+    const before = video.currentTime;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (video.videoWidth === 0 || video.currentTime === before) throw new Error("Kein Kamerabild");
+  } catch (error) {
+    stopStream();
+    video.srcObject = null;
+    throw error;
+  }
   let active = true;
   const tick = async () => {
     if (!active) return;
@@ -709,7 +723,7 @@ async function startNativeScan() {
   return {
     stop() {
       active = false;
-      stream.getTracks().forEach((t) => t.stop());
+      stopStream();
       video.srcObject = null;
     },
   };
