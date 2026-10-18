@@ -224,3 +224,15 @@ separaten Repo `server-infra`.
 - Frontend: HTML (+ ggf. leichtes JS, kein schweres Framework nötig für v1)
 - Betrieb: waitress hinter Caddy (siehe „Betrieb auf dem Server“)
 - Datenimport: intervals.icu-API (bündelt Garmin Connect)
+
+## Zweite Instanz (weitere Person)
+
+Gleicher Code, getrennte Daten. Umgebungsvariablen je Instanz: `CPC_INSTANCE_DIR` (eigene `config.py` mit
+`SECRET_KEY`, `PASSWORD_HASH`, `SESSION_COOKIE_NAME`, intervals.icu-Key), `CPC_DB_PATH`, `CPC_BACKUP_DIR`, `CPC_PORT`.
+
+| Thema | Umsetzung |
+|---|---|
+| Geteilte Daten | `foods`, `meal_templates`, `meal_template_items` liegen in `shared_foods.db` (`CPC_SHARED_DB_PATH`, Default im Repo-Root), von jeder Instanz als Schema `shared` angehaengt (`backend/shared_foods.py`). Das Tagebuch bleibt je Instanz |
+| Migration | Beim Start kopiert `copy_legacy_tables()` Alt-Daten der Haupt-DB einmalig mit gleichen IDs nach `shared`, sofern dort leer; die alten Tabellen bleiben als Sicherung (manuell loeschbar). CLI: `flask copy-shared-foods` |
+| Profil | `sex` (BMR, Koerperfett-Schaetzung) und `sport` (`cycling` / `running`). `running`: keine Rad-Slots, kein FTP, Kraft-Plan ohne Peak/Taper; Laeufe kommen aus intervals.icu oder manuell (Training-Seite, "Lauf erfassen"), kcal per MET 9,8 |
+| Reset | `/api/admin/reset` laesst Lebensmittel **und** Mahlzeit-Vorlagen stehen (geteilt) |

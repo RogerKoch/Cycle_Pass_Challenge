@@ -10,31 +10,34 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+from flask import current_app
 from flask.cli import with_appcontext
 
-from backend.config import REPO_ROOT
+from backend.config import BACKUP_DIR
 from backend.extensions import db
 
 logger = logging.getLogger(__name__)
 
 BACKUP_PREFIX = "alpenpaesse-"
-DEFAULT_BACKUP_DIR = REPO_ROOT / "backups"
+SHARED_BACKUP_PREFIX = "shared-foods-"
+DEFAULT_BACKUP_DIR = BACKUP_DIR
 DEFAULT_KEEP = 30
 
 
-def backup_database(db_path: Path, target_dir: Path, keep: int = DEFAULT_KEEP) -> Path:
+def backup_database(db_path: Path, target_dir: Path, keep: int = DEFAULT_KEEP, prefix: str = BACKUP_PREFIX) -> Path:
     """Schreibt eine konsistente Kopie der Datenbank und behaelt nur die neuesten Backups.
 
     Args:
         db_path: Pfad der SQLite-Datei.
         target_dir: Zielordner (wird angelegt).
         keep: Anzahl Backups, die behalten werden (aelteste werden geloescht).
+        prefix: Dateiname-Praefix; die Rotation betrifft nur Backups mit diesem Praefix.
 
     Returns:
         Pfad der neuen Backup-Datei.
     """
     target_dir.mkdir(parents=True, exist_ok=True)
-    target = target_dir / f"{BACKUP_PREFIX}{datetime.now():%Y-%m-%d_%H%M%S_%f}.db"
+    target = target_dir / f"{prefix}{datetime.now():%Y-%m-%d_%H%M%S_%f}.db"
     partial = target.with_suffix(".db.part")  # passt nicht auf das Rotations-Muster *.db
     # read-only per URI: connect() legt sonst bei falschem Pfad still eine leere DB an
     source = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
@@ -52,7 +55,7 @@ def backup_database(db_path: Path, target_dir: Path, keep: int = DEFAULT_KEEP) -
     partial.replace(target)
 
     # Zeitstempel im Namen -> alphabetisch = chronologisch
-    for old in sorted(target_dir.glob(f"{BACKUP_PREFIX}*.db"))[:-keep]:
+    for old in sorted(target_dir.glob(f"{prefix}*.db"))[:-keep]:
         old.unlink()
         logger.info("Altes Backup geloescht: %s", old.name)
     return target
@@ -68,3 +71,6 @@ def backup_db_command(target: Path, keep: int) -> None:
     """Sichert die App-Datenbank in den Zielordner."""
     path = backup_database(Path(db.engine.url.database), target, keep)
     click.echo(f"Backup: {path}")
+    shared = Path(current_app.config["SHARED_DB_PATH"])
+    if shared.is_file():  # geteilte Lebensmittel/Vorlagen; fehlt bis zum ersten Start
+        click.echo(f"Backup: {backup_database(shared, target, keep, SHARED_BACKUP_PREFIX)}")

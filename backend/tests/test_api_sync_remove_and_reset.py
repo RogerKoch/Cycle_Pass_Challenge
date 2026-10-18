@@ -58,7 +58,7 @@ def test_reset_requires_exact_confirmation_and_deletes_nothing_otherwise(profile
     assert profile.get("/api/profile").status_code == 200
 
 
-def test_reset_deletes_user_data_but_keeps_foods(app, profile):
+def test_reset_deletes_user_data_but_keeps_shared_foods_and_meal_templates(app, profile):
     profile.get(f"/api/calendar/week/{THIS_MONDAY.isoformat()}")  # legt training_days an
     db.session.add_all([
         DayComment(day_date=TODAY, text="x"),
@@ -73,7 +73,7 @@ def test_reset_deletes_user_data_but_keeps_foods(app, profile):
 
     assert response.status_code == 200 and response.get_json()["backup"] is None  # In-Memory-DB
     assert UserProfile.query.count() == TrainingDay.query.count() == DayComment.query.count() == 0
-    assert MealTemplate.query.count() == 0
+    assert MealTemplate.query.count() == 1
     assert Food.query.count() == 1
     assert profile.get("/api/profile").status_code == 404
 

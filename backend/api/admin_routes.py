@@ -12,7 +12,7 @@ from backend.models.checkins import Checkin
 from backend.models.day_comments import DayComment
 from backend.models.events import Event
 from backend.models.exercise_swaps import ExerciseSwap
-from backend.models.food import FoodLogEntry, MealTemplate, MealTemplateItem
+from backend.models.food import FoodLogEntry
 from backend.models.ftp_tests import FtpTest
 from backend.models.intake import IntakeDay
 from backend.models.intervals import IcuActivity, IcuWellness, IntegrationState
@@ -28,9 +28,10 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
 RESET_CONFIRMATION = "ZURÜCKSETZEN"
 
-# Reihenfolge beachtet die Fremdschluessel; `foods` (BLV, OFF-Cache, eigene) bleibt bewusst erhalten
+# Reihenfolge beachtet die Fremdschluessel; `foods` und Mahlzeit-Vorlagen sind zwischen Instanzen geteilt
+# (Schema `shared`) und bleiben bewusst erhalten
 _RESET_ORDER = (
-    MealTemplateItem, MealTemplate, FoodLogEntry, IntakeDay, IcuWellness, IcuActivity, IntegrationState,
+    FoodLogEntry, IntakeDay, IcuWellness, IcuActivity, IntegrationState,
     Checkin, BaselineMeasurement, WellbeingSignal, FtpTest, StrengthBenchmark, ExerciseSwap, Event,
     DayComment, PlanAdjustment, ReviewDecision, TrainingDay, UserProfile,
 )
