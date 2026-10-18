@@ -649,13 +649,14 @@ async function openScan() {
     return;
   }
   $("scan-video").hidden = false;
+  let nativeFailure = null;
   try {
     // Android/Chrome (Samsung): nativer Detector ist deutlich robuster als ZXing-JS.
     if ("BarcodeDetector" in window) {
       try {
         state.scanControls = await startNativeScan();
         return;
-      } catch (error) { /* schwarzes Bild o.ae.: weiter mit ZXing */ }
+      } catch (error) { nativeFailure = error.message; /* schwarzes Bild o.ae.: weiter mit ZXing */ }
     }
     await loadZxing();
     // Nur Produkt-Barcodes, gruendlich suchen. DecodeHintType exportiert das UMD-Bundle nicht:
@@ -665,6 +666,7 @@ async function openScan() {
     const reader = new ZXingBrowser.BrowserMultiFormatReader(hints);
     // Hohe Aufloesung: iPhones stellen erst ab ~20 cm scharf, bei 640x480 (Safari-Default)
     // sind die Striche aus dieser Distanz zu wenige Pixel breit.
+    $("scan-msg").textContent = nativeFailure ? `Scanner: ZXing (nativ: ${nativeFailure})` : "Scanner: ZXing";
     state.scanControls = await reader.decodeFromConstraints(
       { video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } },
       $("scan-video"),
@@ -707,16 +709,24 @@ async function startNativeScan() {
     throw error;
   }
   let active = true;
+  let reported = false;
   const tick = async () => {
     if (!active) return;
     try {
       const codes = await detector.detect(video);
+      if (!reported) {
+        reported = true;
+        $("scan-msg").textContent = "Scanner: nativ";
+      }
       if (codes.length) {
         stopScan();
         lookupBarcode(codes[0].rawValue);
         return;
       }
-    } catch (error) { /* Frame noch nicht bereit */ }
+    } catch (error) {
+      // Frame noch nicht bereit; bleibt der Fehler bestehen, sieht man ihn im Dialog
+      if (!reported) $("scan-msg").textContent = `Scanner: nativ, Fehler: ${error.message}`;
+    }
     setTimeout(tick, 150);
   };
   tick();
