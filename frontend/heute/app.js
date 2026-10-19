@@ -14,10 +14,10 @@ const STATUS_NAMES = { planned: "geplant", done: "erledigt", modified: "angepass
 const STATUS_MARKS = { planned: "", done: "✓", modified: "✎", skipped: "✗" };
 const MEALS = [
   ["fruehstueck", "Frühstück"],
+  ["snack", "Snack 1"],
   ["mittag", "Mittag"],
+  ["training", "Snack 2"],
   ["abend", "Abend"],
-  ["snack", "Snack"],
-  ["training", "Training"],
 ];
 const NO_TOTALS = { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
 

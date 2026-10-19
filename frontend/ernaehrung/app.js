@@ -4,10 +4,10 @@ const $ = (id) => document.getElementById(id);
 
 const MEALS = [
   ["fruehstueck", "Frühstück"],
+  ["snack", "Snack 1"],
   ["mittag", "Mittag"],
+  ["training", "Snack 2"],
   ["abend", "Abend"],
-  ["snack", "Snacks"],
-  ["training", "Training"],
 ];
 const MEAL_NAMES = Object.fromEntries(MEALS);
 const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.1/umd/zxing-browser.min.js";
@@ -334,14 +334,28 @@ function entryAmount(entry) {
   return `${round(entry.grams)} g`;
 }
 
+// Richtwerte je Log-Mahlzeit aus dem Tagesplan; Snack 1 -> "snack", Snack 2 -> "training" (Log-Schluessel)
+const PLAN_SLOT_TO_MEAL = { snack_1: "snack", snack_2: "training" };
+
+function mealTargets() {
+  const targets = {};
+  for (const slot of state.plan ? state.plan.meals : []) {
+    targets[PLAN_SLOT_TO_MEAL[slot.slot] || slot.slot] = { kcal: slot.kcal, protein_g: slot.protein_g };
+  }
+  return targets;
+}
+
 function renderMeals() {
   const future = state.date > today();
   const past = state.date < today();
+  const targets = mealTargets();
   const sections = MEALS.map(([meal, name]) => {
     const entries = state.day.meals[meal];
     const eaten = entries.filter((e) => e.status === "eaten");
     const planned = entries.filter((e) => e.status === "planned");
     const kcal = eaten.reduce((sum, e) => sum + e.kcal, 0);
+    const protein = eaten.reduce((sum, e) => sum + (e.protein_g || 0), 0);
+    const goal = targets[meal];
     const plannedKcal = planned.reduce((sum, e) => sum + e.kcal, 0);
     const items = entries.map((entry) =>
       el("li", { class: entry.status === "planned" ? "planned-entry" : "", onclick: () => openEntry(entry) },
@@ -357,8 +371,10 @@ function renderMeals() {
       el("div", { class: "meal-head" },
         el("h2", {}, name),
         el("span", { class: "meal-kcal" },
-          [eaten.length ? `${round(kcal)} kcal` : "", planned.length ? `+ ${round(plannedKcal)} geplant` : ""].filter(Boolean).join(" ")),
+          [eaten.length || goal ? `${round(kcal)}${goal ? ` / ${round(goal.kcal)}` : ""} kcal` : "",
+            planned.length ? `+ ${round(plannedKcal)} geplant` : ""].filter(Boolean).join(" ")),
       ),
+      goal ? el("p", { class: "hint" }, `Protein ${round(protein)} / ${round(goal.protein_g)} g`) : null,
       items.length ? el("ul", { class: "list" }, ...items) : null,
       el("div", { class: "meal-actions" }, ...buttons));
   });
