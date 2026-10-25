@@ -60,3 +60,23 @@ def test_profile_equipment_defaults_validates_and_lists_options(client):
         "equipment_missing"
     ] == ["bands", "table"]
     assert client.put("/api/profile", json={"equipment_missing": ["hantel"]}).status_code == 400
+
+
+def test_set_checks_persist_per_day_and_can_be_undone(client):
+    put = lambda index, done=True: client.put(  # noqa: E731
+        "/api/exercises/sets", json={"date": THURSDAY, "exercise": "Bird Dog", "set_index": index, "done": done}
+    )
+    assert put(1).get_json() == {"Bird Dog": [1]}
+    assert put(0).get_json() == {"Bird Dog": [0, 1]}
+    assert put(1).get_json() == {"Bird Dog": [0, 1]}  # idempotent
+    assert client.get(f"/api/exercises/sets/{THURSDAY}").get_json() == {"Bird Dog": [0, 1]}
+    assert client.get(f"/api/exercises/sets/{PROGRAM_START.isoformat()}").get_json() == {}
+    assert put(0, done=False).get_json() == {"Bird Dog": [1]}
+
+
+def test_set_checks_reject_invalid_input(client):
+    body = {"date": THURSDAY, "exercise": "Bird Dog", "set_index": 0}
+    assert client.put("/api/exercises/sets", json={**body, "date": "gestern"}).status_code == 400
+    assert client.put("/api/exercises/sets", json={**body, "set_index": -1}).status_code == 400
+    assert client.put("/api/exercises/sets", json={**body, "exercise": ""}).status_code == 400
+    assert client.get("/api/exercises/sets/nope").status_code == 400
