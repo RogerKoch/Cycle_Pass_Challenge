@@ -331,10 +331,17 @@ function cyclingCard(cycling) {
       " · wird automatisch über intervals.icu an Zwift geschickt ", infoLink("zwift")));
 }
 
+// "3" + "8–10 je Seite" -> "3 Sätze × 8–10 Wdh. je Seite"; Zeitangaben ("8 min") und Sonderformen bleiben unveraendert
+function doseText(sets, reps) {
+  const repText = reps.replace(/^(\d+(?:–\d+)?)(?=\s+(?:je|pro)\s|,|$)/, "$1 Wdh.");
+  if (sets === "1" && /^\d+(?:–\d+)?\s*(s|min)\b/.test(reps)) return repText;
+  return `${sets} ${sets === "1" ? "Satz" : "Sätze"} × ${repText}`;
+}
+
 function strengthCard(strength) {
   const phase = strength.phase;
   const items = strength.exercises.map((e) => el("li", {},
-    el("span", { class: "dose" }, `${e.sets} × ${e.reps}`),
+    el("span", { class: "dose" }, doseText(e.sets, e.reps)),
     e.name,
     e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
     e.original ? el("span", { class: "sub" }, `Getauscht gegen: ${e.original}`) : null,
@@ -503,7 +510,7 @@ function mobilityCard(mobility) {
     el("details", {},
       el("summary", {}, "🧘 Mobility (5–10 min, zum Abschluss)"),
       el("ul", { class: "exercises" }, ...mobility.map((e) => el("li", {},
-        el("span", { class: "dose" }, `${e.sets} × ${e.reps}`), e.name,
+        el("span", { class: "dose" }, doseText(e.sets, e.reps)), e.name,
         e.note ? el("span", { class: "sub" }, e.note) : null,
         timerButton(e.reps),
         illustration(e.name))))));
