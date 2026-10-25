@@ -243,7 +243,14 @@ def test_push_deletes_own_workout_on_day_without_session_but_keeps_foreign_event
         {"id": 3, "external_id": "cpc-2026-10-20", "start_date_local": "2026-10-20T00:00:00"},
     ])
     result = push_workouts(fake, {TODAY: build_cycling_session("lang", "base", 1), tomorrow: None})
-    assert fake.deleted == [1]
+    assert fake.deleted == [1, 3]
+    assert (result.upserted, result.deleted) == (1, 2)
+
+
+def test_push_recreates_existing_own_workout_instead_of_updating_it(app):
+    fake = FakeClient(events=[{"id": 7, "external_id": "cpc-2026-10-20", "start_date_local": "2026-10-20T00:00:00"}])
+    result = push_workouts(fake, {TODAY: build_cycling_session("lang", "base", 1)})
+    assert fake.deleted == [7]
     assert (result.upserted, result.deleted) == (1, 1)
 
 
