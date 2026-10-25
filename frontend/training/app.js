@@ -101,6 +101,8 @@ async function load() {
   }
   $("page-msg").textContent = "";
   state.illustrations = await ILLUSTRATIONS;
+  const sets = await api("GET", `/api/exercises/sets/${state.date}`);
+  state.sets = sets.ok ? sets.data : {};
   state.day = day.data;
   state.week = week.data;
   state.month = month && month.ok ? month.data : null;
@@ -345,7 +347,8 @@ function strengthCard(strength) {
     e.name,
     e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
     e.original ? el("span", { class: "sub" }, `Getauscht gegen: ${e.original}`) : null,
-    timerButton(e),
+    timerButton(e, (index) => markSetDone(e, index)),
+    setChecks(e),
     swapControl(e),
     illustration(e.name, strength.session_id)));
   return el("section", { class: "card" },
@@ -355,6 +358,47 @@ function strengthCard(strength) {
       infoLink("kraftphasen")),
     strength.note ? el("p", { class: "warning" }, strength.note) : null,
     el("ul", { class: "exercises" }, ...items));
+}
+
+// ---------------------------------------------------------------- Saetze abhaken
+
+function setCount(exercise) {
+  return exercise.hold && Array.isArray(exercise.hold.reps) ? exercise.hold.reps.length : upperBound(exercise.sets);
+}
+
+async function saveSet(exercise, index, done) {
+  const { ok, data } = await api("PUT", "/api/exercises/sets",
+    { date: state.date, exercise: exercise.name, set_index: index, done });
+  if (ok) state.sets = data;
+  else $("page-msg").textContent = data.error || "Speichern fehlgeschlagen";
+  return ok;
+}
+
+// Checkbox je Satz; Haken werden pro Tag gespeichert
+function setChecks(exercise) {
+  const count = setCount(exercise);
+  const done = (state.sets || {})[exercise.name] || [];
+  const boxes = Array.from({ length: count }, (_, index) => {
+    const input = el("input", { type: "checkbox", "data-set": String(index) });
+    input.checked = done.includes(index);
+    input.addEventListener("change", async () => {
+      if (!(await saveSet(exercise, index, input.checked))) input.checked = !input.checked;
+    });
+    return el("label", { class: "set-check" }, input, ` Satz ${index + 1}`);
+  });
+  return el("div", { class: "set-checks", "data-exercise": exercise.name }, ...boxes);
+}
+
+// Timer meldet einen fertigen Satz (index) bzw. null = naechster offener Satz bei reinem Countdown
+async function markSetDone(exercise, index) {
+  const done = (state.sets || {})[exercise.name] || [];
+  const target = index ?? Array.from({ length: setCount(exercise) }, (_, i) => i).find((i) => !done.includes(i));
+  if (target === undefined || !(await saveSet(exercise, target, true))) return;
+  for (const box of document.querySelectorAll(".set-checks")) {
+    if (box.dataset.exercise !== exercise.name) continue;
+    const input = box.querySelector(`input[data-set="${target}"]`);
+    if (input) input.checked = true;
+  }
 }
 
 // ---------------------------------------------------------------- Timer
@@ -475,11 +519,12 @@ function holdPhases(exercise) {
       if (sideIndex > 0) phases.push({ kind: "switch", seconds: 5, text: "Seite wechseln" });
       for (let rep = 1; rep <= repCount; rep++) {
         const prefix = `${side ? `${side} · ` : ""}Satz ${set + 1}/${setCount} · Wdh ${rep}/${repCount}`;
-        phases.push({ kind: "move", seconds: moveSeconds, text: `${prefix} · Bewegen`, set });
-        phases.push({ kind: "hold", seconds: holdSeconds, text: `${prefix} · Halten`, set });
+        phases.push({ kind: "move", seconds: moveSeconds, text: `${prefix} · Bewegen` });
+        const lastOfSet = rep === repCount && sideIndex === sides.length - 1;
+        phases.push({ kind: "hold", seconds: holdSeconds, text: `${prefix} · Halten`, setDone: lastOfSet ? set : undefined });
       }
     });
-    if (set < setCount - 1) phases.push({ kind: "rest", seconds: 15, text: "Pause", set });
+    if (set < setCount - 1) phases.push({ kind: "rest", seconds: 15, text: "Pause" });
   }
   return phases;
 }
@@ -487,11 +532,11 @@ function holdPhases(exercise) {
 // Reiner Countdown fuer Zeitangaben ("20–40 s", "8 min") als einzige Phase
 function countdownPhases(reps) {
   const seconds = parseDuration(reps);
-  return seconds ? [{ kind: "countdown", seconds, text: "" }] : null;
+  return seconds ? [{ kind: "countdown", seconds, text: "", setDone: null }] : null;
 }
 
 // Timer-Button: Halte-Zyklen (exercise.hold) oder Countdown aus der Zeitangabe; Klick startet, nochmaliger Klick setzt zurueck
-function timerButton(exercise) {
+function timerButton(exercise, onSetDone) {
   const phases = exercise.hold ? holdPhases(exercise) : countdownPhases(exercise.reps);
   if (!phases) return null;
   const total = phases.reduce((sum, phase) => sum + phase.seconds, 0);
@@ -520,12 +565,17 @@ function timerButton(exercise) {
     button.classList.add("running");
     handle = setInterval(() => {
       const now = Date.now();
-      if (now >= ends[ends.length - 1]) {
+      const finished = now >= ends[ends.length - 1];
+      const current = finished ? phases.length : ends.findIndex((end) => now < end);
+      // abgeschlossene Phasen (auch mehrere bei gedrosseltem Timer): fertige Saetze melden
+      for (let done = Math.max(index, 0); done < current; done++) {
+        if (phases[done].setDone !== undefined && onSetDone) onSetDone(phases[done].setDone);
+      }
+      if (finished) {
         reset();
         finishBeep();
         return;
       }
-      const current = ends.findIndex((end) => now < end);
       if (current !== index) {
         index = current;
         if (phases[index].kind !== "countdown" && index > 0) phaseBeep(phases[index].kind);
@@ -568,7 +618,8 @@ function mobilityCard(mobility) {
       el("ul", { class: "exercises" }, ...mobility.map((e) => el("li", {},
         el("span", { class: "dose" }, doseText(e.sets, e.reps)), e.name,
         e.note ? el("span", { class: "sub" }, e.note) : null,
-        timerButton(e),
+        timerButton(e, (index) => markSetDone(e, index)),
+        setChecks(e),
         illustration(e.name))))));
 }
 
