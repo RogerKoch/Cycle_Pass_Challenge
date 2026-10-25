@@ -4,7 +4,7 @@ import pytest
 
 THIS_MONDAY = date.today() - timedelta(days=date.today().weekday())
 PROGRAM_START = THIS_MONDAY - timedelta(weeks=2)  # Base, Kraftphase 1
-THURSDAY = (THIS_MONDAY + timedelta(weeks=1, days=3)).isoformat()  # Einheit B
+B_DAY = (THIS_MONDAY + timedelta(weeks=1, days=4)).isoformat()  # Einheit B (Freitag = Z2-oder-Rekom bei Ruhetag Dienstag)
 ROWS = "Inverted Rows (Tischkanten-Rudern)"
 
 
@@ -16,7 +16,7 @@ def profile(client):
 
 
 def _names(client) -> list[str]:
-    return [e["name"] for e in client.get(f"/api/calendar/day/{THURSDAY}").get_json()["strength"]["exercises"]]
+    return [e["name"] for e in client.get(f"/api/calendar/day/{B_DAY}").get_json()["strength"]["exercises"]]
 
 
 def test_swap_persists_until_cleared(profile):
@@ -24,7 +24,7 @@ def test_swap_persists_until_cleared(profile):
     assert profile.put("/api/exercises/swap", json={"original": ROWS, "alternative": "Band-Rudern"}).status_code == 200
     assert "Band-Rudern" in _names(profile) and ROWS not in _names(profile)
     exercise = next(
-        e for e in profile.get(f"/api/calendar/day/{THURSDAY}").get_json()["strength"]["exercises"]
+        e for e in profile.get(f"/api/calendar/day/{B_DAY}").get_json()["strength"]["exercises"]
         if e["name"] == "Band-Rudern"
     )
     assert exercise["original"] == ROWS and "Handtuch-Rudern an Türklinke" in exercise["alternatives"]
@@ -64,18 +64,18 @@ def test_profile_equipment_defaults_validates_and_lists_options(client):
 
 def test_set_checks_persist_per_day_and_can_be_undone(client):
     put = lambda index, done=True: client.put(  # noqa: E731
-        "/api/exercises/sets", json={"date": THURSDAY, "exercise": "Bird Dog", "set_index": index, "done": done}
+        "/api/exercises/sets", json={"date": B_DAY, "exercise": "Bird Dog", "set_index": index, "done": done}
     )
     assert put(1).get_json() == {"Bird Dog": [1]}
     assert put(0).get_json() == {"Bird Dog": [0, 1]}
     assert put(1).get_json() == {"Bird Dog": [0, 1]}  # idempotent
-    assert client.get(f"/api/exercises/sets/{THURSDAY}").get_json() == {"Bird Dog": [0, 1]}
+    assert client.get(f"/api/exercises/sets/{B_DAY}").get_json() == {"Bird Dog": [0, 1]}
     assert client.get(f"/api/exercises/sets/{PROGRAM_START.isoformat()}").get_json() == {}
     assert put(0, done=False).get_json() == {"Bird Dog": [1]}
 
 
 def test_set_checks_reject_invalid_input(client):
-    body = {"date": THURSDAY, "exercise": "Bird Dog", "set_index": 0}
+    body = {"date": B_DAY, "exercise": "Bird Dog", "set_index": 0}
     assert client.put("/api/exercises/sets", json={**body, "date": "gestern"}).status_code == 400
     assert client.put("/api/exercises/sets", json={**body, "set_index": -1}).status_code == 400
     assert client.put("/api/exercises/sets", json={**body, "exercise": ""}).status_code == 400

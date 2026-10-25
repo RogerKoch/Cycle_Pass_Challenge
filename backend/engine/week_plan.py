@@ -51,6 +51,9 @@ STATUS_SKIPPED = "skipped"
 LEG_FOCUS_PAUSED_PHASES: frozenset[str] = frozenset({"peak_taper", "passsaison"})
 STATUSES: tuple[str, ...] = (STATUS_PLANNED, STATUS_DONE, STATUS_MODIFIED, STATUS_SKIPPED)
 
+# Krafteinheit -> Rad-Slot, an dessen Tag sie liegt: die kurzen 30-min-Tage, damit Rad + Kraft nicht ausufern
+STRENGTH_SLOTS: dict[str, str] = {"A": SLOT_REKOM, "B": SLOT_Z2_OR_REKOM}
+
 # Wochentag (0 = Montag) -> (Rad-Slot, Krafteinheit)
 STANDARD_WEEK: dict[int, tuple[str | None, str | None]] = {
     0: (SLOT_REKOM, "A"),
@@ -68,8 +71,9 @@ def standard_week(rest_weekday: int = STANDARD_REST_WEEKDAY) -> dict[int, tuple[
     """Standardwoche mit frei gewaehltem Ruhetag.
 
     Die Rad-Slots behalten ihre Reihenfolge; der Ruhetag wird auf `rest_weekday` gelegt, die Slots dazwischen
-    ruecken auf. Krafteinheiten bleiben an ihrem Wochentag; faellt er auf den Ruhetag, geht die Einheit auf
-    den Folgetag. So treffen nie zwei Schluesseleinheiten aufeinander (KEY_1/KEY_2 liegen 3 Slots auseinander).
+    ruecken auf. Krafteinheiten folgen den kurzen Rad-Tagen (A auf Rekom, B auf Z2-oder-Rekom, siehe
+    STRENGTH_SLOTS), nicht dem Wochentag. So treffen nie zwei Schluesseleinheiten aufeinander
+    (KEY_1/KEY_2 liegen 3 Slots auseinander).
 
     Args:
         rest_weekday: 0 = Montag ... 6 = Sonntag.
@@ -86,11 +90,9 @@ def standard_week(rest_weekday: int = STANDARD_REST_WEEKDAY) -> dict[int, tuple[
     week: dict[int, tuple[str | None, str | None]] = {
         weekday: (None if weekday == rest_weekday else next(cycling), None) for weekday in range(7)
     }
-    for weekday, (_, strength) in STANDARD_WEEK.items():
-        if strength is None:
-            continue
-        target = (weekday + 1) % 7 if weekday == rest_weekday else weekday
-        week[target] = (week[target][0], strength)
+    for session_id, slot in STRENGTH_SLOTS.items():
+        weekday = next(day for day, (day_slot, _) in week.items() if day_slot == slot)
+        week[weekday] = (slot, session_id)
     return week
 
 

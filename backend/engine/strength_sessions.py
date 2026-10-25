@@ -225,17 +225,21 @@ def focus_note(focus: str) -> str:
     return f"Fokus {label}: +1 Satz auf {label}-Übungen, Zusatzübung, ca. +{FOCUS_EXTRA_MINUTES} min."
 
 
-def mobility_routine(focus: str = FOCUS_NONE, core_daily: bool = False) -> list[Exercise]:
+def mobility_routine(focus: str = FOCUS_NONE, core_daily: bool = False, double_day: bool = False) -> list[Exercise]:
     """Taegliche Mobility-Routine.
 
     Args:
         focus: Kraft-Fokus; "mobility" = +1 Satz je Drill, Pigeon fest statt bei Bedarf;
             "core" = McGill Big 3 taeglich (Kraft-Recherche: Core profitiert von hoher Frequenz).
         core_daily: McGill Big 3 aus dem Check-in-Review (Ruecken nach langen Fahrten).
+        double_day: Rad und Kraft am selben Tag; das Aufwaermen der Krafteinheit enthaelt schon Mobility, daher
+            entfaellt die Routine (nur McGill Big 3 bleiben, falls Core taeglich vorgesehen ist).
 
     Returns:
         Liste der Uebungen.
     """
+    if double_day:
+        return list(MCGILL_BIG_3) if core_daily or focus == GROUP_CORE else []
     routine = list(MOBILITY_ROUTINE)
     if focus == GROUP_MOBILITY:
         routine = [

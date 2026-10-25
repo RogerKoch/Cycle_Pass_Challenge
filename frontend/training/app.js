@@ -250,7 +250,10 @@ function renderDay() {
   }
   if (day.cycling) cards.push(cyclingCard(day.cycling));
   if (day.strength) cards.push(strengthCard(day.strength));
-  cards.push(mobilityCard(day.mobility));
+  if (day.mobility.length) cards.push(mobilityCard(day.mobility));
+  else if (day.cycling && day.strength) {
+    cards.push(el("p", { class: "hint" }, "Mobility entfällt heute: Rad + Kraft, das Aufwärmen der Krafteinheit deckt sie ab."));
+  }
   cards.push(actionsCard(day));
   const comment = el("section", { class: "card day-comment" });
   mountDayComment(comment, { base: "../", date: state.date });

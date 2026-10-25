@@ -60,6 +60,12 @@ def test_mcgill_curl_up_holds_8_seconds_after_3_second_curl_in_pyramid():
     assert MCGILL_BIG_3[0].hold == curl_up.hold
 
 
+def test_double_day_drops_mobility_routine_but_keeps_daily_core():
+    assert mobility_routine(double_day=True) == []
+    assert mobility_routine(core_daily=True, double_day=True) == MCGILL_BIG_3
+    assert mobility_routine(focus="core", double_day=True) == MCGILL_BIG_3
+
+
 def test_bird_dog_hold_runs_per_side():
     session = build_strength_session("B", STRENGTH_PHASES[1])
     bird_dog = next(e for e in session.exercises if e.name == "Bird Dog")

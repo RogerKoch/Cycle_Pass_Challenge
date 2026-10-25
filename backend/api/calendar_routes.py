@@ -358,7 +358,7 @@ def serialize_day(
         ],
     }
     if full:
-        mobility = mobility_routine(profile.strength_focus, KIND_CORE_DAILY in kinds)
+        mobility = mobility_routine(profile.strength_focus, KIND_CORE_DAILY in kinds, double_day=bool(strength and session))
         result["mobility"] = [asdict(e) for e in mobility]
         result["slot_options"] = _slot_options(phase.phase_id, week) if started else []
         result["reschedule_options"] = (

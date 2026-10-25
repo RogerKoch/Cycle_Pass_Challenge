@@ -239,3 +239,11 @@ def test_week_survives_parallel_creation_of_the_same_days(profile, app, monkeypa
     monkeypatch.setattr(db.session, "commit", racing_commit)
     assert profile.get(f"/api/calendar/week/{_day(0)}").status_code == 200
     assert TrainingDay.query.count() == 7
+
+
+def test_mobility_routine_drops_on_days_with_ride_and_strength(profile):
+    double_day = profile.get(f"/api/calendar/day/{_day(0)}").get_json()  # Rekom + Krafteinheit A
+    assert double_day["cycling"] and double_day["strength"]
+    assert double_day["mobility"] == []
+    ride_only = profile.get(f"/api/calendar/day/{_day(1)}").get_json()
+    assert ride_only["strength"] is None and len(ride_only["mobility"]) > 0
