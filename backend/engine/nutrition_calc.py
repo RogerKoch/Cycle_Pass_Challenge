@@ -296,6 +296,8 @@ class MealSlot:
     kcal: float
     protein_g: float
     hint: str
+    carbs_g: float = 0.0
+    fat_g: float = 0.0
 
 
 @dataclass
@@ -327,44 +329,54 @@ def derive_day_type(cycling_minutes: float, intensity: CyclingIntensity | None, 
     return DayType.RUHETAG
 
 
-def distribute_meals(target_kcal: float, protein_g: float, post_workout_is_dinner: bool = False) -> list[MealSlot]:
+def distribute_meals(
+    target_kcal: float,
+    protein_g: float,
+    post_workout_is_dinner: bool = False,
+    carbs_g: float = 0.0,
+    fat_g: float = 0.0,
+) -> list[MealSlot]:
     """Verteilt kcal und Protein auf 3 Hauptmahlzeiten + 2 Snacks (ernaehrungsplan.md §3).
 
     Snacks erhalten feste Mittelwerte, der Rest geht im Verhaeltnis 25:30:30 an die
     Hauptmahlzeiten. Protein folgt den Richtwerten (40–50 / 45–50 / 20–25 / ~50 g),
     skaliert auf das Tagesziel.
 
-    Args:
-        target_kcal: Tagesziel kcal.
-        protein_g: Tagesziel Protein.
+    Kohlenhydrate und Fett folgen dem kcal-Anteil der Mahlzeit.
 
     Args:
         target_kcal: Tagesziel kcal.
         protein_g: Tagesziel Protein.
-        post_workout_is_dinner: Training nach der Arbeit – Snack 2 (kcal + Protein) geht ins Abendessen.
+        post_workout_is_dinner: Training nach der Arbeit – Snack 2 (kcal, Protein, KH, Fett) geht ins Abendessen.
+        carbs_g: Tagesziel Kohlenhydrate.
+        fat_g: Tagesziel Fett.
 
     Returns:
-        Fuenf MealSlots (vier bei `post_workout_is_dinner`); Summe kcal = target_kcal, Summe Protein = protein_g.
+        Fuenf MealSlots (vier bei `post_workout_is_dinner`); Summen = Tagesziele (kcal, Protein, KH, Fett).
     """
     main_kcal = max(target_kcal - SNACK_1_KCAL - SNACK_2_KCAL, 0.0)
     main_share_total = sum(share for _, _, share, _, _ in _MEAL_SLOTS if share is not None)
     protein_weight_total = sum(weight for _, _, _, weight, _ in _MEAL_SLOTS)
     snack_kcal = {"snack_1": SNACK_1_KCAL, "snack_2": SNACK_2_KCAL}
-    meals = [
-        MealSlot(
+    meals = []
+    for slot, label, share, weight, hint in _MEAL_SLOTS:
+        kcal = main_kcal * share / main_share_total if share is not None else snack_kcal[slot]
+        kcal_fraction = kcal / target_kcal if target_kcal else 0.0
+        meals.append(MealSlot(
             slot=slot,
             label=label,
-            kcal=main_kcal * share / main_share_total if share is not None else snack_kcal[slot],
+            kcal=kcal,
             protein_g=protein_g * weight / protein_weight_total,
             hint=hint,
-        )
-        for slot, label, share, weight, hint in _MEAL_SLOTS
-    ]
+            carbs_g=carbs_g * kcal_fraction,
+            fat_g=fat_g * kcal_fraction,
+        ))
     if not post_workout_is_dinner:
         return meals
     by_slot = {m.slot: m for m in meals}
     snack_2, dinner = by_slot["snack_2"], by_slot["abend"]
     folded = replace(dinner, kcal=dinner.kcal + snack_2.kcal, protein_g=dinner.protein_g + snack_2.protein_g,
+                     carbs_g=dinner.carbs_g + snack_2.carbs_g, fat_g=dinner.fat_g + snack_2.fat_g,
                      hint=EVENING_DINNER_HINT)
     return [
         folded if m.slot == "abend" else replace(m, hint=EVENING_SNACK_1_HINT) if m.slot == "snack_1" else m

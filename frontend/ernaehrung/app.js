@@ -256,7 +256,7 @@ function renderPlan() {
   const m = plan.macros;
   const meals = plan.meals.map((meal) => el("tr", {},
     el("td", {}, meal.label, el("span", { class: "sub" }, meal.hint)),
-    el("td", { class: "num" }, `${round(meal.kcal)} kcal`, el("span", { class: "sub" }, `${round(meal.protein_g)} g P`))));
+    el("td", { class: "num" }, `${round(meal.kcal)} kcal`, el("span", { class: "sub" }, `${round(meal.protein_g)} g P · ${round(meal.carbs_g)} g KH · ${round(meal.fat_g)} g F`))));
   const fueling = plan.fueling && plan.fueling.carbs_g_per_hour_max > 0
     ? `Während der Fahrt: ${round(plan.fueling.carbs_g_per_hour_min)}–${round(plan.fueling.carbs_g_per_hour_max)} g KH/h `
       + `(gesamt ${round(plan.fueling.carbs_g_total_min)}–${round(plan.fueling.carbs_g_total_max)} g). ${plan.fueling.note}`
@@ -340,7 +340,9 @@ const PLAN_SLOT_TO_MEAL = { snack_1: "snack", snack_2: "training" };
 function mealTargets() {
   const targets = {};
   for (const slot of state.plan ? state.plan.meals : []) {
-    targets[PLAN_SLOT_TO_MEAL[slot.slot] || slot.slot] = { kcal: slot.kcal, protein_g: slot.protein_g };
+    targets[PLAN_SLOT_TO_MEAL[slot.slot] || slot.slot] = {
+      kcal: slot.kcal, protein_g: slot.protein_g, carbs_g: slot.carbs_g, fat_g: slot.fat_g,
+    };
   }
   return targets;
 }
@@ -354,7 +356,7 @@ function renderMeals() {
     const eaten = entries.filter((e) => e.status === "eaten");
     const planned = entries.filter((e) => e.status === "planned");
     const kcal = eaten.reduce((sum, e) => sum + e.kcal, 0);
-    const protein = eaten.reduce((sum, e) => sum + (e.protein_g || 0), 0);
+    const sumOf = (field) => eaten.reduce((sum, e) => sum + (e[field] || 0), 0);
     const goal = targets[meal];
     const plannedKcal = planned.reduce((sum, e) => sum + e.kcal, 0);
     const items = entries.map((entry) =>
@@ -374,7 +376,8 @@ function renderMeals() {
           [eaten.length || goal ? `${round(kcal)}${goal ? ` / ${round(goal.kcal)}` : ""} kcal` : "",
             planned.length ? `+ ${round(plannedKcal)} geplant` : ""].filter(Boolean).join(" ")),
       ),
-      goal ? el("p", { class: "hint" }, `Protein ${round(protein)} / ${round(goal.protein_g)} g`) : null,
+      goal ? el("p", { class: "hint" }, [["Protein", "protein_g"], ["KH", "carbs_g"], ["Fett", "fat_g"]]
+        .map(([label, field]) => `${label} ${round(sumOf(field))} / ${round(goal[field])} g`).join(" · ")) : null,
       items.length ? el("ul", { class: "list" }, ...items) : null,
       el("div", { class: "meal-actions" }, ...buttons));
   });

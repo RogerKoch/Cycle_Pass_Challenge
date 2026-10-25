@@ -160,6 +160,8 @@ def test_meals_add_up_to_daily_target(client):
     body = client.get("/api/plan/today").get_json()
     assert sum(m["kcal"] for m in body["meals"]) == pytest.approx(body["nutrition"]["target_kcal"])
     assert sum(m["protein_g"] for m in body["meals"]) == pytest.approx(body["macros"]["protein_g"])
+    assert sum(m["carbs_g"] for m in body["meals"]) == pytest.approx(body["macros"]["carbs_g"])
+    assert sum(m["fat_g"] for m in body["meals"]) == pytest.approx(body["macros"]["fat_g"])
 
 
 def test_today_plan_with_query_params_keeps_manual_mode(client):

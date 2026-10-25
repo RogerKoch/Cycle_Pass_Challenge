@@ -255,7 +255,10 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
         "nutrition": asdict(nutrition),
         "macros": asdict(macros),
         "day_type": day_type.value,
-        "meals": [asdict(m) for m in distribute_meals(nutrition.target_kcal, macros.protein_g, evening)],
+        "meals": [
+            asdict(m)
+            for m in distribute_meals(nutrition.target_kcal, macros.protein_g, evening, macros.carbs_g, macros.fat_g)
+        ],
         "fueling": asdict(fueling) if fueling else None,
         "timing_hints": [
             *(event_nut.hints if event_nut else []),

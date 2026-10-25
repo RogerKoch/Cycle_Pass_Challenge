@@ -380,9 +380,9 @@ Protein richtet sich nach der FFM, damit es beim Abnehmen nicht mitsinkt.
 | Snack 2 | 250 | direkt nach dem Training: KH + 20–25 g Protein |
 | Abendessen | 30 % vom Rest | Erholung |
 
-„Rest“ = Tagesziel minus beide Snacks. Protein wird ähnlich auf die Hauptmahlzeiten verteilt.
+„Rest“ = Tagesziel minus beide Snacks. Protein wird ähnlich auf die Hauptmahlzeiten verteilt, KH und Fett folgen dem kcal-Anteil der Mahlzeit.
 
-Im Ernährungs-Tagebuch zeigt jede Mahlzeit Ist / Soll (kcal und Protein) aus dieser Tabelle, in derselben Reihenfolge.
+Im Ernährungs-Tagebuch zeigt jede Mahlzeit Ist / Soll (kcal, Protein, KH und Fett) aus dieser Tabelle, in derselben Reihenfolge.
 
 **Training nach der Arbeit:** Im Profil lassen sich die Wochentage markieren (Standard Di–Fr), an denen du nach der Arbeit und vor dem Abendessen trainierst. An solchen Tagen mit Training entfällt Snack 2: Snack 1 ist das Pre-Workout am Nachmittag, das Abendessen die Post-Workout-Mahlzeit (kcal und Protein von Snack 2 wandern ins Abendessen). Das Tagesziel bleibt gleich.
 
