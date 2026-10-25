@@ -392,8 +392,9 @@ def _workout_event(day: date, session: CyclingSession) -> dict:
 def push_workouts(client: IcuClient, sessions: dict[date, CyclingSession | None]) -> PushResult:
     """Gleicht die geplanten Radeinheiten mit dem intervals.icu-Kalender ab (von dort weiter zu Zwift).
 
-    Tage mit Einheit werden angelegt/aktualisiert (Upsert ueber external_id), eigene Workouts an Tagen
-    ohne Einheit geloescht. Fremde Kalender-Eintraege und Tage ausserhalb von `sessions` bleiben unberuehrt.
+    Eigene Workouts (external_id) der Tage in `sessions` werden geloescht und fuer Tage mit Einheit neu
+    angelegt: Zwift uebernimmt ein bestehendes, nur aktualisiertes Event nicht zuverlaessig (z.B. nach
+    einem Tagetausch). Fremde Kalender-Eintraege und Tage ausserhalb von `sessions` bleiben unberuehrt.
 
     Args:
         client: intervals.icu-Client (in Tests ein Fake mit denselben Methoden).
@@ -409,15 +410,14 @@ def push_workouts(client: IcuClient, sessions: dict[date, CyclingSession | None]
     if not sessions:
         return result
     events = [_workout_event(day, s) for day, s in sorted(sessions.items()) if s is not None]
-    empty_ids = {_external_id(day) for day, s in sessions.items() if s is None}
+    own_ids = {_external_id(day) for day in sessions}
     try:
+        for event in client.fetch_workout_events(min(sessions), max(sessions)):
+            if event.get("external_id") in own_ids:
+                client.delete_event(event["id"])
+                result.deleted += 1
         if events:
             client.upsert_workouts(events)
-        if empty_ids:
-            for event in client.fetch_workout_events(min(sessions), max(sessions)):
-                if event.get("external_id") in empty_ids:
-                    client.delete_event(event["id"])
-                    result.deleted += 1
     except IcuError as exc:
         _set_state(STATE_LAST_PUSH_ERROR, str(exc))
         db.session.commit()
