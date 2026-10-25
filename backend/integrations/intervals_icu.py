@@ -67,6 +67,7 @@ class SyncResult:
     checkins_created: int = 0
     checkins_updated: int = 0
     ftp_updated: bool = False
+    ftp_watts: int | None = None  # neuer FTP, wenn ftp_updated
     notes: list[str] = field(default_factory=list)
 
 
@@ -238,6 +239,7 @@ def _sync_ftp(client: IcuClient, today: date, result: SyncResult) -> None:
         return
     db.session.add(FtpTest(test_date=today, best_1min_power_watts=0, ftp_watts=ftp, source="intervals"))
     result.ftp_updated = True
+    result.ftp_watts = ftp
 
 
 def _upsert_activities(records: list[ActivityRecord], oldest: date, newest: date, result: SyncResult) -> None:

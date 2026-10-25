@@ -210,6 +210,20 @@ def test_meals_sum_to_daily_targets():
     assert meals[2].kcal == pytest.approx(meals[4].kcal)
 
 
+def test_meals_split_carbs_and_fat_by_kcal_share_and_sum_to_daily_targets():
+    meals = distribute_meals(2480, 160, carbs_g=300, fat_g=70)
+    assert sum(m.carbs_g for m in meals) == pytest.approx(300)
+    assert sum(m.fat_g for m in meals) == pytest.approx(70)
+    snack_1 = next(m for m in meals if m.slot == "snack_1")
+    assert snack_1.carbs_g == pytest.approx(300 * snack_1.kcal / 2480)
+
+
+def test_evening_training_keeps_carb_and_fat_totals():
+    evening = distribute_meals(2480, 160, post_workout_is_dinner=True, carbs_g=300, fat_g=70)
+    assert sum(m.carbs_g for m in evening) == pytest.approx(300)
+    assert sum(m.fat_g for m in evening) == pytest.approx(70)
+
+
 def test_no_fueling_below_75_minutes():
     assert intra_fueling(60, CyclingIntensity.RENNEN_INTERVALLE).carbs_g_per_hour_max == 0
 

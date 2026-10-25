@@ -26,6 +26,9 @@ table.segments .sub { display: block; color: var(--muted); font-weight: 400; fon
 .exercises .sub { display: block; color: var(--muted); font-size: 0.8rem; }
 .exercises .timer { margin-top: 6px; font-variant-numeric: tabular-nums; }
 .exercises .timer.running { background: var(--accent); color: var(--on-accent); }
+.exercises .set-checks { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.exercises .set-check { display: inline-flex; flex-direction: row; flex: none; align-items: center; gap: 6px; white-space: nowrap; font-size: 0.85rem; min-height: 32px; }
+.exercises .set-check input { flex: none; width: 20px; height: 20px; margin: 0; }
 .exercises .swap summary { font-size: 0.8rem; padding: 4px 0 0; }
 .exercises .swap button { display: block; width: 100%; margin: 6px 0 0; }
 .exercises .illus summary { font-size: 0.8rem; padding: 4px 0 0; }

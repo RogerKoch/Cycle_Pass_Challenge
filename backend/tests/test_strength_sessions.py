@@ -1,6 +1,7 @@
 import pytest
 
 from backend.engine.strength_sessions import (
+    MCGILL_BIG_3,
     MOBILITY_ROUTINE,
     STRENGTH_PHASES,
     build_strength_session,
@@ -50,6 +51,25 @@ def test_holds_keep_their_library_values():
     session = build_strength_session("A", STRENGTH_PHASES[1])
     side_plank = next(e for e in session.exercises if e.name == "Side Plank")
     assert side_plank.reps == "15–30 s je Seite"
+
+
+def test_mcgill_curl_up_holds_8_seconds_after_3_second_curl_in_pyramid():
+    session = build_strength_session("B", STRENGTH_PHASES[1])
+    curl_up = next(e for e in session.exercises if e.name == "McGill Curl-Up")
+    assert curl_up.hold == {"hold_s": 8, "move_s": 3, "reps": [5, 3, 1], "per_side": False}
+    assert MCGILL_BIG_3[0].hold == curl_up.hold
+
+
+def test_double_day_drops_mobility_routine_but_keeps_daily_core():
+    assert mobility_routine(double_day=True) == []
+    assert mobility_routine(core_daily=True, double_day=True) == MCGILL_BIG_3
+    assert mobility_routine(focus="core", double_day=True) == MCGILL_BIG_3
+
+
+def test_bird_dog_hold_runs_per_side():
+    session = build_strength_session("B", STRENGTH_PHASES[1])
+    bird_dog = next(e for e in session.exercises if e.name == "Bird Dog")
+    assert bird_dog.hold["per_side"] is True
 
 
 def test_sessions_end_without_stretch_block_mobility_closes_instead():

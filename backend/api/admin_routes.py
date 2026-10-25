@@ -17,6 +17,7 @@ from backend.models.ftp_tests import FtpTest
 from backend.models.intake import IntakeDay
 from backend.models.intervals import IcuActivity, IcuWellness, IntegrationState
 from backend.models.plan_adjustments import PlanAdjustment, ReviewDecision
+from backend.models.set_logs import SetLog
 from backend.models.strength_benchmarks import StrengthBenchmark
 from backend.models.training_days import TrainingDay
 from backend.models.user_profile import UserProfile
@@ -32,7 +33,7 @@ RESET_CONFIRMATION = "ZURÜCKSETZEN"
 # (Schema `shared`) und bleiben bewusst erhalten
 _RESET_ORDER = (
     FoodLogEntry, IntakeDay, IcuWellness, IcuActivity, IntegrationState,
-    Checkin, BaselineMeasurement, WellbeingSignal, FtpTest, StrengthBenchmark, ExerciseSwap, Event,
+    Checkin, BaselineMeasurement, WellbeingSignal, FtpTest, StrengthBenchmark, ExerciseSwap, SetLog, Event,
     DayComment, PlanAdjustment, ReviewDecision, TrainingDay, UserProfile,
 )
 

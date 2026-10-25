@@ -101,6 +101,8 @@ async function load() {
   }
   $("page-msg").textContent = "";
   state.illustrations = await ILLUSTRATIONS;
+  const sets = await api("GET", `/api/exercises/sets/${state.date}`);
+  state.sets = sets.ok ? sets.data : {};
   state.day = day.data;
   state.week = week.data;
   state.month = month && month.ok ? month.data : null;
@@ -248,7 +250,10 @@ function renderDay() {
   }
   if (day.cycling) cards.push(cyclingCard(day.cycling));
   if (day.strength) cards.push(strengthCard(day.strength));
-  cards.push(mobilityCard(day.mobility));
+  if (day.mobility.length) cards.push(mobilityCard(day.mobility));
+  else if (day.cycling && day.strength) {
+    cards.push(el("p", { class: "hint" }, "Mobility entfällt heute: Rad + Kraft, das Aufwärmen der Krafteinheit deckt sie ab."));
+  }
   cards.push(actionsCard(day));
   const comment = el("section", { class: "card day-comment" });
   mountDayComment(comment, { base: "../", date: state.date });
@@ -331,14 +336,27 @@ function cyclingCard(cycling) {
       " · wird automatisch über intervals.icu an Zwift geschickt ", infoLink("zwift")));
 }
 
+// "3" + "8–10 je Seite" -> "3 Sätze × 8–10 Wdh. je Seite"; Zeitangaben ("8 min") und Sonderformen bleiben unveraendert
+// Pyramide (hold.reps als Liste) = ein Satz je Eintrag; der Text soll zu den Checkboxen passen
+function displaySets(exercise) {
+  return exercise.hold && Array.isArray(exercise.hold.reps) ? String(exercise.hold.reps.length) : exercise.sets;
+}
+
+function doseText(sets, reps) {
+  const repText = reps.replace(/^(\d+(?:–\d+)?)(?=\s+(?:je|pro)\s|,|$)/, "$1 Wdh.");
+  if (sets === "1" && /^\d+(?:–\d+)?\s*(s|min)\b/.test(reps)) return repText;
+  return `${sets} ${sets === "1" ? "Satz" : "Sätze"} × ${repText}`;
+}
+
 function strengthCard(strength) {
   const phase = strength.phase;
   const items = strength.exercises.map((e) => el("li", {},
-    el("span", { class: "dose" }, `${e.sets} × ${e.reps}`),
+    el("span", { class: "dose" }, doseText(displaySets(e), e.reps)),
     e.name,
     e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
     e.original ? el("span", { class: "sub" }, `Getauscht gegen: ${e.original}`) : null,
-    timerButton(e.reps),
+    timerButton(e, (index) => markSetDone(e, index)),
+    setChecks(e),
     swapControl(e),
     illustration(e.name, strength.session_id)));
   return el("section", { class: "card" },
@@ -348,6 +366,53 @@ function strengthCard(strength) {
       infoLink("kraftphasen")),
     strength.note ? el("p", { class: "warning" }, strength.note) : null,
     el("ul", { class: "exercises" }, ...items));
+}
+
+// ---------------------------------------------------------------- Saetze abhaken
+
+function setCount(exercise) {
+  return upperBound(displaySets(exercise));
+}
+
+// "2–3" -> 2 Pflichtsaetze, Satz 3 optional
+function requiredSets(exercise) {
+  const first = String(displaySets(exercise)).match(/\d+/);
+  return first ? Number(first[0]) : 1;
+}
+
+async function saveSet(exercise, index, done) {
+  const { ok, data } = await api("PUT", "/api/exercises/sets",
+    { date: state.date, exercise: exercise.name, set_index: index, done });
+  if (ok) state.sets = data;
+  else $("page-msg").textContent = data.error || "Speichern fehlgeschlagen";
+  return ok;
+}
+
+// Checkbox je Satz; Haken werden pro Tag gespeichert
+function setChecks(exercise) {
+  const count = setCount(exercise);
+  const done = (state.sets || {})[exercise.name] || [];
+  const boxes = Array.from({ length: count }, (_, index) => {
+    const input = el("input", { type: "checkbox", "data-set": String(index) });
+    input.checked = done.includes(index);
+    input.addEventListener("change", async () => {
+      if (!(await saveSet(exercise, index, input.checked))) input.checked = !input.checked;
+    });
+    return el("label", { class: "set-check" }, input, ` Satz ${index + 1}${index >= requiredSets(exercise) ? " (optional)" : ""}`);
+  });
+  return el("div", { class: "set-checks", "data-exercise": exercise.name }, ...boxes);
+}
+
+// Timer meldet einen fertigen Satz (index) bzw. null = naechster offener Satz bei reinem Countdown
+async function markSetDone(exercise, index) {
+  const done = (state.sets || {})[exercise.name] || [];
+  const target = index ?? Array.from({ length: setCount(exercise) }, (_, i) => i).find((i) => !done.includes(i));
+  if (target === undefined || !(await saveSet(exercise, target, true))) return;
+  for (const box of document.querySelectorAll(".set-checks")) {
+    if (box.dataset.exercise !== exercise.name) continue;
+    const input = box.querySelector(`input[data-set="${target}"]`);
+    if (input) input.checked = true;
+  }
 }
 
 // ---------------------------------------------------------------- Timer
@@ -366,58 +431,193 @@ function formatClock(seconds) {
 
 let stopActiveTimer = () => {};
 
-function beep() {
+let audioContext = null;
+let silentAudio = null;
+
+// 0,5 s Stille als WAV: haelt auf iOS die Audio-Session aktiv (Klingelschalter wuerde WebAudio sonst stummschalten)
+function silentWavUrl() {
+  const rate = 8000;
+  const samples = rate / 2;
+  const view = new DataView(new ArrayBuffer(44 + samples));
+  const text = (offset, value) => [...value].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
+  text(0, "RIFF");
+  view.setUint32(4, 36 + samples, true);
+  text(8, "WAVEfmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate, true);
+  view.setUint16(32, 1, true);
+  view.setUint16(34, 8, true);
+  text(36, "data");
+  view.setUint32(40, samples, true);
+  for (let i = 0; i < samples; i++) view.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([view], { type: "audio/wav" }));
+}
+
+// Muss synchron im Klick-Handler laufen: iOS erlaubt Audio nur nach Nutzergeste
+function unlockAudio() {
   try {
-    const context = new AudioContext();
-    const oscillator = context.createOscillator();
-    oscillator.connect(context.destination);
-    oscillator.frequency.value = 880;
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.4);
-  } catch {
-    // kein Ton verfuegbar: Vibration/Anzeige genuegen
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!audioContext && Context) audioContext = new Context();
+    if (audioContext && audioContext.state !== "running") audioContext.resume().catch(() => {});
+    if (!silentAudio) {
+      silentAudio = new Audio(silentWavUrl());
+      silentAudio.loop = true;
+    }
+    silentAudio.play().catch(() => {});
+  } catch (error) {
+    console.warn("Audio konnte nicht entsperrt werden", error);
   }
+}
+
+// verzoegert, damit der Signalton noch bei aktiver Audio-Session abgespielt wird
+function releaseAudio() {
+  setTimeout(() => { if (silentAudio) silentAudio.pause(); }, 1000);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && audioContext && audioContext.state !== "running") audioContext.resume().catch(() => {});
+});
+
+function beep(frequency = 880, duration = 0.6) {
+  try {
+    if (!audioContext) throw new Error("kein AudioContext (Timer nie per Klick gestartet)");
+    const now = audioContext.currentTime;
+    const gain = audioContext.createGain();
+    gain.connect(audioContext.destination);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.8, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    const oscillator = audioContext.createOscillator();
+    oscillator.frequency.value = frequency;
+    oscillator.connect(gain);
+    oscillator.start(now);
+    oscillator.stop(now + duration);
+  } catch (error) {
+    console.warn("Signalton nicht abspielbar", error);
+  }
+}
+
+// Phasenwechsel im Halte-Zyklus: hoher Pip = halten, tiefer Pip = bewegen, Doppelpip = Seitenwechsel/Pause
+const PHASE_TONES = { hold: [880, 0.25], move: [520, 0.15], switch: [660, 0.3], rest: [660, 0.3] };
+
+function phaseBeep(kind) {
+  const [frequency, duration] = PHASE_TONES[kind];
+  beep(frequency, duration);
+  if (navigator.vibrate) navigator.vibrate(kind === "hold" ? 150 : 60);
+}
+
+function finishBeep() {
+  beep();
   if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
 }
 
-// Countdown-Button fuer Uebungen mit Zeitangabe; Klick startet, nochmaliger Klick setzt zurueck
-function timerButton(reps) {
+// Obere Grenze aus "2–3" -> 3
+function upperBound(text) {
+  const numbers = String(text).match(/\d+/g);
+  return numbers ? Number(numbers[numbers.length - 1]) : 1;
+}
+
+// Halte-Zyklus (z. B. McGill: 3 s Curl, 8 s halten) -> Phasenliste mit Anzeigetext
+function holdPhases(exercise) {
+  const { hold_s: holdSeconds, move_s: moveSeconds, reps, per_side: perSide } = exercise.hold;
+  const setTotal = Array.isArray(reps) ? reps.length : upperBound(exercise.sets);
+  const sides = perSide ? ["links", "rechts"] : [null];
+  const phases = [];
+  for (let set = 0; set < setTotal; set++) {
+    const repCount = Array.isArray(reps) ? reps[set] : upperBound(reps);
+    sides.forEach((side, sideIndex) => {
+      if (sideIndex > 0) phases.push({ kind: "switch", seconds: 5, text: "Seite wechseln" });
+      for (let rep = 1; rep <= repCount; rep++) {
+        const prefix = `${side ? `${side} · ` : ""}Satz ${set + 1}/${setTotal} · Wdh ${rep}/${repCount}`;
+        phases.push({ kind: "move", seconds: moveSeconds, text: `${prefix} · Bewegen` });
+        const lastOfSet = rep === repCount && sideIndex === sides.length - 1;
+        phases.push({ kind: "hold", seconds: holdSeconds, text: `${prefix} · Halten`, setDone: lastOfSet ? set : undefined });
+      }
+    });
+    if (set < setTotal - 1) phases.push({ kind: "rest", seconds: 15, text: "Pause" });
+  }
+  return phases;
+}
+
+// Zeitaufteilung als Text, z. B. "5+3+1 Wdh. × (3 s Bewegen + 8 s Halten), 2× 15 s Pause"
+function holdBreakdown(exercise) {
+  const { hold_s: holdSeconds, move_s: moveSeconds, reps, per_side: perSide } = exercise.hold;
+  const sets = Array.isArray(reps) ? reps.length : upperBound(exercise.sets);
+  const repText = Array.isArray(reps) ? `${reps.join("+")} Wdh.` : `${sets} × ${upperBound(reps)} Wdh.`;
+  return [
+    `${repText}${perSide ? " je Seite" : ""} × (${moveSeconds} s Bewegen + ${holdSeconds} s Halten)`,
+    perSide ? "5 s Seitenwechsel" : null,
+    sets > 1 ? `${sets - 1}× 15 s Pause` : null,
+  ].filter(Boolean).join(", ");
+}
+
+// Reiner Countdown fuer Zeitangaben ("20–40 s", "8 min") als einzige Phase
+function countdownPhases(reps) {
   const seconds = parseDuration(reps);
-  if (!seconds) return null;
-  const button = el("button", { type: "button", class: "timer" }, `⏱ ${formatClock(seconds)}`);
+  return seconds ? [{ kind: "countdown", seconds, text: "", setDone: null }] : null;
+}
+
+// Timer-Button: Halte-Zyklen (exercise.hold) oder Countdown aus der Zeitangabe; Klick startet, nochmaliger Klick setzt zurueck
+function timerButton(exercise, onSetDone) {
+  const phases = exercise.hold ? holdPhases(exercise) : countdownPhases(exercise.reps);
+  if (!phases) return null;
+  const total = phases.reduce((sum, phase) => sum + phase.seconds, 0);
+  const idleText = `⏱ ${formatClock(total)}`;
+  const button = el("button", { type: "button", class: "timer" }, idleText);
   let handle = null;
   let wakeLock = null;
   const reset = () => {
     clearInterval(handle);
     handle = null;
-    button.textContent = `⏱ ${formatClock(seconds)}`;
+    releaseAudio();
+    button.textContent = idleText;
     button.classList.remove("running");
     if (wakeLock) wakeLock.release().catch(() => {});
     wakeLock = null;
   };
   button.addEventListener("click", async () => {
     if (handle) return reset();
+    unlockAudio();
     stopActiveTimer();
     stopActiveTimer = reset;
-    let remaining = seconds;
+    // Endzeitstempel statt Tick-Zaehler: bleibt korrekt, wenn iOS den Timer bei gesperrtem Bildschirm drosselt
+    const start = Date.now();
+    const ends = phases.map((_, i) => start + phases.slice(0, i + 1).reduce((sum, p) => sum + p.seconds, 0) * 1000);
+    let index = -1;
     button.classList.add("running");
-    button.textContent = `⏱ ${formatClock(remaining)}`;
     handle = setInterval(() => {
-      remaining -= 1;
-      if (remaining > 0) {
-        button.textContent = `⏱ ${formatClock(remaining)}`;
+      const now = Date.now();
+      const finished = now >= ends[ends.length - 1];
+      const current = finished ? phases.length : ends.findIndex((end) => now < end);
+      // abgeschlossene Phasen (auch mehrere bei gedrosseltem Timer): fertige Saetze melden
+      for (let done = Math.max(index, 0); done < current; done++) {
+        if (phases[done].setDone !== undefined && onSetDone) onSetDone(phases[done].setDone);
+      }
+      if (finished) {
+        reset();
+        finishBeep();
         return;
       }
-      reset();
-      beep();
-    }, 1000);
+      if (current !== index) {
+        index = current;
+        if (phases[index].kind !== "countdown" && index > 0) phaseBeep(phases[index].kind);
+      }
+      const remaining = Math.ceil((ends[index] - now) / 1000);
+      const phase = phases[index];
+      button.textContent = phase.text ? `⏱ ${phase.text} · ${remaining} s` : `⏱ ${formatClock(remaining)}`;
+    }, 250);
     try {
       wakeLock = await navigator.wakeLock.request("screen");
     } catch {
       // Wake-Lock nicht unterstuetzt oder abgelehnt: Timer laeuft trotzdem
     }
   });
-  return button;
+  if (!exercise.hold) return button;
+  return el("div", { class: "timer-row" }, button, el("span", { class: "sub" }, `${idleText.slice(2)} = ${holdBreakdown(exercise)}`));
 }
 
 // Tausch gilt dauerhaft, bis er hier wieder geaendert wird (Material fehlt, Alternative waehlen)
@@ -443,9 +643,10 @@ function mobilityCard(mobility) {
     el("details", {},
       el("summary", {}, "🧘 Mobility (5–10 min, zum Abschluss)"),
       el("ul", { class: "exercises" }, ...mobility.map((e) => el("li", {},
-        el("span", { class: "dose" }, `${e.sets} × ${e.reps}`), e.name,
+        el("span", { class: "dose" }, doseText(displaySets(e), e.reps)), e.name,
         e.note ? el("span", { class: "sub" }, e.note) : null,
-        timerButton(e.reps),
+        timerButton(e, (index) => markSetDone(e, index)),
+        setChecks(e),
         illustration(e.name))))));
 }
 
@@ -774,6 +975,34 @@ async function syncIntervals() {
   if (status.ok && status.data.configured) await api("POST", "/api/intervals/sync?if_stale=1");
 }
 
+// Manueller Abgleich: Aktivitaeten/Wellness holen, geplante Workouts an intervals.icu schicken, Ansicht neu laden
+async function syncNow() {
+  const button = $("sync-icu");
+  button.disabled = true;
+  $("page-msg").textContent = "Gleiche mit intervals.icu ab …";
+  const { data } = await api("POST", "/api/intervals/sync");
+  button.disabled = false;
+  if (data.busy) return void ($("page-msg").textContent = "Ein Abgleich läuft bereits.");
+  if (!data.synced) return void ($("page-msg").textContent = data.error || "Abgleich fehlgeschlagen");
+  await load(); // load() leert die Meldung, daher danach setzen
+  $("page-msg").textContent = syncSummary(data);
+}
+
+// Was der Abgleich importiert/gesendet hat, z. B. "3 Aktivitäten, 1 neuer Check-in, FTP 215 W, 5 Workouts gesendet"
+function syncSummary(data) {
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const parts = [
+    count(data.activities, "Aktivität", "Aktivitäten"),
+    data.checkins_created ? count(data.checkins_created, "neuer Check-in", "neue Check-ins") : null,
+    data.checkins_updated ? count(data.checkins_updated, "Check-in aktualisiert", "Check-ins aktualisiert") : null,
+    data.ftp_updated ? `FTP ${data.ftp_watts} W übernommen` : null,
+    count(data.workouts_pushed, "Workout", "Workouts") + " gesendet",
+  ].filter(Boolean);
+  const notes = [...(data.notes || []), data.push_error ? `Workouts nicht gesendet: ${data.push_error}` : null].filter(Boolean);
+  return `Aktualisiert: ${parts.join(", ")}.${notes.length ? ` ${notes.join(" ")}` : ""}`;
+}
+
+$("sync-icu").addEventListener("click", syncNow);
 state.view = viewFromHash();
 bindEvents();
 syncIntervals().finally(load);

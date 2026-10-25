@@ -7,6 +7,7 @@ from backend.engine.week_plan import (
     DayPlan,
     default_day_plan,
     phase_week,
+    standard_week,
     resolve_strength,
     suggest_reschedule,
     swap_plans,
@@ -187,17 +188,24 @@ def test_default_rest_weekday_is_friday_like_the_standard_week():
     assert _week_for(4, BASE_MONDAY) == _week(BASE_MONDAY)
 
 
-def test_tuesday_rest_keeps_cycling_order_and_strength_weekdays():
+def test_tuesday_rest_keeps_cycling_order_and_puts_strength_on_the_short_days():
     plan = [(d.cycling_slot, d.strength_session) for d in _week_for(1, BASE_MONDAY)]
     assert plan == [
         ("rekom", "A"),
         (None, None),
         ("schluessel_1", None),
-        ("z2_grundlage", "B"),
-        ("z2_oder_rekom", None),
+        ("z2_grundlage", None),
+        ("z2_oder_rekom", "B"),
         ("schluessel_2", None),
         ("lang", None),
     ]
+
+
+def test_strength_never_shares_a_day_with_a_long_or_key_ride():
+    for rest_weekday in range(7):
+        for slot, strength in standard_week(rest_weekday).values():
+            if strength:
+                assert slot in ("rekom", "z2_oder_rekom"), (rest_weekday, slot)
 
 
 def test_every_rest_weekday_yields_a_valid_week_in_all_phases():

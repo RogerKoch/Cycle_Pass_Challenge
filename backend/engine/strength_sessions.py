@@ -54,6 +54,22 @@ class Exercise:
     group: str | None = None  # Bibliotheksgruppe fuer den Kraft-Fokus; None = Aufwaermen
     original: str | None = None  # Name der ersetzten Uebung, wenn getauscht (engine.strength_alternatives)
     alternatives: list[str] = field(default_factory=list)  # tauschbar gegen diese Uebungen
+    hold: dict | None = None  # Halte-Zyklen fuer den Timer, siehe hold_cycle()
+
+
+def hold_cycle(hold_s: int, move_s: int, reps: int | list[int], per_side: bool = False) -> dict:
+    """Halte-Zyklus fuer den Timer: je Wiederholung `move_s` Bewegung, dann `hold_s` halten.
+
+    Args:
+        hold_s: Haltedauer pro Wiederholung in Sekunden.
+        move_s: Dauer der Bewegung (z. B. Curl hoch) in Sekunden.
+        reps: Wiederholungen pro Satz; Liste = ein Satz je Eintrag (Pyramide 5-3-1).
+        per_side: je Seite ausfuehren (Seitenwechsel zwischen den Seiten).
+
+    Returns:
+        Dict fuer Exercise.hold.
+    """
+    return {"hold_s": hold_s, "move_s": move_s, "reps": reps, "per_side": per_side}
 
 
 @dataclass
@@ -125,8 +141,10 @@ _SESSION_B: list[Exercise] = [
     Exercise("Lateral Band Walks", "2", "10 Schritte je Richtung", leg=True, group=GROUP_LEGS,
              note="Leichte Kniebeuge, Knie nicht einknicken"),
     Exercise("Copenhagen Plank", "2", "10–20 s je Seite", min_phase=3, group=GROUP_LEGS),
-    Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Kein Nacken-Crunch", group=GROUP_CORE),
-    Exercise("Bird Dog", "3", "6–8 je Seite, 3–5 s halten", note="Neutrale Wirbelsäule", group=GROUP_CORE),
+    Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Kein Nacken-Crunch", group=GROUP_CORE,
+             hold=hold_cycle(8, 3, [5, 3, 1])),
+    Exercise("Bird Dog", "3", "6–8 je Seite, 3–5 s halten", note="Neutrale Wirbelsäule", group=GROUP_CORE,
+             hold=hold_cycle(5, 3, 6, per_side=True)),
     Exercise("YTW-Raises", "2–3", "8–12 pro Buchstabe", group=GROUP_UPPER),
 ]
 
@@ -167,7 +185,8 @@ MOBILITY_ROUTINE: list[Exercise] = [
     Exercise("Kniender Hüftbeuger-Stretch", "2", "30–45 s je Seite", note="Becken untertucken, kein Hohlkreuz",
              group=GROUP_MOBILITY),
     Exercise("90/90 Hüftrotationen", "1", "8–10 Wechsel je Seite", group=GROUP_MOBILITY),
-    Exercise("Open Book", "1", "6–8 je Seite, 2 s halten", group=GROUP_MOBILITY),
+    Exercise("Open Book", "1", "6–8 je Seite, 2 s halten", group=GROUP_MOBILITY,
+             hold=hold_cycle(2, 3, 6, per_side=True)),
     Exercise("Cat-Cow / Quadruped Rotation", "1", "8 bzw. 6 je Seite", group=GROUP_MOBILITY),
     Exercise("BWS-Extension über Foam Roller", "1", "6–8 langsam", group=GROUP_MOBILITY),
     Exercise("Wall Angels / Wall Slides", "1", "8–10", group=GROUP_MOBILITY),
@@ -176,9 +195,11 @@ MOBILITY_ROUTINE: list[Exercise] = [
 
 # Bei Rueckenschmerz nach langen Fahrten: Core-Frequenz erhoehen (McGill: kurze, haeufige Belastungen)
 MCGILL_BIG_3: list[Exercise] = [
-    Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Core täglich"),
+    Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Core täglich",
+             hold=hold_cycle(8, 3, [5, 3, 1])),
     Exercise("Side Plank", "2", "10–20 s je Seite", note="Core täglich"),
-    Exercise("Bird Dog", "2", "6 je Seite, 3–5 s halten", note="Core täglich"),
+    Exercise("Bird Dog", "2", "6 je Seite, 3–5 s halten", note="Core täglich",
+             hold=hold_cycle(5, 3, 6, per_side=True)),
 ]
 
 # Core-Benchmarks uebertroffen -> diese Uebungen vor ihrer Phase (Kraft-Recherche, Recommendations 5)
@@ -204,17 +225,21 @@ def focus_note(focus: str) -> str:
     return f"Fokus {label}: +1 Satz auf {label}-Übungen, Zusatzübung, ca. +{FOCUS_EXTRA_MINUTES} min."
 
 
-def mobility_routine(focus: str = FOCUS_NONE, core_daily: bool = False) -> list[Exercise]:
+def mobility_routine(focus: str = FOCUS_NONE, core_daily: bool = False, double_day: bool = False) -> list[Exercise]:
     """Taegliche Mobility-Routine.
 
     Args:
         focus: Kraft-Fokus; "mobility" = +1 Satz je Drill, Pigeon fest statt bei Bedarf;
             "core" = McGill Big 3 taeglich (Kraft-Recherche: Core profitiert von hoher Frequenz).
         core_daily: McGill Big 3 aus dem Check-in-Review (Ruecken nach langen Fahrten).
+        double_day: Rad und Kraft am selben Tag; das Aufwaermen der Krafteinheit enthaelt schon Mobility, daher
+            entfaellt die Routine (nur McGill Big 3 bleiben, falls Core taeglich vorgesehen ist).
 
     Returns:
         Liste der Uebungen.
     """
+    if double_day:
+        return list(MCGILL_BIG_3) if core_daily or focus == GROUP_CORE else []
     routine = list(MOBILITY_ROUTINE)
     if focus == GROUP_MOBILITY:
         routine = [
