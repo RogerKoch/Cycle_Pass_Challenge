@@ -345,7 +345,7 @@ function strengthCard(strength) {
     e.name,
     e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
     e.original ? el("span", { class: "sub" }, `Getauscht gegen: ${e.original}`) : null,
-    timerButton(e.reps),
+    timerButton(e),
     swapControl(e),
     illustration(e.name, strength.session_id)));
   return el("section", { class: "card" },
@@ -424,7 +424,7 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && audioContext && audioContext.state !== "running") audioContext.resume().catch(() => {});
 });
 
-function beep() {
+function beep(frequency = 880, duration = 0.6) {
   try {
     if (!audioContext) throw new Error("kein AudioContext (Timer nie per Klick gestartet)");
     const now = audioContext.currentTime;
@@ -432,30 +432,78 @@ function beep() {
     gain.connect(audioContext.destination);
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(0.8, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
     const oscillator = audioContext.createOscillator();
-    oscillator.frequency.value = 880;
+    oscillator.frequency.value = frequency;
     oscillator.connect(gain);
     oscillator.start(now);
-    oscillator.stop(now + 0.6);
+    oscillator.stop(now + duration);
   } catch (error) {
     console.warn("Signalton nicht abspielbar", error);
   }
+}
+
+// Phasenwechsel im Halte-Zyklus: hoher Pip = halten, tiefer Pip = bewegen, Doppelpip = Seitenwechsel/Pause
+const PHASE_TONES = { hold: [880, 0.25], move: [520, 0.15], switch: [660, 0.3], rest: [660, 0.3] };
+
+function phaseBeep(kind) {
+  const [frequency, duration] = PHASE_TONES[kind];
+  beep(frequency, duration);
+  if (navigator.vibrate) navigator.vibrate(kind === "hold" ? 150 : 60);
+}
+
+function finishBeep() {
+  beep();
   if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
 }
 
-// Countdown-Button fuer Uebungen mit Zeitangabe; Klick startet, nochmaliger Klick setzt zurueck
-function timerButton(reps) {
+// Obere Grenze aus "2–3" -> 3
+function upperBound(text) {
+  const numbers = String(text).match(/\d+/g);
+  return numbers ? Number(numbers[numbers.length - 1]) : 1;
+}
+
+// Halte-Zyklus (z. B. McGill: 3 s Curl, 8 s halten) -> Phasenliste mit Anzeigetext
+function holdPhases(exercise) {
+  const { hold_s: holdSeconds, move_s: moveSeconds, reps, per_side: perSide } = exercise.hold;
+  const setCount = Array.isArray(reps) ? reps.length : upperBound(exercise.sets);
+  const sides = perSide ? ["links", "rechts"] : [null];
+  const phases = [];
+  for (let set = 0; set < setCount; set++) {
+    const repCount = Array.isArray(reps) ? reps[set] : upperBound(reps);
+    sides.forEach((side, sideIndex) => {
+      if (sideIndex > 0) phases.push({ kind: "switch", seconds: 5, text: "Seite wechseln" });
+      for (let rep = 1; rep <= repCount; rep++) {
+        const prefix = `${side ? `${side} · ` : ""}Satz ${set + 1}/${setCount} · Wdh ${rep}/${repCount}`;
+        phases.push({ kind: "move", seconds: moveSeconds, text: `${prefix} · Bewegen`, set });
+        phases.push({ kind: "hold", seconds: holdSeconds, text: `${prefix} · Halten`, set });
+      }
+    });
+    if (set < setCount - 1) phases.push({ kind: "rest", seconds: 15, text: "Pause", set });
+  }
+  return phases;
+}
+
+// Reiner Countdown fuer Zeitangaben ("20–40 s", "8 min") als einzige Phase
+function countdownPhases(reps) {
   const seconds = parseDuration(reps);
-  if (!seconds) return null;
-  const button = el("button", { type: "button", class: "timer" }, `⏱ ${formatClock(seconds)}`);
+  return seconds ? [{ kind: "countdown", seconds, text: "" }] : null;
+}
+
+// Timer-Button: Halte-Zyklen (exercise.hold) oder Countdown aus der Zeitangabe; Klick startet, nochmaliger Klick setzt zurueck
+function timerButton(exercise) {
+  const phases = exercise.hold ? holdPhases(exercise) : countdownPhases(exercise.reps);
+  if (!phases) return null;
+  const total = phases.reduce((sum, phase) => sum + phase.seconds, 0);
+  const idleText = `⏱ ${formatClock(total)}`;
+  const button = el("button", { type: "button", class: "timer" }, idleText);
   let handle = null;
   let wakeLock = null;
   const reset = () => {
     clearInterval(handle);
     handle = null;
     releaseAudio();
-    button.textContent = `⏱ ${formatClock(seconds)}`;
+    button.textContent = idleText;
     button.classList.remove("running");
     if (wakeLock) wakeLock.release().catch(() => {});
     wakeLock = null;
@@ -466,17 +514,25 @@ function timerButton(reps) {
     stopActiveTimer();
     stopActiveTimer = reset;
     // Endzeitstempel statt Tick-Zaehler: bleibt korrekt, wenn iOS den Timer bei gesperrtem Bildschirm drosselt
-    const end = Date.now() + seconds * 1000;
+    const start = Date.now();
+    const ends = phases.map((_, i) => start + phases.slice(0, i + 1).reduce((sum, p) => sum + p.seconds, 0) * 1000);
+    let index = -1;
     button.classList.add("running");
-    button.textContent = `⏱ ${formatClock(seconds)}`;
     handle = setInterval(() => {
-      const remaining = Math.ceil((end - Date.now()) / 1000);
-      if (remaining > 0) {
-        button.textContent = `⏱ ${formatClock(remaining)}`;
+      const now = Date.now();
+      if (now >= ends[ends.length - 1]) {
+        reset();
+        finishBeep();
         return;
       }
-      reset();
-      beep();
+      const current = ends.findIndex((end) => now < end);
+      if (current !== index) {
+        index = current;
+        if (phases[index].kind !== "countdown" && index > 0) phaseBeep(phases[index].kind);
+      }
+      const remaining = Math.ceil((ends[index] - now) / 1000);
+      const phase = phases[index];
+      button.textContent = phase.text ? `⏱ ${phase.text} · ${remaining} s` : `⏱ ${formatClock(remaining)}`;
     }, 250);
     try {
       wakeLock = await navigator.wakeLock.request("screen");
@@ -512,7 +568,7 @@ function mobilityCard(mobility) {
       el("ul", { class: "exercises" }, ...mobility.map((e) => el("li", {},
         el("span", { class: "dose" }, doseText(e.sets, e.reps)), e.name,
         e.note ? el("span", { class: "sub" }, e.note) : null,
-        timerButton(e.reps),
+        timerButton(e),
         illustration(e.name))))));
 }
 
