@@ -345,7 +345,7 @@ def test_first_sync_keeps_existing_manual_test_until_intervals_value_changes(app
     assert first.ftp_updated is False and len(_ftp_tests()) == 1  # manueller Test bleibt massgeblich
 
     changed = sync(FakeClient(sport_settings=_ride_settings(ftp=255)), TODAY + timedelta(days=1))
-    assert changed.ftp_updated is True and _ftp_tests()[-1].ftp_watts == 255
+    assert changed.ftp_updated is True and changed.ftp_watts == 255 and _ftp_tests()[-1].ftp_watts == 255
 
 
 def test_settings_error_does_not_fail_the_sync_but_adds_a_note(app):

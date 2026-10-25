@@ -985,9 +985,21 @@ async function syncNow() {
   if (data.busy) return void ($("page-msg").textContent = "Ein Abgleich läuft bereits.");
   if (!data.synced) return void ($("page-msg").textContent = data.error || "Abgleich fehlgeschlagen");
   await load(); // load() leert die Meldung, daher danach setzen
-  $("page-msg").textContent = data.push_error
-    ? `Abgeholt, aber Workouts nicht gesendet: ${data.push_error}`
-    : `Aktualisiert, ${data.workouts_pushed} Workouts an intervals.icu gesendet.`;
+  $("page-msg").textContent = syncSummary(data);
+}
+
+// Was der Abgleich importiert/gesendet hat, z. B. "3 Aktivitäten, 1 neuer Check-in, FTP 215 W, 5 Workouts gesendet"
+function syncSummary(data) {
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const parts = [
+    count(data.activities, "Aktivität", "Aktivitäten"),
+    data.checkins_created ? count(data.checkins_created, "neuer Check-in", "neue Check-ins") : null,
+    data.checkins_updated ? count(data.checkins_updated, "Check-in aktualisiert", "Check-ins aktualisiert") : null,
+    data.ftp_updated ? `FTP ${data.ftp_watts} W übernommen` : null,
+    count(data.workouts_pushed, "Workout", "Workouts") + " gesendet",
+  ].filter(Boolean);
+  const notes = [...(data.notes || []), data.push_error ? `Workouts nicht gesendet: ${data.push_error}` : null].filter(Boolean);
+  return `Aktualisiert: ${parts.join(", ")}.${notes.length ? ` ${notes.join(" ")}` : ""}`;
 }
 
 $("sync-icu").addEventListener("click", syncNow);
