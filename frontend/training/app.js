@@ -975,6 +975,22 @@ async function syncIntervals() {
   if (status.ok && status.data.configured) await api("POST", "/api/intervals/sync?if_stale=1");
 }
 
+// Manueller Abgleich: Aktivitaeten/Wellness holen, geplante Workouts an intervals.icu schicken, Ansicht neu laden
+async function syncNow() {
+  const button = $("sync-icu");
+  button.disabled = true;
+  $("page-msg").textContent = "Gleiche mit intervals.icu ab …";
+  const { data } = await api("POST", "/api/intervals/sync");
+  button.disabled = false;
+  if (data.busy) return void ($("page-msg").textContent = "Ein Abgleich läuft bereits.");
+  if (!data.synced) return void ($("page-msg").textContent = data.error || "Abgleich fehlgeschlagen");
+  await load(); // load() leert die Meldung, daher danach setzen
+  $("page-msg").textContent = data.push_error
+    ? `Abgeholt, aber Workouts nicht gesendet: ${data.push_error}`
+    : `Aktualisiert, ${data.workouts_pushed} Workouts an intervals.icu gesendet.`;
+}
+
+$("sync-icu").addEventListener("click", syncNow);
 state.view = viewFromHash();
 bindEvents();
 syncIntervals().finally(load);
