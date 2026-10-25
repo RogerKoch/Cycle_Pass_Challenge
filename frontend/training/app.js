@@ -366,16 +366,73 @@ function formatClock(seconds) {
 
 let stopActiveTimer = () => {};
 
+let audioContext = null;
+let silentAudio = null;
+
+// 0,5 s Stille als WAV: haelt auf iOS die Audio-Session aktiv (Klingelschalter wuerde WebAudio sonst stummschalten)
+function silentWavUrl() {
+  const rate = 8000;
+  const samples = rate / 2;
+  const view = new DataView(new ArrayBuffer(44 + samples));
+  const text = (offset, value) => [...value].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
+  text(0, "RIFF");
+  view.setUint32(4, 36 + samples, true);
+  text(8, "WAVEfmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate, true);
+  view.setUint16(32, 1, true);
+  view.setUint16(34, 8, true);
+  text(36, "data");
+  view.setUint32(40, samples, true);
+  for (let i = 0; i < samples; i++) view.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([view], { type: "audio/wav" }));
+}
+
+// Muss synchron im Klick-Handler laufen: iOS erlaubt Audio nur nach Nutzergeste
+function unlockAudio() {
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!audioContext && Context) audioContext = new Context();
+    if (audioContext && audioContext.state !== "running") audioContext.resume().catch(() => {});
+    if (!silentAudio) {
+      silentAudio = new Audio(silentWavUrl());
+      silentAudio.loop = true;
+    }
+    silentAudio.play().catch(() => {});
+  } catch (error) {
+    console.warn("Audio konnte nicht entsperrt werden", error);
+  }
+}
+
+// verzoegert, damit der Signalton noch bei aktiver Audio-Session abgespielt wird
+function releaseAudio() {
+  setTimeout(() => { if (silentAudio) silentAudio.pause(); }, 1000);
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && audioContext && audioContext.state !== "running") audioContext.resume().catch(() => {});
+});
+
 function beep() {
   try {
-    const context = new AudioContext();
-    const oscillator = context.createOscillator();
-    oscillator.connect(context.destination);
+    if (!audioContext) throw new Error("kein AudioContext (Timer nie per Klick gestartet)");
+    const now = audioContext.currentTime;
+    const gain = audioContext.createGain();
+    gain.connect(audioContext.destination);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.8, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+    const oscillator = audioContext.createOscillator();
     oscillator.frequency.value = 880;
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.4);
-  } catch {
-    // kein Ton verfuegbar: Vibration/Anzeige genuegen
+    oscillator.connect(gain);
+    oscillator.start(now);
+    oscillator.stop(now + 0.6);
+  } catch (error) {
+    console.warn("Signalton nicht abspielbar", error);
   }
   if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
 }
@@ -390,6 +447,7 @@ function timerButton(reps) {
   const reset = () => {
     clearInterval(handle);
     handle = null;
+    releaseAudio();
     button.textContent = `⏱ ${formatClock(seconds)}`;
     button.classList.remove("running");
     if (wakeLock) wakeLock.release().catch(() => {});
@@ -397,20 +455,22 @@ function timerButton(reps) {
   };
   button.addEventListener("click", async () => {
     if (handle) return reset();
+    unlockAudio();
     stopActiveTimer();
     stopActiveTimer = reset;
-    let remaining = seconds;
+    // Endzeitstempel statt Tick-Zaehler: bleibt korrekt, wenn iOS den Timer bei gesperrtem Bildschirm drosselt
+    const end = Date.now() + seconds * 1000;
     button.classList.add("running");
-    button.textContent = `⏱ ${formatClock(remaining)}`;
+    button.textContent = `⏱ ${formatClock(seconds)}`;
     handle = setInterval(() => {
-      remaining -= 1;
+      const remaining = Math.ceil((end - Date.now()) / 1000);
       if (remaining > 0) {
         button.textContent = `⏱ ${formatClock(remaining)}`;
         return;
       }
       reset();
       beep();
-    }, 1000);
+    }, 250);
     try {
       wakeLock = await navigator.wakeLock.request("screen");
     } catch {
