@@ -337,6 +337,11 @@ function cyclingCard(cycling) {
 }
 
 // "3" + "8–10 je Seite" -> "3 Sätze × 8–10 Wdh. je Seite"; Zeitangaben ("8 min") und Sonderformen bleiben unveraendert
+// Pyramide (hold.reps als Liste) = ein Satz je Eintrag; der Text soll zu den Checkboxen passen
+function displaySets(exercise) {
+  return exercise.hold && Array.isArray(exercise.hold.reps) ? String(exercise.hold.reps.length) : exercise.sets;
+}
+
 function doseText(sets, reps) {
   const repText = reps.replace(/^(\d+(?:–\d+)?)(?=\s+(?:je|pro)\s|,|$)/, "$1 Wdh.");
   if (sets === "1" && /^\d+(?:–\d+)?\s*(s|min)\b/.test(reps)) return repText;
@@ -346,7 +351,7 @@ function doseText(sets, reps) {
 function strengthCard(strength) {
   const phase = strength.phase;
   const items = strength.exercises.map((e) => el("li", {},
-    el("span", { class: "dose" }, doseText(e.sets, e.reps)),
+    el("span", { class: "dose" }, doseText(displaySets(e), e.reps)),
     e.name,
     e.rest || e.note ? el("span", { class: "sub" }, [e.rest ? `Pause ${e.rest}` : null, e.note].filter(Boolean).join(" · ")) : null,
     e.original ? el("span", { class: "sub" }, `Getauscht gegen: ${e.original}`) : null,
@@ -366,7 +371,13 @@ function strengthCard(strength) {
 // ---------------------------------------------------------------- Saetze abhaken
 
 function setCount(exercise) {
-  return exercise.hold && Array.isArray(exercise.hold.reps) ? exercise.hold.reps.length : upperBound(exercise.sets);
+  return upperBound(displaySets(exercise));
+}
+
+// "2–3" -> 2 Pflichtsaetze, Satz 3 optional
+function requiredSets(exercise) {
+  const first = String(displaySets(exercise)).match(/\d+/);
+  return first ? Number(first[0]) : 1;
 }
 
 async function saveSet(exercise, index, done) {
@@ -387,7 +398,7 @@ function setChecks(exercise) {
     input.addEventListener("change", async () => {
       if (!(await saveSet(exercise, index, input.checked))) input.checked = !input.checked;
     });
-    return el("label", { class: "set-check" }, input, ` Satz ${index + 1}`);
+    return el("label", { class: "set-check" }, input, ` Satz ${index + 1}${index >= requiredSets(exercise) ? " (optional)" : ""}`);
   });
   return el("div", { class: "set-checks", "data-exercise": exercise.name }, ...boxes);
 }
@@ -513,23 +524,35 @@ function upperBound(text) {
 // Halte-Zyklus (z. B. McGill: 3 s Curl, 8 s halten) -> Phasenliste mit Anzeigetext
 function holdPhases(exercise) {
   const { hold_s: holdSeconds, move_s: moveSeconds, reps, per_side: perSide } = exercise.hold;
-  const setCount = Array.isArray(reps) ? reps.length : upperBound(exercise.sets);
+  const setTotal = Array.isArray(reps) ? reps.length : upperBound(exercise.sets);
   const sides = perSide ? ["links", "rechts"] : [null];
   const phases = [];
-  for (let set = 0; set < setCount; set++) {
+  for (let set = 0; set < setTotal; set++) {
     const repCount = Array.isArray(reps) ? reps[set] : upperBound(reps);
     sides.forEach((side, sideIndex) => {
       if (sideIndex > 0) phases.push({ kind: "switch", seconds: 5, text: "Seite wechseln" });
       for (let rep = 1; rep <= repCount; rep++) {
-        const prefix = `${side ? `${side} · ` : ""}Satz ${set + 1}/${setCount} · Wdh ${rep}/${repCount}`;
+        const prefix = `${side ? `${side} · ` : ""}Satz ${set + 1}/${setTotal} · Wdh ${rep}/${repCount}`;
         phases.push({ kind: "move", seconds: moveSeconds, text: `${prefix} · Bewegen` });
         const lastOfSet = rep === repCount && sideIndex === sides.length - 1;
         phases.push({ kind: "hold", seconds: holdSeconds, text: `${prefix} · Halten`, setDone: lastOfSet ? set : undefined });
       }
     });
-    if (set < setCount - 1) phases.push({ kind: "rest", seconds: 15, text: "Pause" });
+    if (set < setTotal - 1) phases.push({ kind: "rest", seconds: 15, text: "Pause" });
   }
   return phases;
+}
+
+// Zeitaufteilung als Text, z. B. "5+3+1 Wdh. × (3 s Bewegen + 8 s Halten), 2× 15 s Pause"
+function holdBreakdown(exercise) {
+  const { hold_s: holdSeconds, move_s: moveSeconds, reps, per_side: perSide } = exercise.hold;
+  const sets = Array.isArray(reps) ? reps.length : upperBound(exercise.sets);
+  const repText = Array.isArray(reps) ? `${reps.join("+")} Wdh.` : `${sets} × ${upperBound(reps)} Wdh.`;
+  return [
+    `${repText}${perSide ? " je Seite" : ""} × (${moveSeconds} s Bewegen + ${holdSeconds} s Halten)`,
+    perSide ? "5 s Seitenwechsel" : null,
+    sets > 1 ? `${sets - 1}× 15 s Pause` : null,
+  ].filter(Boolean).join(", ");
 }
 
 // Reiner Countdown fuer Zeitangaben ("20–40 s", "8 min") als einzige Phase
@@ -593,7 +616,8 @@ function timerButton(exercise, onSetDone) {
       // Wake-Lock nicht unterstuetzt oder abgelehnt: Timer laeuft trotzdem
     }
   });
-  return button;
+  if (!exercise.hold) return button;
+  return el("div", { class: "timer-row" }, button, el("span", { class: "sub" }, `${idleText.slice(2)} = ${holdBreakdown(exercise)}`));
 }
 
 // Tausch gilt dauerhaft, bis er hier wieder geaendert wird (Material fehlt, Alternative waehlen)
@@ -619,7 +643,7 @@ function mobilityCard(mobility) {
     el("details", {},
       el("summary", {}, "🧘 Mobility (5–10 min, zum Abschluss)"),
       el("ul", { class: "exercises" }, ...mobility.map((e) => el("li", {},
-        el("span", { class: "dose" }, doseText(e.sets, e.reps)), e.name,
+        el("span", { class: "dose" }, doseText(displaySets(e), e.reps)), e.name,
         e.note ? el("span", { class: "sub" }, e.note) : null,
         timerButton(e, (index) => markSetDone(e, index)),
         setChecks(e),
