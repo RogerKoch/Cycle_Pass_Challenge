@@ -22,6 +22,11 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "rest_weekday", "INTEGER NOT NULL DEFAULT 4"),  # bestehende Wochen haben Freitag als Ruhetag
     ("user_profile", "sex", "VARCHAR(1) NOT NULL DEFAULT 'm'"),
     ("user_profile", "sport", "VARCHAR(10) NOT NULL DEFAULT 'cycling'"),
+    ("user_profile", "base_kcal", "FLOAT"),
+    ("user_profile", "base_protein_g", "FLOAT"),
+    ("user_profile", "base_carbs_g", "FLOAT"),
+    ("user_profile", "base_fat_g", "FLOAT"),
+    ("user_profile", "base_fiber_g", "FLOAT"),
     ("strength_benchmarks", "row_variant", "VARCHAR(12)"),
     ("checkins", "weight_only", "BOOLEAN NOT NULL DEFAULT 0"),
     ("ftp_tests", "source", "VARCHAR(12) NOT NULL DEFAULT 'manual'"),
@@ -128,6 +133,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     from backend.api.food_routes import foods_bp
     from backend.api.intake_routes import intake_bp
     from backend.api.meal_template_routes import meal_templates_bp
+    from backend.api.nutrition_review_routes import nutrition_review_bp
     from backend.api.plan_routes import plan_bp
     from backend.api.profile_routes import profile_bp
     from backend.api.intervals_routes import intervals_bp
@@ -138,6 +144,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.register_blueprint(baseline_bp)
     app.register_blueprint(intake_bp)
     app.register_blueprint(plan_bp)
+    app.register_blueprint(nutrition_review_bp)
     app.register_blueprint(foods_bp)
     app.register_blueprint(food_log_bp)
     app.register_blueprint(meal_templates_bp)

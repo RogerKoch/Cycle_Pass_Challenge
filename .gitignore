@@ -7,3 +7,6 @@ venv/
 .env
 instance*/
 backups*/
+
+# Persoenliche Dokumente (z. B. Massnahmenplan) nie ins oeffentliche Repo
+*.pdf

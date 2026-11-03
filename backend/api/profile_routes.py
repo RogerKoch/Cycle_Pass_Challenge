@@ -138,6 +138,36 @@ def _target_bodyfat(value: object) -> float:
     return bodyfat
 
 
+# Basis-Tageswerte: Feld -> (Untergrenze, Obergrenze)
+_BASE_FIELDS: dict[str, tuple[float, float]] = {
+    "base_kcal": (1000, 6000),
+    "base_protein_g": (20, 500),
+    "base_carbs_g": (20, 1000),
+    "base_fat_g": (10, 400),
+    "base_fiber_g": (0, 150),
+}
+
+
+def _base_value(field: str, value: object) -> float | None:
+    """Prueft einen Basis-Tageswert (None leert ihn)."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{field} muss eine Zahl sein")
+    number = float(value)
+    low, high = _BASE_FIELDS[field]
+    if not low <= number <= high:  # auch inf/nan
+        raise ValueError(f"{field} muss zwischen {low:g} und {high:g} liegen")
+    return number
+
+
+def _apply_base_values(profile: UserProfile, body: dict) -> None:
+    """Setzt die im Body enthaltenen Basis-Tageswerte."""
+    for field in _BASE_FIELDS:
+        if field in body:
+            setattr(profile, field, _base_value(field, body[field]))
+
+
 def _apply_goal(profile: UserProfile, body: dict) -> None:
     """Setzt das Ziel aus target_weight_kg oder target_bodyfat_pct (hoechstens eins; das andere entfaellt)."""
     if "target_weight_kg" in body and "target_bodyfat_pct" in body:
@@ -174,6 +204,7 @@ def _serialize(profile: UserProfile) -> dict:
         "rest_weekday": profile.rest_weekday,
         "equipment_missing": [item for item in profile.equipment_missing.split(",") if item],
         "evening_training_days": [int(d) for d in profile.evening_training_days.split(",") if d],
+        **{field: getattr(profile, field) for field in _BASE_FIELDS},
         "created_at": profile.created_at.isoformat(),
         "updated_at": profile.updated_at.isoformat(),
     }
@@ -210,6 +241,7 @@ def create_profile():
             evening_training_days=_evening_training_days(body.get("evening_training_days", [1, 2, 3, 4])),
         )
         _apply_goal(profile, body)
+        _apply_base_values(profile, body)
     except (KeyError, TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 
@@ -256,6 +288,7 @@ def update_profile():
             rest_changed = new_rest != profile.rest_weekday
             profile.rest_weekday = new_rest
         _apply_goal(profile, body)
+        _apply_base_values(profile, body)
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 

@@ -94,7 +94,22 @@ function macroRow(name, value, target) {
     el("span", { class: "num" }, `${round(value)} / ${round(target)} g`));
 }
 
-function nutritionCard(plan, totals, isToday) {
+// Tagesablauf: Uhrzeit, Slot, gegessen/Soll; heute wird der naechste Slot hervorgehoben
+function timelineList(plan, loggedMeals, isToday) {
+  const nowTime = new Date().toTimeString().slice(0, 5);
+  const next = isToday ? plan.timeline.find((slot) => slot.time >= nowTime) : null;
+  const items = plan.timeline.map((slot) => {
+    const eaten = (loggedMeals[slot.slot] || []).filter((e) => e.status === "eaten").reduce((sum, e) => sum + e.kcal, 0);
+    const done = slot.kcal > 0 && eaten >= slot.kcal * 0.8;
+    return el("li", { class: `${slot.kind}${slot === next ? " next" : ""}${done ? " done" : ""}` },
+      el("span", { class: "time" }, slot.time),
+      el("span", { class: "name" }, slot.label),
+      el("span", { class: "kcal" }, slot.kcal ? `${done ? "✓ " : ""}${round(eaten)} / ${round(slot.kcal)} kcal` : "Wasser"));
+  });
+  return el("ul", { class: "timeline" }, ...items);
+}
+
+function nutritionCard(plan, totals, isToday, loggedMeals = {}) {
   const head = el("h2", {}, isToday ? "🍽 Ernährung heute" : "🍽 Ernährung");
   if (plan.error) {
     return [head, el("p", { class: "hint" }, `Nicht verfügbar: ${plan.error}`),
@@ -103,7 +118,10 @@ function nutritionCard(plan, totals, isToday) {
   const target = plan.nutrition.target_kcal;
   const m = plan.macros;
   // Schnell-Erfassen gilt fuer heute (die Ernaehrungsseite kennt keinen Datums-Parameter)
-  const meals = isToday ? MEALS.map(([meal, name]) => el("a", { href: `ernaehrung/?add=${meal}` }, `+ ${name}`)) : [];
+  const quickAdd = plan.timeline
+    ? plan.timeline.filter((slot) => slot.slot !== "intra").map((slot) => [slot.slot, slot.label])
+    : MEALS;
+  const meals = isToday ? quickAdd.map(([meal, name]) => el("a", { href: `ernaehrung/?add=${meal}` }, `+ ${name}`)) : [];
   return [
     head,
     el("div", { class: "kcal-head" },
@@ -113,6 +131,7 @@ function nutritionCard(plan, totals, isToday) {
     macroRow("Protein", totals.protein_g, m.protein_g),
     macroRow("KH", totals.carbs_g, m.carbs_g),
     macroRow("Fett", totals.fat_g, m.fat_g),
+    ...(plan.timeline ? [el("h3", {}, "Tagesablauf"), timelineList(plan, loggedMeals, isToday)] : []),
     el("div", { class: "meal-buttons" }, ...meals),
     el("a", { class: "action-link", href: "ernaehrung/" }, "Zum Ernährungs-Tagebuch →"),
   ];
@@ -171,7 +190,8 @@ async function load() {
   const day = week.data.days.find((d) => d.date === iso);
   $("training-card").replaceChildren(...trainingCard(day, isToday));
   $("nutrition-card").replaceChildren(
-    ...nutritionCard(plan.ok ? plan.data : { error: plan.data.error }, log.ok ? log.data.totals : NO_TOTALS, isToday));
+    ...nutritionCard(plan.ok ? plan.data : { error: plan.data.error }, log.ok ? log.data.totals : NO_TOTALS, isToday,
+      log.ok ? log.data.meals : {}));
   $("week-card").replaceChildren(...weekCard(week.data, iso));
   mountDayComment($("comment-card"), { base: "", date: iso });
   loadReviewBanner();

@@ -39,6 +39,15 @@
         <fieldset id="evening-days" class="chips">
           <legend>Training nach der Arbeit (vor dem Abendessen)</legend>
         </fieldset>
+        <fieldset id="base-values" class="chips">
+          <legend>Basis-Tageswerte ohne Sport (Massnahmenplan) <a class="info" href="../hilfe/#tagesablauf" aria-label="Erklärung">ⓘ</a></legend>
+          <label>kcal <input name="base_kcal" type="number" step="10" min="1000" placeholder="2050"></label>
+          <label>Eiweiss (g) <input name="base_protein_g" type="number" step="1" min="20" placeholder="107"></label>
+          <label>Kohlenhydrate (g) <input name="base_carbs_g" type="number" step="1" min="20" placeholder="198"></label>
+          <label>Fett (g) <input name="base_fat_g" type="number" step="1" min="10" placeholder="83"></label>
+          <label>Ballaststoffe (g) <input name="base_fiber_g" type="number" step="1" min="0" placeholder="43"></label>
+          <p class="hint">Alle vier Hauptwerte gesetzt: Tagesziel = Basis + Sport-Verpflegung (Tagesablauf), ohne Defizit. Leer lassen: Formelberechnung.</p>
+        </fieldset>
         <button type="submit">Speichern</button>
       </form>
       <p class="msg" id="profile-msg"></p>

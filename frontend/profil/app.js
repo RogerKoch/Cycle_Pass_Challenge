@@ -14,6 +14,8 @@ function setGoalMode(mode) {
   form.elements.goal_value.placeholder = GOAL_MODES[mode].placeholder;
 }
 
+const BASE_FIELDS = ["base_kcal", "base_protein_g", "base_carbs_g", "base_fat_g", "base_fiber_g"];
+
 const NEW_PROFILE_DEFAULTS = { evening_training_days: [1, 2, 3, 4], equipment_missing: [] };
 
 // Rendert die Auswahllisten; die Backend-404-Antwort liefert sie auch ohne bestehendes Profil mit,
@@ -73,6 +75,7 @@ async function loadProfile() {
     for (const key of ["age", "height_cm", "program_start_date", "activity_level", "sex", "sport", "strength_focus", "benchmark_interval_weeks"]) {
       form.elements[key].value = data[key];
     }
+    for (const key of BASE_FIELDS) form.elements[key].value = data[key] ?? "";
   } else {
     $("profile-view").textContent = "Noch kein Profil angelegt.";
   }
@@ -92,6 +95,7 @@ async function saveProfile(event) {
   delete body.goal_mode;
   delete body.goal_value;
   body.rest_weekday = Number(body.rest_weekday);
+  for (const key of BASE_FIELDS) body[key] = form.elements[key].value === "" ? null : Number(form.elements[key].value);
   if (goalValue !== undefined) body[GOAL_MODES[goalMode].field] = Number(goalValue);
   body.equipment_missing = [...form.querySelectorAll("#equipment-missing input:checked")].map((box) => box.value);
   body.evening_training_days = [...form.querySelectorAll("#evening-days input:checked")].map((box) => Number(box.value));

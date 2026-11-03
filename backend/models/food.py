@@ -8,7 +8,10 @@ from datetime import date, datetime, timezone
 
 from backend.extensions import db
 
-MEALS: tuple[str, ...] = ("fruehstueck", "mittag", "abend", "snack", "training")
+# snack = Vormittags-Snack; training = Altwert (Snack 2 / Sport-Verpflegung), neue Eintraege nutzen pre/intra/post
+MEALS: tuple[str, ...] = (
+    "fruehstueck", "snack", "mittag", "snack_nachmittag", "pre", "intra", "post", "abend", "training",
+)
 SHARED_SCHEMA = "shared"
 FOOD_SOURCES: tuple[str, ...] = ("blv", "custom", "off")
 ENTRY_STATUSES: tuple[str, ...] = ("eaten", "planned")  # planned zaehlt nie als Ist

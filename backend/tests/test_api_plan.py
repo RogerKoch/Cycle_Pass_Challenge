@@ -320,3 +320,46 @@ def test_evening_training_days_default_update_and_validation(client):
     assert client.put("/api/profile", json={"evening_training_days": [5, 1]}).get_json()["evening_training_days"] == [1, 5]
     assert client.put("/api/profile", json={"evening_training_days": [7]}).status_code == 400
     assert client.put("/api/profile", json={"evening_training_days": "1,2"}).status_code == 400
+
+
+BASE_VALUES = {"base_kcal": 2050, "base_protein_g": 107, "base_carbs_g": 198, "base_fat_g": 83, "base_fiber_g": 43}
+
+
+def test_plan_uses_formula_mode_without_base_values(client):
+    _setup_profile_and_checkin(client)
+    body = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
+    assert body["mode"] == "formula"
+    assert body["timeline"] is None
+
+
+def test_plan_in_base_value_mode_returns_timeline_with_target_base_plus_sport(client):
+    from datetime import date
+
+    _setup_profile_and_checkin(client)
+    client.put("/api/profile", json={**BASE_VALUES, "evening_training_days": [date.today().weekday()]})
+    body = client.get(
+        "/api/plan/today?cycling_hours=1&cycling_intensity=moderat_base&strength_sessions=0&day_type=moderater_tag"
+    ).get_json()
+    slots = {s["slot"]: s for s in body["timeline"]}
+    assert body["mode"] == "base_values"
+    assert slots["pre"]["time"] == "17:15"
+    assert slots["abend"]["label"] == "Abendessen (Post-Workout)"
+    assert body["nutrition"]["target_kcal"] == pytest.approx(2050 + 117 + 217)
+    assert body["macros"]["protein_g"] == pytest.approx(107 + 2 + 28)
+    assert body["nutrition"]["deficit_kcal"] == 0
+    assert body["fiber_g"] == 43
+    assert [m["slot"] for m in body["meals"]] == ["fruehstueck", "snack", "mittag", "snack_nachmittag", "abend"]
+
+
+def test_partial_base_values_keep_formula_mode(client):
+    _setup_profile_and_checkin(client)
+    client.put("/api/profile", json={"base_kcal": 2050})
+    assert client.get(f"/api/plan/today{PLAN_QUERY}").get_json()["mode"] == "formula"
+
+
+def test_profile_base_values_are_validated_and_clearable(client):
+    _setup_profile_and_checkin(client)
+    assert client.put("/api/profile", json={"base_kcal": 50}).status_code == 400
+    assert client.put("/api/profile", json={"base_fat_g": "viel"}).status_code == 400
+    assert client.put("/api/profile", json=BASE_VALUES).get_json()["base_kcal"] == 2050
+    assert client.put("/api/profile", json={"base_kcal": None}).get_json()["base_kcal"] is None
