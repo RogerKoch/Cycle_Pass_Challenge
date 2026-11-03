@@ -386,6 +386,28 @@ Im Ernährungs-Tagebuch zeigt jede Mahlzeit Ist / Soll (kcal, Protein, KH und Fe
 
 **Training nach der Arbeit:** Im Profil lassen sich die Wochentage markieren (Standard Di–Fr), an denen du nach der Arbeit und vor dem Abendessen trainierst. An solchen Tagen mit Training entfällt Snack 2: Snack 1 ist das Pre-Workout am Nachmittag, das Abendessen die Post-Workout-Mahlzeit (kcal und Protein von Snack 2 wandern ins Abendessen). Das Tagesziel bleibt gleich.
 
+<a id="tagesablauf"></a>
+
+### Tagesablauf (Basis-Tageswerte)
+
+Sind im Profil die **Basis-Tageswerte** (kcal, Eiweiss, KH, Fett) eingetragen, z. B. aus einem Massnahmenplan, ersetzt der Tagesablauf die Formelberechnung: Tagesziel = Basis + Sport-Verpflegung, **ohne Defizit**. Ohne diese Werte gelten die Abschnitte oben.
+
+| Zeit | Slot | Menge (Basis 2.050 kcal) |
+|---|---|---|
+| ≤ 1 h nach Aufstehen | Frühstück | 550 kcal |
+| Vormittag | Zwischenmahlzeit | 275 kcal |
+| Mittag | Mittagessen | 555 kcal |
+| Nachmittag | Zwischenmahlzeit | 250 kcal |
+| 30–60 min vor dem Training | Pre | ca. 120 kcal, 25 g KH |
+| während dem Training | Intra | Wasser / 40–60 / 60–90 g KH pro Stunde je nach Dauer und Intensität |
+| nach dem Training | Post | ca. 220 kcal (nach langen oder harten Einheiten ca. 370), mit 28–30 g Eiweiss |
+| Abend | Abendessen | 420 kcal |
+
+- **Mo–Fr (Training nach der Arbeit, 18:00):** Post-Workout und Abendessen fallen zusammen (Abendessen direkt nach dem Training). Das ist spät, die Menge darf bei wenig Hunger sinken.
+- **Sa/So (Training nach dem Frühstück, 10:00):** Der Vormittags-Snack entfällt. Endet das Training ab 11:00, ersetzt die Post-Mahlzeit das Mittagessen.
+- Rad und Kraft laufen im selben Block (Rad, dann Kraft); Pre/Post gibt es einmal pro Tag.
+- Die Wochenübersicht im Ernährungs-Tagebuch bewertet jeden Slot gegen diese Mengen. Toleranz: bis +10 % bei kcal, KH und Fett.
+
 <a id="fueling"></a>
 
 ### Verpflegung unterwegs

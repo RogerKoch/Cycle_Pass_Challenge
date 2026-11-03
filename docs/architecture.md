@@ -103,6 +103,10 @@ alpenpaesse-app/
 4. **Tagestyp steuert Makros:** Ruhetag / moderat (Kraft o. ~1 h Rad) / lang-hart (≥2 h o. Intervalle),
    abgeleitet aus der geplanten bzw. zurückgemeldeten Einheit (`derive_day_type`), bestimmt KH-Menge
    und Intra-Workout-Fueling.
+   **Tagesablauf-Modus:** Sind im Profil Basis-Tageswerte gesetzt (`base_kcal/protein/carbs/fat`), gelten Regeln 3 und 4
+   nicht; `engine/day_timeline.py` baut stattdessen eine Uhrzeit-Timeline (5 Mahlzeiten + Pre/Intra/Post) und das Tagesziel
+   = Basis + Sport-Verpflegung, ohne Defizit (Mo–Fr 18:00 Training mit Post = Abendessen, Sa/So 10:00). `GET /api/nutrition/review`
+   (`engine/nutrition_review.py`) vergleicht den Log je Slot. Siehe `docs/research/tagesablauf-sportverpflegung.md`.
 
 ## Trainingskalender
 

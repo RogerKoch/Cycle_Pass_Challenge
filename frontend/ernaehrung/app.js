@@ -2,14 +2,21 @@
 
 const $ = (id) => document.getElementById(id);
 
-const MEALS = [
-  ["fruehstueck", "Frühstück"],
-  ["snack", "Snack 1"],
-  ["mittag", "Mittag"],
-  ["training", "Snack 2"],
-  ["abend", "Abend"],
-];
-const MEAL_NAMES = Object.fromEntries(MEALS);
+// Log-Schluessel in zeitlicher Reihenfolge; training = Altwert (vor dem Tagesablauf: Snack 2 / Sport)
+const MEAL_NAMES = {
+  fruehstueck: "Frühstück",
+  snack: "Zwischenmahlzeit Vormittag",
+  mittag: "Mittag",
+  snack_nachmittag: "Zwischenmahlzeit Nachmittag",
+  pre: "Pre-Training",
+  intra: "Während dem Training",
+  post: "Post-Training",
+  abend: "Abend",
+  training: "Sport (alt)",
+};
+// Ohne Tagesablauf (Formelmodus): die fuenf klassischen Mahlzeiten
+const FORMULA_MEALS = ["fruehstueck", "snack", "mittag", "training", "abend"];
+const FORMULA_NAMES = { snack: "Snack 1", training: "Snack 2" };
 const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.1/umd/zxing-browser.min.js";
 
 const state = {
@@ -91,6 +98,39 @@ async function loadDay() {
   state.overview = overview && overview.ok ? overview.data.days : [];
   applyTarget(plan);
   render();
+  if (state.view === "woche") loadReview();
+  else $("review-card").hidden = true;
+}
+
+// Wochenreview: Ø Ist gegen Soll je Slot der letzten 7 abgeschlossenen Tage, mit Hinweisen
+async function loadReview() {
+  const { ok, data } = await api("GET", "/api/nutrition/review");
+  const card = $("review-card");
+  card.hidden = false;
+  if (!ok) {
+    card.replaceChildren(el("h2", {}, "Wochenreview"), el("p", { class: "hint" }, data.error));
+    return;
+  }
+  if (!data.days_logged) {
+    card.replaceChildren(el("h2", {}, "Wochenreview"), el("p", { class: "hint" }, "Keine erfassten Tage im Zeitraum."));
+    return;
+  }
+  const findings = data.findings.map((f) => el("li", { class: `finding ${f.severity}` },
+    el("span", { class: "name" }, `${f.severity === "warn" ? "⚠ " : "ℹ "}${f.title}`, el("span", { class: "sub" }, f.detail))));
+  const rows = data.slots.map((s) => el("tr", {},
+    el("td", {}, s.label, el("span", { class: "sub" }, `${s.days_with_entry} von ${data.days_logged} Tagen erfasst`)),
+    el("td", { class: "num" }, `${round(s.eaten.kcal)} / ${round(s.plan.kcal)} kcal`,
+      el("span", { class: "sub" }, s.pct_kcal === null ? "" : `${s.pct_kcal} %`))));
+  const d = data.daily;
+  const macro = (label, key) => `${label} ${round(d[key].eaten)} / ${round(d[key].plan)} g (${d[key].pct} %)`;
+  card.replaceChildren(
+    el("h2", {}, `Wochenreview · ${fmtDate(data.from, { day: "numeric", month: "short" })}–${fmtDate(data.to, { day: "numeric", month: "short" })}`),
+    el("p", { class: "hint" }, `Ø pro Tag, ${data.days_logged} erfasste Tage: ${round(d.kcal.eaten)} / ${round(d.kcal.plan)} kcal (${d.kcal.pct} %)`),
+    el("p", { class: "hint" }, [macro("Eiweiss", "protein_g"), macro("KH", "carbs_g"), macro("Fett", "fat_g")].join(" · ")),
+    findings.length ? el("ul", { class: "list" }, ...findings) : el("p", { class: "hint" }, "Keine Auffälligkeiten."),
+    el("table", { class: "plan-meals" }, el("tbody", {}, ...rows)),
+    ...data.notes.map((note) => el("p", { class: "hint" }, note)),
+  );
 }
 
 function applyTarget(plan) {
@@ -248,6 +288,33 @@ function render() {
   mountDayComment($("comment-card"), { base: "../", date: state.date });
 }
 
+// Sichtbare Log-Mahlzeiten: Slots des Tagesablaufs in Uhrzeit-Reihenfolge, dazu Schluessel mit Eintraegen
+// (z. B. entfallener Snack, Altwert "training"); ohne Tagesablauf die klassischen fuenf
+function visibleMeals() {
+  if (!(state.plan && state.plan.timeline)) {
+    return FORMULA_MEALS.map((key) => [key, FORMULA_NAMES[key] || MEAL_NAMES[key]]);
+  }
+  const keys = state.plan.timeline.map((slot) => slot.slot);
+  const extra = Object.keys(MEAL_NAMES).filter((key) => !keys.includes(key) && state.day.meals[key].length);
+  const labels = Object.fromEntries(state.plan.timeline.map((slot) => [slot.slot, slot.label]));
+  return [...keys, ...extra].map((key) => [key, labels[key] || MEAL_NAMES[key]]);
+}
+
+const mealName = (key) => (visibleMeals().find(([k]) => k === key) || [key, MEAL_NAMES[key]])[1];
+
+// Tagesablauf: Uhrzeit, Slot, Menge und Beispiele; heute wird der naechste Slot hervorgehoben
+function renderTimeline(plan) {
+  const nowTime = new Date().toTimeString().slice(0, 5);
+  const next = isToday() ? plan.timeline.find((slot) => slot.time >= nowTime) : null;
+  const rows = plan.timeline.map((slot) => el("tr", { class: `${slot.kind}${slot === next ? " next" : ""}` },
+    el("td", { class: "time" }, slot.time),
+    el("td", {}, slot.label, el("span", { class: "sub" }, slot.hint),
+      slot.options.length ? el("span", { class: "sub options" }, slot.options.join(" · ")) : null),
+    el("td", { class: "num" }, slot.kcal ? `${round(slot.kcal)} kcal` : "Wasser",
+      slot.kcal ? el("span", { class: "sub" }, `${round(slot.protein_g)} g P · ${round(slot.carbs_g)} g KH · ${round(slot.fat_g)} g F`) : null)));
+  return el("table", { class: "plan-meals timeline" }, el("tbody", {}, ...rows));
+}
+
 // Verteilung des Tagessolls auf Mahlzeiten, Fueling waehrend der Fahrt und Timing-Hinweise
 function renderPlan() {
   const plan = state.plan;
@@ -265,8 +332,11 @@ function renderPlan() {
   $("plan-card").replaceChildren(...[
     el("h2", {}, `Soll: ${round(plan.nutrition.target_kcal)} kcal`),
     el("p", { class: "hint" }, `Protein ${round(m.protein_g)} g · KH ${round(m.carbs_g)} g · Fett ${round(m.fat_g)} g`),
-    el("table", { class: "plan-meals" }, el("tbody", {}, ...meals)),
-    fueling ? el("p", { class: "hint" }, fueling) : null,
+    plan.timeline
+      ? renderTimeline(plan)
+      : el("table", { class: "plan-meals" }, el("tbody", {}, ...meals)),
+    plan.fiber_g ? el("p", { class: "hint" }, `Ballaststoffe: ca. ${round(plan.fiber_g)} g`) : null,
+    fueling && !plan.timeline ? el("p", { class: "hint" }, fueling) : null,
     ...plan.timing_hints.map((hint) => el("p", { class: "hint" }, hint)),
   ].filter((node) => node !== null));
 }
@@ -334,12 +404,13 @@ function entryAmount(entry) {
   return `${round(entry.grams)} g`;
 }
 
-// Richtwerte je Log-Mahlzeit aus dem Tagesplan; Snack 1 -> "snack", Snack 2 -> "training" (Log-Schluessel)
+// Richtwerte je Log-Mahlzeit aus dem Tagesplan; im Formelmodus Snack 1 -> "snack", Snack 2 -> "training"
 const PLAN_SLOT_TO_MEAL = { snack_1: "snack", snack_2: "training" };
 
 function mealTargets() {
   const targets = {};
-  for (const slot of state.plan ? state.plan.meals : []) {
+  const slots = state.plan ? (state.plan.timeline || state.plan.meals) : [];
+  for (const slot of slots) {
     targets[PLAN_SLOT_TO_MEAL[slot.slot] || slot.slot] = {
       kcal: slot.kcal, protein_g: slot.protein_g, carbs_g: slot.carbs_g, fat_g: slot.fat_g,
     };
@@ -351,7 +422,7 @@ function renderMeals() {
   const future = state.date > today();
   const past = state.date < today();
   const targets = mealTargets();
-  const sections = MEALS.map(([meal, name]) => {
+  const sections = visibleMeals().map(([meal, name]) => {
     const entries = state.day.meals[meal];
     const eaten = entries.filter((e) => e.status === "eaten");
     const planned = entries.filter((e) => e.status === "planned");
@@ -402,7 +473,7 @@ let searchSeq = 0;
 function openSearch(meal, planned = false) {
   state.meal = meal;
   state.planned = planned;
-  $("search-title").textContent = `${MEAL_NAMES[meal]} – ${planned ? "planen" : "hinzufügen"}`;
+  $("search-title").textContent = `${mealName(meal)} – ${planned ? "planen" : "hinzufügen"}`;
   $("search-input").value = "";
   openDialog("search-dialog");
   $("search-input").focus();

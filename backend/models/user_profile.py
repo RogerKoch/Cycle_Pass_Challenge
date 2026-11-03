@@ -32,6 +32,13 @@ class UserProfile(db.Model):
     sex: str = db.Column(db.String(1), nullable=False, default="m", server_default="m")
     # Ausdauersport ("cycling" | "running", engine.week_plan.SPORTS); running = nur erfassen, kein Radplan
     sport: str = db.Column(db.String(10), nullable=False, default="cycling", server_default="cycling")
+    # Gemessene Basis-Tageswerte ohne Sport (Massnahmenplan, z. B. 2050 kcal / 107 / 198 / 83 / 43); alle vier
+    # Hauptwerte gesetzt = Basiswerte-Modus (engine.day_timeline), sonst Formelberechnung (engine.nutrition_calc)
+    base_kcal: float | None = db.Column(db.Float, nullable=True)
+    base_protein_g: float | None = db.Column(db.Float, nullable=True)
+    base_carbs_g: float | None = db.Column(db.Float, nullable=True)
+    base_fat_g: float | None = db.Column(db.Float, nullable=True)
+    base_fiber_g: float | None = db.Column(db.Float, nullable=True)
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,

@@ -105,6 +105,16 @@ evening_training_days:
   default_weekdays: [1, 2, 3, 4]        # 0 = Mo ... 6 = So; Di-Fr nach der Arbeit, Sa/So/Mo flexibel
   effect_on_training_day: "Snack 2 faellt in das Abendessen (kcal + Protein), Snack 1 = Pre-Workout nachmittags"
   daily_targets_unchanged: true
+  # Tagesablauf-Modus (engine/day_timeline.py): Training 18:00 an diesen Tagen, sonst 10:00; Post und Abendessen fallen zusammen
+  timeline_start: {evening: "18:00", morning: "10:00"}
+
+# Tagesablauf-Modus (Basis-Tageswerte im Profil), Quelle docs/research/tagesablauf-sportverpflegung.md
+base_values:
+  profile_fields: [base_kcal, base_protein_g, base_carbs_g, base_fat_g, base_fiber_g]   # alle vier ersten gesetzt = aktiv
+  target: "Tagesziel = Basis + Summe Pre/Intra/Post, kein Defizit; nicht an Event-Tagen (Formelmodus)"
+  meals_kcal_at_2050: {fruehstueck: 550, snack: 275, mittag: 555, snack_nachmittag: 250, abend: 420}
+  tolerance: {kcal_carbs_fat_up: 1.10, protein_down: 0.90, protein_max_g_per_kg: 2.0}
+  review: "GET /api/nutrition/review: Ø Ist/Soll je Slot + regelbasierte Hinweise (engine/nutrition_review.py)"
 
 strength_focus:
   options: [none, core, upper, legs, mobility]
@@ -237,7 +247,7 @@ baseline_values:
 # NAHRUNGSZUFUHR (Ist-Werte)
 # ---------------------------------------------------------------------------
 intake:
-  granularity: "Einzeleinträge je Mahlzeit (fruehstueck/mittag/abend/snack/training) mit Nährwert-Snapshot; Schnelleinträge nur mit Summen"
+  granularity: "Einzeleinträge je Mahlzeit (fruehstueck/snack/mittag/snack_nachmittag/pre/intra/post/abend; training = Altwert) mit Nährwert-Snapshot; Schnelleinträge nur mit Summen"
   storage: "food_log_entries (Einträge), foods (BLV/OFF/eigene, pro 100 g, optionale Portion), meal_templates; intake_days = Tagessumme, wird bei jeder Log-Änderung neu berechnet"
   source: "Eigene Erfassung in der App (/ernaehrung/). Lebensmittel: Schweizer Nährwertdatenbank (BLV) + optional Barcode via Open Food Facts. PUT /api/intake/<datum> bleibt für manuelle Tagessummen, wird aber von Log-Einträgen überschrieben"
   energy_availability_scope: "heute im Tagesplan, Historie (Ø 7 Tage) im Check-in-Review; Trainings-kcal aus intervals.icu-Import (kJ), sonst Kalender"

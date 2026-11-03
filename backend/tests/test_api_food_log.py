@@ -181,3 +181,12 @@ def test_deleting_a_planned_entry_leaves_eaten_ones(client, egg):
     entry_id = plan_egg(client, egg, meal="mittag").get_json()["id"]
     assert client.delete(f"/api/food-log/{entry_id}").status_code == 204
     assert intake().kcal == 93.0
+
+
+@pytest.mark.parametrize("meal", ["snack_nachmittag", "pre", "intra", "post"])
+def test_quick_entry_accepts_timeline_slots(client, meal):
+    assert client.post("/api/food-log", json={**QUICK, "meal": meal}).status_code == 201
+
+
+def test_quick_entry_rejects_unknown_meal(client):
+    assert client.post("/api/food-log", json={**QUICK, "meal": "mitternacht"}).status_code == 400

@@ -18,11 +18,13 @@ from backend.api.calendar_routes import (
 )
 from backend.engine.baseline import calculate_energy_availability
 from backend.engine.cycling_zones import compute_cycling_zones
+from backend.engine.day_timeline import SLOT_MEAL, BaseTargets, build_timeline, sport_fueling, timeline_totals
 from backend.engine.event_prep import PHASE_EVENT, event_context, event_nutrition, strength_blocked
 from backend.engine.nutrition_calc import (
     ACTIVITY_LEVELS,
     CyclingIntensity,
     DayType,
+    MacroTargets,
     calculate_daily_kcal_target,
     calculate_macro_targets,
     derive_day_type,
@@ -225,6 +227,19 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
     # Training nach der Arbeit: Post-Workout-Mahlzeit ist das Abendessen (nur an Tagen mit Training)
     evening_days = {int(d) for d in profile.evening_training_days.split(",") if d}
     evening = day.weekday() in evening_days and (cycling_hours > 0 or strength_sessions > 0)
+
+    # Basiswerte-Modus: Basis-Tageswerte aus dem Profil + Sport-Verpflegung als Tagesablauf (nicht an Event-Tagen)
+    base = BaseTargets.from_profile(profile) if event_ctx is None else None
+    timeline = None
+    if base is not None:
+        strength_minutes = 50 if strength_sessions > 0 else 0
+        timeline = build_timeline(
+            base, cycling_hours * 60, cycling_intensity, strength_sessions, evening, day.weekday() >= 5
+        )
+        kcal, protein_g, carbs_g, fat_g = timeline_totals(timeline)
+        nutrition = replace(nutrition, target_kcal=kcal, deficit_kcal=0.0)
+        macros = MacroTargets(protein_g=protein_g, fat_g=fat_g, carbs_g=carbs_g)
+        fueling = sport_fueling(cycling_hours * 60, cycling_intensity if cycling_hours > 0 else None, strength_minutes)
     intake_today = IntakeDay.query.filter_by(intake_date=day).first()
     intake = None
     if intake_today is not None:
@@ -255,14 +270,25 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
         "nutrition": asdict(nutrition),
         "macros": asdict(macros),
         "day_type": day_type.value,
-        "meals": [
-            asdict(m)
-            for m in distribute_meals(nutrition.target_kcal, macros.protein_g, evening, macros.carbs_g, macros.fat_g)
-        ],
+        "mode": "base_values" if timeline is not None else "formula",
+        "timeline": [asdict(slot) for slot in timeline] if timeline is not None else None,
+        "fiber_g": base.fiber_g if base is not None else None,
+        "meals": (
+            [asdict(m) for m in timeline if m.kind == SLOT_MEAL]
+            if timeline is not None
+            else [
+                asdict(m)
+                for m in distribute_meals(nutrition.target_kcal, macros.protein_g, evening, macros.carbs_g, macros.fat_g)
+            ]
+        ),
         "fueling": asdict(fueling) if fueling else None,
         "timing_hints": [
             *(event_nut.hints if event_nut else []),
-            *nutrition_timing_hints(cycling_hours > 0, strength_sessions > 0, checkin.weight_kg, evening),
+            *(
+                []
+                if timeline is not None
+                else nutrition_timing_hints(cycling_hours > 0, strength_sessions > 0, checkin.weight_kg, evening)
+            ),
         ],
         "event": _serialize_event(event_ctx),
         "training": training,
