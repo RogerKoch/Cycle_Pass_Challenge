@@ -110,7 +110,7 @@ evening_training_days:
 
 # Tagesablauf-Modus (Basis-Tageswerte im Profil), Quelle docs/research/tagesablauf-sportverpflegung.md
 base_values:
-  profile_fields: [base_kcal, base_protein_g, base_carbs_g, base_fat_g, base_fiber_g]   # alle vier ersten gesetzt = aktiv
+  profile_fields: [base_kcal, base_protein_g, base_carbs_g, base_fat_g, base_fiber_g, base_deficit_kcal]   # alle vier ersten gesetzt = aktiv
   target: "Tagesziel = Basis + Summe Pre/Intra/Post, kein Defizit; nicht an Event-Tagen (Formelmodus)"
   meals_kcal_at_2050: {fruehstueck: 550, snack: 275, mittag: 555, snack_nachmittag: 250, abend: 420}
   tolerance: {kcal_carbs_fat_up: 1.10, protein_down: 0.90, protein_max_g_per_kg: 2.0}

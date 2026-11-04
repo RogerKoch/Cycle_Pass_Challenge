@@ -39,6 +39,8 @@ class UserProfile(db.Model):
     base_carbs_g: float | None = db.Column(db.Float, nullable=True)
     base_fat_g: float | None = db.Column(db.Float, nullable=True)
     base_fiber_g: float | None = db.Column(db.Float, nullable=True)
+    # Defizit in kcal/Tag im Basiswerte-Modus (0/None = Erhaltung), mindert KH und Fett der Hauptmahlzeiten
+    base_deficit_kcal: float | None = db.Column(db.Float, nullable=True)
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,

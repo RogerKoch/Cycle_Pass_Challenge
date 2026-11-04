@@ -14,7 +14,7 @@ function setGoalMode(mode) {
   form.elements.goal_value.placeholder = GOAL_MODES[mode].placeholder;
 }
 
-const BASE_FIELDS = ["base_kcal", "base_protein_g", "base_carbs_g", "base_fat_g", "base_fiber_g"];
+const BASE_FIELDS = ["base_kcal", "base_protein_g", "base_carbs_g", "base_fat_g", "base_fiber_g", "base_deficit_kcal"];
 
 const NEW_PROFILE_DEFAULTS = { evening_training_days: [1, 2, 3, 4], equipment_missing: [] };
 

@@ -96,3 +96,16 @@ def test_base_targets_requires_all_main_values():
     assert BaseTargets.from_profile(P()) is None
     P.base_fat_g = 83
     assert BaseTargets.from_profile(P()) == BASE
+
+
+def test_deficit_reduces_carbs_and_fat_but_keeps_protein():
+    base = BaseTargets(kcal=2050, protein_g=107, carbs_g=198, fat_g=83, deficit_kcal=250)
+    kcal, protein, carbs, fat = timeline_totals(build_timeline(base, 0, None, 0, evening=False, weekend=False))
+    assert kcal == pytest.approx(2050 - 250)
+    assert protein == pytest.approx(107)
+    assert (198 - carbs) * 4 + (83 - fat) * 9 == pytest.approx(250)
+
+
+def test_zero_deficit_keeps_maintenance_values():
+    base = BaseTargets(kcal=2050, protein_g=107, carbs_g=198, fat_g=83, deficit_kcal=0)
+    assert timeline_totals(build_timeline(base, 0, None, 0, evening=False, weekend=False))[0] == pytest.approx(2050)
