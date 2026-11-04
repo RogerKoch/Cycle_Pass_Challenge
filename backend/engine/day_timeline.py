@@ -36,6 +36,7 @@ class BaseTargets:
     carbs_g: float
     fat_g: float
     fiber_g: float | None = None
+    deficit_kcal: float = 0.0  # 0 = Erhaltung (Massnahmenplan); mindert KH und Fett der Hauptmahlzeiten, Eiweiss bleibt
 
     @classmethod
     def from_profile(cls, profile: object) -> "BaseTargets | None":
@@ -43,7 +44,8 @@ class BaseTargets:
         values = [getattr(profile, name, None) for name in ("base_kcal", "base_protein_g", "base_carbs_g", "base_fat_g")]
         if any(v is None for v in values):
             return None
-        return cls(*values, fiber_g=getattr(profile, "base_fiber_g", None))
+        return cls(*values, fiber_g=getattr(profile, "base_fiber_g", None),
+                   deficit_kcal=getattr(profile, "base_deficit_kcal", None) or 0.0)
 
 
 @dataclass
@@ -146,6 +148,20 @@ def _scaled_meals(base: BaseTargets) -> dict[str, TimelineSlot]:
     }
 
 
+def _apply_deficit(meals: dict[str, TimelineSlot], deficit_kcal: float) -> None:
+    """Verteilt das Defizit nach kcal-Anteil auf die Hauptmahlzeiten und nimmt es aus KH und Fett (Eiweiss bleibt)."""
+    total = sum(m.kcal for m in meals.values())
+    for slot, meal in meals.items():
+        cut = min(deficit_kcal * meal.kcal / total, meal.carbs_g * 4 + meal.fat_g * 9)
+        macro_kcal = meal.carbs_g * 4 + meal.fat_g * 9
+        meals[slot] = replace(
+            meal,
+            kcal=meal.kcal - cut,
+            carbs_g=meal.carbs_g - cut * (meal.carbs_g * 4 / macro_kcal) / 4 if macro_kcal else 0.0,
+            fat_g=meal.fat_g - cut * (meal.fat_g * 9 / macro_kcal) / 9 if macro_kcal else 0.0,
+        )
+
+
 def _absorb(target: TimelineSlot, protein_g: float, carbs_g: float, fat_g: float, kcal: float) -> TimelineSlot:
     """Addiert Werte (z. B. Post-Workout oder entfallender Snack) auf eine Mahlzeit."""
     return replace(target, kcal=target.kcal + kcal, protein_g=target.protein_g + protein_g,
@@ -177,6 +193,8 @@ def build_timeline(
         Slots nach Uhrzeit sortiert; Mahlzeiten (kind "meal") summieren sich ohne Sport auf `base`.
     """
     meals = _scaled_meals(base)
+    if base.deficit_kcal > 0:
+        _apply_deficit(meals, base.deficit_kcal)
     times = {"fruehstueck": (8 if weekend else 7) * 60, "snack": 10 * 60, "mittag": 12 * 60 + 30,
              "snack_nachmittag": 15 * 60 + 30, "abend": 18 * 60 + 30}
     strength_minutes = STRENGTH_MINUTES if strength_sessions > 0 else 0

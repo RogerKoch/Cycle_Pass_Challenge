@@ -237,7 +237,7 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
             base, cycling_hours * 60, cycling_intensity, strength_sessions, evening, day.weekday() >= 5
         )
         kcal, protein_g, carbs_g, fat_g = timeline_totals(timeline)
-        nutrition = replace(nutrition, target_kcal=kcal, deficit_kcal=0.0)
+        nutrition = replace(nutrition, target_kcal=kcal, deficit_kcal=base.deficit_kcal)
         macros = MacroTargets(protein_g=protein_g, fat_g=fat_g, carbs_g=carbs_g)
         fueling = sport_fueling(cycling_hours * 60, cycling_intensity if cycling_hours > 0 else None, strength_minutes)
     intake_today = IntakeDay.query.filter_by(intake_date=day).first()

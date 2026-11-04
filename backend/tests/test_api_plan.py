@@ -363,3 +363,12 @@ def test_profile_base_values_are_validated_and_clearable(client):
     assert client.put("/api/profile", json={"base_fat_g": "viel"}).status_code == 400
     assert client.put("/api/profile", json=BASE_VALUES).get_json()["base_kcal"] == 2050
     assert client.put("/api/profile", json={"base_kcal": None}).get_json()["base_kcal"] is None
+
+
+def test_base_value_mode_applies_profile_deficit_to_target(client):
+    _setup_profile_and_checkin(client)
+    client.put("/api/profile", json={**BASE_VALUES, "base_deficit_kcal": 250})
+    body = client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
+    assert body["nutrition"]["deficit_kcal"] == 250
+    reference = client.put("/api/profile", json={"base_deficit_kcal": 0}) and client.get(f"/api/plan/today{PLAN_QUERY}").get_json()
+    assert body["nutrition"]["target_kcal"] == pytest.approx(reference["nutrition"]["target_kcal"] - 250)

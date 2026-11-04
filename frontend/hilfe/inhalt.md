@@ -390,7 +390,7 @@ Im Ernährungs-Tagebuch zeigt jede Mahlzeit Ist / Soll (kcal, Protein, KH und Fe
 
 ### Tagesablauf (Basis-Tageswerte)
 
-Sind im Profil die **Basis-Tageswerte** (kcal, Eiweiss, KH, Fett) eingetragen, z. B. aus einem Massnahmenplan, ersetzt der Tagesablauf die Formelberechnung: Tagesziel = Basis + Sport-Verpflegung, **ohne Defizit**. Ohne diese Werte gelten die Abschnitte oben.
+Sind im Profil die **Basis-Tageswerte** (kcal, Eiweiss, KH, Fett) eingetragen, z. B. aus einem Massnahmenplan, ersetzt der Tagesablauf die Formelberechnung: Tagesziel = Basis + Sport-Verpflegung, **ohne Defizit**. Ohne diese Werte gelten die Abschnitte oben. Das Feld **Defizit (kcal/Tag)** ist standardmässig 0 (Erhaltung); ein Wert mindert Kohlenhydrate und Fett der Hauptmahlzeiten, Eiweiss und Sport-Verpflegung bleiben.
 
 | Zeit | Slot | Menge (Basis 2.050 kcal) |
 |---|---|---|
