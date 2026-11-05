@@ -66,6 +66,7 @@ alpenpaesse-app/
 │   │   └── plan_adjustments.py      # Wirkung der Anpassungen (Defizit, Erholungswoche …)
 │   ├── integrations/
 │   │   ├── blv_import.py            # BLV-Nährwertdatenbank → foods (CLI import-blv)
+│   │   ├── sport_products_import.py # Sport-Produkte (engine/sport_products.py) → foods (CLI import-sport-products)
 │   │   ├── open_food_facts.py       # Barcode-Lookup
 │   │   └── intervals_icu.py         # Garmin-Daten via intervals.icu-API (Aktivitäten, Wellness, Auto-Check-ins, Workout-Push → Zwift)
 │   └── api/                         # Flask-Endpunkte (REST)

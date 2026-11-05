@@ -9,6 +9,7 @@ Die Basis-Tageswerte (ohne Sport) stehen im Profil; Tagesziel = Basis + Summe de
 from dataclasses import dataclass, field, replace
 
 from backend.engine.nutrition_calc import HARD_INTENSITIES, CyclingIntensity, Fueling
+from backend.engine.sport_products import DRINK, GEL, JELLY_COLA, SALT
 
 REFERENCE_KCAL = 2050.0  # Summe der Mahlzeiten-kcal im Massnahmenplan; Skalierungsbasis
 STRENGTH_MINUTES = 50  # Krafteinheit im selben Block wie das Rad (Rad, dann Kraft)
@@ -81,7 +82,8 @@ _MAIN_MEALS: list[tuple[str, str, float, tuple[float, float, float], str, list[s
       "150 g Gemüse, 250 g Skyr, 28 g Darvida, 15 ml Olivenöl"]),
 ]
 
-_PRE_OPTIONS = ["120 g Banane", "45 g Laugenbrötli", "50 g Weissbrot", "25 g Lebkuchen mit Schokolade"]
+_PRE_OPTIONS = ["120 g Banane", "45 g Laugenbrötli", "50 g Weissbrot", "25 g Lebkuchen mit Schokolade",
+                f"½ {JELLY_COLA.short_name} (ca. {JELLY_COLA.carbs_per_portion / 2:.0f} g KH)"]
 _POST_STANDARD_OPTIONS = ["30 g Proteinpulver + 150 g Beeren + 100 ml Sojadrink", "330 ml Protein-Drink (Fertigprodukt)"]
 _POST_LONG_OPTIONS = ["30 g Proteinpulver + 90 g Banane + 140-200 ml Milch + 15 g Mandelmus"]
 
@@ -122,6 +124,26 @@ def sport_fueling(cycling_minutes: float, intensity: CyclingIntensity | None, st
     else:
         low, high, note = 0.0, 0.0, "Wasser 0.5 l genügt, wenn der Pre-Snack gegessen ist."
     return Fueling(low, high, low * hours, high * hours, note)
+
+
+def _intra_options(fueling: Fueling) -> list[str]:
+    """Produkt-Vorschlaege fuer die Einheit nach KH pro Stunde; Salz kommt immer als eigene Flasche dazu (starker Schweiss)."""
+    salt = f"Salz: 450 ml Wasser + {SALT.portion_label.split(' (')[0]} {SALT.short_name} ({SALT.sodium_mg:.0f} mg Natrium) pro Stunde"
+    drink_carbs = DRINK.carbs_per_portion
+    if fueling.carbs_g_per_hour_max <= 0:
+        return [salt + ", nur bei Einheiten ab ca. 45 min nötig"]
+    options = [f"{fueling.carbs_g_per_hour_min:.0f}–{fueling.carbs_g_per_hour_max:.0f} g KH pro Stunde"]
+    if fueling.carbs_g_per_hour_max <= 30:
+        options.append(f"½ {DRINK.short_name} in 500 ml (ca. {drink_carbs / 2:.0f} g KH) oder Wasser")
+    else:
+        options.append(f"1 {DRINK.short_name} pro Stunde in 500 ml ({drink_carbs:.0f} g KH), ab Minute 20 alle 15 min ein Viertel")
+    options.append(salt)
+    if fueling.carbs_g_per_hour_max > 60:
+        options.append(f"Zusätzlich pro Stunde 1 {GEL.short_name} ({GEL.carbs_per_portion:.0f} g KH, {GEL.sodium_mg:.0f} mg Natrium) "
+                       f"oder 1 {JELLY_COLA.short_name} ({JELLY_COLA.carbs_per_portion:.0f} g KH), ab Minute 45")
+    elif fueling.carbs_g_per_hour_max > 30:
+        options.append(f"Ab Minute 60 ½ {JELLY_COLA.short_name} ({JELLY_COLA.carbs_per_portion / 2:.0f} g KH) oder 1 {GEL.short_name}")
+    return options
 
 
 def _post_values(cycling_minutes: float, intensity: CyclingIntensity | None) -> tuple[tuple[float, float, float, float], list[str]]:
@@ -212,9 +234,7 @@ def build_timeline(
         sport.append(TimelineSlot("pre", _clock(start - PRE_LEAD_MINUTES), SLOT_SPORT, "Pre-Training", pre_kcal, pre_p, pre_c, pre_f,
                                   "30–60 min vor dem Training, auch wenn die letzte Mahlzeit 2–3 h her ist.", _PRE_OPTIONS))
         sport.append(TimelineSlot("intra", _clock(start), SLOT_SPORT, "Während dem Training", intra_carbs * 4, 0.0, intra_carbs, 0.0,
-                                  f"{_clock(start)}–{_clock(end)}: {fueling.note}",
-                                  [f"{fueling.carbs_g_per_hour_min:.0f}–{fueling.carbs_g_per_hour_max:.0f} g KH pro Stunde"]
-                                  if fueling.carbs_g_per_hour_max else []))
+                                  f"{_clock(start)}–{_clock(end)}: {fueling.note}", _intra_options(fueling)))
         if evening:
             meals["abend"] = replace(
                 _absorb(meals["abend"], post_p, post_c, post_f, post_kcal),
