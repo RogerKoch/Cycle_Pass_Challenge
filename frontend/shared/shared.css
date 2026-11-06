@@ -83,6 +83,8 @@ input, select {
   border: 1px solid var(--border-strong); border-radius: 10px; background: var(--card);
 }
 input:focus, select:focus { border-color: var(--accent); }
+/* Vorbelegter Wert = Vorschlag (gestrichelt, getoent) bis zur ersten Eingabe; Antippen markiert den Wert */
+input.suggested:not(:focus) { border-style: dashed; background: var(--accent-soft); font-style: italic; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 input[type="search"] { margin: 4px 0 8px; }
 
