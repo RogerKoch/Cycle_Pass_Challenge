@@ -78,6 +78,18 @@ function openDialog(id) {
 function closeDialog(id) {
   const dialog = $(id);
   if (dialog.open) dialog.close();
+  resetZoom();
+}
+
+// iOS Safari zoomt beim Fokus eines Feldes und bleibt nach dem Schliessen des Dialogs gezoomt:
+// Fokus loesen und Zoom kurz per Viewport-Meta zuruecksetzen
+function resetZoom() {
+  if (document.activeElement) document.activeElement.blur();
+  const meta = document.querySelector('meta[name="viewport"]');
+  if (!meta) return;
+  const original = meta.content;
+  meta.content = `${original}, maximum-scale=1`;
+  setTimeout(() => { meta.content = original; }, 300);
 }
 
 // ---------------------------------------------------------------- Tag laden/rendern
@@ -907,7 +919,7 @@ function bindEvents() {
   $("scan-dialog").addEventListener("close", stopScan);
 
   for (const button of document.querySelectorAll("[data-close]")) {
-    button.addEventListener("click", () => button.closest("dialog").close());
+    button.addEventListener("click", () => { button.closest("dialog").close(); resetZoom(); });
   }
 }
 

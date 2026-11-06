@@ -417,12 +417,15 @@ async function markSetDone(exercise, index) {
 
 // ---------------------------------------------------------------- Timer
 
-// "20–40 s" / "8 min" am Anfang der Reps -> Sekunden (obere Grenze). Steht die Zeit nicht vorn
-// ("6–8 je Seite, 3–5 s halten"), ist sie nur Haltedauer pro Wiederholung -> kein Timer.
-function parseDuration(reps) {
+// "20–40 s" / "8 min" am Anfang der Reps -> Sekunden: Bereich = [min, Mitte, max], sonst [Wert].
+// Steht die Zeit nicht vorn ("6–8 je Seite, 3–5 s halten"), ist sie nur Haltedauer pro Wiederholung -> kein Timer.
+function parseDurations(reps) {
   const match = /^(\d+)(?:–(\d+))?\s*(s|min)\b/.exec(reps || "");
   if (!match) return null;
-  return Number(match[2] || match[1]) * (match[3] === "min" ? 60 : 1);
+  const unit = match[3] === "min" ? 60 : 1;
+  const low = Number(match[1]) * unit;
+  const high = Number(match[2] || match[1]) * unit;
+  return low === high ? [high] : [low, Math.round((low + high) / 2), high];
 }
 
 function formatClock(seconds) {
@@ -432,50 +435,18 @@ function formatClock(seconds) {
 let stopActiveTimer = () => {};
 
 let audioContext = null;
-let silentAudio = null;
 
-// 0,5 s Stille als WAV: haelt auf iOS die Audio-Session aktiv (Klingelschalter wuerde WebAudio sonst stummschalten)
-function silentWavUrl() {
-  const rate = 8000;
-  const samples = rate / 2;
-  const view = new DataView(new ArrayBuffer(44 + samples));
-  const text = (offset, value) => [...value].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
-  text(0, "RIFF");
-  view.setUint32(4, 36 + samples, true);
-  text(8, "WAVEfmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, rate, true);
-  view.setUint32(28, rate, true);
-  view.setUint16(32, 1, true);
-  view.setUint16(34, 8, true);
-  text(36, "data");
-  view.setUint32(40, samples, true);
-  for (let i = 0; i < samples; i++) view.setUint8(44 + i, 128);
-  return URL.createObjectURL(new Blob([view], { type: "audio/wav" }));
-}
-
-// Muss synchron im Klick-Handler laufen: iOS erlaubt Audio nur nach Nutzergeste
+// Muss synchron im Klick-Handler laufen: iOS erlaubt Audio nur nach Nutzergeste.
+// "ambient" mischt den Signalton unter laufende Musik (kein Audio-Focus); Nebeneffekt: Klingelschalter stumm = kein Ton.
 function unlockAudio() {
   try {
-    if (navigator.audioSession) navigator.audioSession.type = "playback";
+    if (navigator.audioSession) navigator.audioSession.type = "ambient";
     const Context = window.AudioContext || window.webkitAudioContext;
     if (!audioContext && Context) audioContext = new Context();
     if (audioContext && audioContext.state !== "running") audioContext.resume().catch(() => {});
-    if (!silentAudio) {
-      silentAudio = new Audio(silentWavUrl());
-      silentAudio.loop = true;
-    }
-    silentAudio.play().catch(() => {});
   } catch (error) {
     console.warn("Audio konnte nicht entsperrt werden", error);
   }
-}
-
-// verzoegert, damit der Signalton noch bei aktiver Audio-Session abgespielt wird
-function releaseAudio() {
-  setTimeout(() => { if (silentAudio) silentAudio.pause(); }, 1000);
 }
 
 document.addEventListener("visibilitychange", () => {
@@ -556,15 +527,21 @@ function holdBreakdown(exercise) {
 }
 
 // Reiner Countdown fuer Zeitangaben ("20–40 s", "8 min") als einzige Phase
-function countdownPhases(reps) {
-  const seconds = parseDuration(reps);
-  return seconds ? [{ kind: "countdown", seconds, text: "", setDone: null }] : null;
+function countdownPhases(seconds) {
+  return [{ kind: "countdown", seconds, text: "", setDone: null }];
 }
 
-// Timer-Button: Halte-Zyklen (exercise.hold) oder Countdown aus der Zeitangabe; Klick startet, nochmaliger Klick setzt zurueck
+// Timer: Halte-Zyklus (exercise.hold) oder Countdown(s) aus der Zeitangabe; bei Bereichen ("30–60 s") je ein Button pro Stufe
 function timerButton(exercise, onSetDone) {
-  const phases = exercise.hold ? holdPhases(exercise) : countdownPhases(exercise.reps);
-  if (!phases) return null;
+  if (exercise.hold) return singleTimer(exercise, onSetDone, holdPhases(exercise));
+  const durations = parseDurations(exercise.reps);
+  if (!durations) return null;
+  const buttons = durations.map((seconds) => singleTimer(exercise, onSetDone, countdownPhases(seconds)));
+  return buttons.length === 1 ? buttons[0] : el("div", { class: "timer-group" }, ...buttons);
+}
+
+// Timer-Button: Klick startet, nochmaliger Klick setzt zurueck
+function singleTimer(exercise, onSetDone, phases) {
   const total = phases.reduce((sum, phase) => sum + phase.seconds, 0);
   const idleText = `⏱ ${formatClock(total)}`;
   const button = el("button", { type: "button", class: "timer" }, idleText);
@@ -573,7 +550,6 @@ function timerButton(exercise, onSetDone) {
   const reset = () => {
     clearInterval(handle);
     handle = null;
-    releaseAudio();
     button.textContent = idleText;
     button.classList.remove("running");
     if (wakeLock) wakeLock.release().catch(() => {});
