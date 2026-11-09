@@ -25,7 +25,9 @@ table.segments .sub { display: block; color: var(--muted); font-weight: 400; fon
 .exercises .dose { float: right; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 8px; }
 .exercises .sub { display: block; color: var(--muted); font-size: 0.8rem; }
 .exercises .timer { margin-top: 6px; font-variant-numeric: tabular-nums; }
-.exercises .timer.running, .exercises .timer.running:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+/* Spezifitaet muss shared.css `button:not(.cell)…:hover:not(:disabled)` (0,5,1) schlagen, sonst bleibt auf Touch-Geraeten
+   nach dem Tippen (haengendes :hover) weisse Schrift auf hellem Grund */
+.exercises button[type="button"].timer.running, .exercises button[type="button"].timer.running:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
 .exercises .timer-group { display: flex; gap: 8px; margin-top: 6px; }
 .exercises .timer-group .timer { flex: 1; margin-top: 0; }
 .exercises .set-checks { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
