@@ -197,6 +197,11 @@ def test_strength_benchmark_due_after_interval():
     assert "strength_benchmark_due" in _ids(evaluate(every_two_weeks))
 
 
+def test_strength_benchmark_only_shown_on_cycling_day():
+    assert "strength_benchmark_due" not in _ids(evaluate(_inputs(cycling_day_today=False)))
+    assert "strength_benchmark_due" in _ids(evaluate(_inputs(cycling_day_today=True)))
+
+
 def test_findings_are_sorted_by_severity():
     findings = evaluate(_inputs(checkins=[], signals=[_signal(sleep=3, back=2)]))
     assert [f.severity for f in findings] == sorted([f.severity for f in findings], key=["alert", "warn", "info"].index)

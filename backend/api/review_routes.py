@@ -193,6 +193,9 @@ def _review_state(profile: UserProfile, today: date) -> tuple[list[Finding], dic
         ],
         last_strength_benchmark=db.session.query(db.func.max(StrengthBenchmark.test_date)).scalar(),
         benchmark_interval_weeks=profile.benchmark_interval_weeks,
+        cycling_day_today=any(
+            r.day_date == today and r.cycling_slot and r.status != STATUS_SKIPPED for r in ensure_week(profile, today)
+        ),
     )
     decided = {d.finding_key for d in ReviewDecision.query.all()}
     findings = [f for f in evaluate(inputs) if f.key not in decided]
