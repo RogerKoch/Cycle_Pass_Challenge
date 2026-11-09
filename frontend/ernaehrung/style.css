@@ -38,5 +38,6 @@
 .plan-meals.timeline tr.sport td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .plan-meals.timeline tr.next td { border-bottom-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
 .plan-meals .sub.options { font-style: italic; }
+.plan-meals.collapsed .detail { display: none; }
 .finding.warn { border-left: 3px solid var(--danger, #c0392b); padding-left: 8px; }
 .finding.info { border-left: 3px solid var(--muted); padding-left: 8px; }

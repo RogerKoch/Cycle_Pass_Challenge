@@ -148,6 +148,7 @@ class TriggerInputs:
     wellness: list[WellnessPoint] = field(default_factory=list)
     last_strength_benchmark: date | None = None
     benchmark_interval_weeks: int = 4
+    cycling_day_today: bool = True  # Kraft-Benchmark nur an Radtagen (nicht am Kraft-/Ruhetag)
 
 
 @dataclass
@@ -476,7 +477,7 @@ def _due_findings(inputs: TriggerInputs) -> list[Finding]:
             source="Check-in-Review",
         ))
     last_benchmark = inputs.last_strength_benchmark
-    if inputs.today >= next_due(last_benchmark, inputs.benchmark_interval_weeks, inputs.today):
+    if inputs.cycling_day_today and inputs.today >= next_due(last_benchmark, inputs.benchmark_interval_weeks, inputs.today):
         findings.append(Finding(
             key=f"strength_benchmark_due:{last_benchmark.isoformat() if last_benchmark else 'none'}",
             trigger_id="strength_benchmark_due",

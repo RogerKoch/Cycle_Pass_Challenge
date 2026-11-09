@@ -320,11 +320,17 @@ function renderTimeline(plan) {
   const next = isToday() ? plan.timeline.find((slot) => slot.time >= nowTime) : null;
   const rows = plan.timeline.map((slot) => el("tr", { class: `${slot.kind}${slot === next ? " next" : ""}` },
     el("td", { class: "time" }, slot.time),
-    el("td", {}, slot.label, el("span", { class: "sub" }, slot.hint),
-      slot.options.length ? el("span", { class: "sub options" }, slot.options.join(" · ")) : null),
+    el("td", {}, slot.label, el("span", { class: "sub detail" }, slot.hint),
+      slot.options.length ? el("span", { class: "sub options detail" }, slot.options.join(" · ")) : null),
     el("td", { class: "num" }, slot.kcal ? `${round(slot.kcal)} kcal` : "Wasser",
       slot.kcal ? el("span", { class: "sub" }, `${round(slot.protein_g)} g P · ${round(slot.carbs_g)} g KH · ${round(slot.fat_g)} g F`) : null)));
-  return el("table", { class: "plan-meals timeline" }, el("tbody", {}, ...rows));
+  const table = el("table", { class: "plan-meals timeline collapsed" }, el("tbody", {}, ...rows));
+  const toggle = el("button", { type: "button", class: "secondary" }, "Details anzeigen");
+  toggle.addEventListener("click", () => {
+    const collapsed = table.classList.toggle("collapsed");
+    toggle.textContent = collapsed ? "Details anzeigen" : "Details ausblenden";
+  });
+  return el("div", {}, toggle, table);
 }
 
 // Verteilung des Tagessolls auf Mahlzeiten, Fueling waehrend der Fahrt und Timing-Hinweise
