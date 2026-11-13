@@ -35,6 +35,7 @@ from backend.engine.nutrition_calc import (
 from backend.engine.plan_adjustments import active_kinds, effective_deficit
 from backend.engine.training_phase import get_current_phase
 from backend.engine.week_plan import phase_week
+from backend.extensions import db
 from backend.models.checkins import Checkin
 from backend.models.events import event_spans
 from backend.models.ftp_tests import FtpTest
@@ -48,6 +49,8 @@ logger = logging.getLogger(__name__)
 plan_bp = Blueprint("plan", __name__, url_prefix="/api/plan")
 
 MAX_OVERVIEW_DAYS = 62
+BLOCK_MIDDAY = "midday"  # Training vor dem Mittagessen
+BLOCK_EVENING = "evening"  # Training vor dem Abendessen
 
 
 class _PlanError(Exception):
@@ -116,6 +119,27 @@ def get_days_overview():
     return jsonify({"from": start.isoformat(), "to": end.isoformat(), "days": days}), 200
 
 
+@plan_bp.put("/<day>/training-block")
+def set_training_block(day: str):
+    """Setzt den Trainingsblock eines Tages: {"block": "midday" | "evening" | null}; null = Standard aus dem Profil."""
+    try:
+        parsed = date.fromisoformat(day)
+    except ValueError:
+        return jsonify({"error": "ungueltiges Datum, erwartet YYYY-MM-DD"}), 400
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or "block" not in payload or payload["block"] not in (None, BLOCK_MIDDAY, BLOCK_EVENING):
+        return jsonify({"error": "block muss 'midday', 'evening' oder null sein"}), 400
+    profile = UserProfile.query.first()
+    if profile is None:
+        return jsonify({"error": "kein Profil vorhanden"}), 404
+    if parsed < date.today() or parsed < profile.program_start_date:
+        return jsonify({"error": "nur heutige und künftige Tage ab Programmstart anpassbar"}), 400
+    row = next(r for r in ensure_week(profile, parsed) if r.day_date == parsed)
+    row.training_block = payload["block"]
+    db.session.commit()
+    return jsonify(build_plan(parsed)), 200
+
+
 @plan_bp.get("/<day>")
 def get_day_plan(day: str):
     """Ziel eines beliebigen Tages (YYYY-MM-DD), Gewicht = neuester Check-in bis zu diesem Tag."""
@@ -157,6 +181,7 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
     ftp_test = FtpTest.query.order_by(FtpTest.test_date.desc(), FtpTest.created_at.desc()).first()
 
     training = None
+    block_override = None
     measured_cycling_kcal = None
     spans = adjustment_spans()
     events = event_spans()
@@ -175,6 +200,7 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
         today_phase, week = phase_week(profile.program_start_date, day)
         params = training_params(row, resolve_cycling(row, today_phase.phase_id, week, spans, events), imported_day(day, checkin.weight_kg))
         measured_cycling_kcal = params.cycling_kcal
+        block_override = row.training_block
         cycling_hours = params.cycling_minutes / 60
         # ohne Rad ist die Intensitaet fuer die kcal irrelevant (0 h)
         cycling_intensity = params.cycling_intensity or CyclingIntensity.LEICHT_REKOM
@@ -226,7 +252,9 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
     fueling = intra_fueling(cycling_hours * 60, cycling_intensity)
     # Training nach der Arbeit: Post-Workout-Mahlzeit ist das Abendessen (nur an Tagen mit Training)
     evening_days = {int(d) for d in profile.evening_training_days.split(",") if d}
-    evening = day.weekday() in evening_days and (cycling_hours > 0 or strength_sessions > 0)
+    default_block = BLOCK_EVENING if day.weekday() in evening_days else BLOCK_MIDDAY
+    training_block = block_override or default_block
+    evening = training_block == BLOCK_EVENING and (cycling_hours > 0 or strength_sessions > 0)
 
     # Basiswerte-Modus: Basis-Tageswerte aus dem Profil + Sport-Verpflegung als Tagesablauf (nicht an Event-Tagen)
     base = BaseTargets.from_profile(profile) if event_ctx is None else None
@@ -270,6 +298,8 @@ def build_plan(day: date, manual: dict | None = None) -> dict:
         "nutrition": asdict(nutrition),
         "macros": asdict(macros),
         "day_type": day_type.value,
+        "training_block": training_block,
+        "training_block_default": default_block,
         "mode": "base_values" if timeline is not None else "formula",
         "timeline": [asdict(slot) for slot in timeline] if timeline is not None else None,
         "fiber_g": base.fiber_g if base is not None else None,

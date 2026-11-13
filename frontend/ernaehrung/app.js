@@ -273,7 +273,7 @@ function renderWeek() {
     const ds = dayState(d);
     const detail = d.target
       ? `${d.eaten ? `Ist ${round(d.eaten.kcal)}` : "Ist –"} · Soll ${round(d.target.kcal)} kcal`
-        + (d.planned ? ` · geplant ${round(d.planned.kcal)}` : "")
+        + (d.planned ? ` · geplant ${round(d.planned.kcal)} (${round(d.planned.carbs_g)} g KH)` : "")
       : "kein Soll";
     const classes = [ds.cls, d.date === state.date ? "current" : ""].join(" ");
     return el("li", { class: classes, onclick: () => selectDay(d.date) },
@@ -333,6 +333,28 @@ function renderTimeline(plan) {
   return el("div", {}, toggle, table);
 }
 
+// Trainingsblock des Tages (vor Mittag-/Abendessen); Standard aus dem Profil, nur heute und kuenftig mit Training
+function renderBlockSwitch(plan) {
+  if (!plan.fueling || state.date < today()) return null;
+  const options = [["midday", "Vor Mittagessen"], ["evening", "Vor Abendessen"]];
+  const buttons = options.map(([block, label]) => el("button", {
+    type: "button", class: block === plan.training_block ? "primary" : "secondary",
+    onclick: () => setTrainingBlock(block),
+  }, label));
+  const changed = plan.training_block !== plan.training_block_default;
+  return el("div", { class: "plan-line" }, el("span", {}, "Training:"), ...buttons,
+    changed ? el("button", { type: "button", class: "secondary", onclick: () => setTrainingBlock(null) }, "Profil-Standard") : null);
+}
+
+async function setTrainingBlock(block) {
+  const { ok, data } = await api("PUT", `/api/plan/${state.date}/training-block`, { block });
+  if (!ok) {
+    $("summary-msg").textContent = data.error;
+    return;
+  }
+  await loadDay();
+}
+
 // Verteilung des Tagessolls auf Mahlzeiten, Fueling waehrend der Fahrt und Timing-Hinweise
 function renderPlan() {
   const plan = state.plan;
@@ -350,6 +372,7 @@ function renderPlan() {
   $("plan-card").replaceChildren(...[
     el("h2", {}, `Soll: ${round(plan.nutrition.target_kcal)} kcal`),
     el("p", { class: "hint" }, `Protein ${round(m.protein_g)} g · KH ${round(m.carbs_g)} g · Fett ${round(m.fat_g)} g`),
+    renderBlockSwitch(plan),
     plan.timeline
       ? renderTimeline(plan)
       : el("table", { class: "plan-meals" }, el("tbody", {}, ...meals)),
@@ -379,11 +402,13 @@ function renderTotals() {
   );
 }
 
+const macroText = (m) => `${round(m.protein_g)} g P · ${round(m.carbs_g)} g KH · ${round(m.fat_g)} g F`;
+
 // Geplante (noch nicht gegessene) Eintraege des Tages
 function plannedLine(target) {
   const planned = state.day.planned_totals;
   if (!planned || !planned.kcal) return null;
-  const text = `Geplant: ${round(planned.kcal)} kcal${target ? ` (Soll ${round(target.kcal)})` : ""}`;
+  const text = `Geplant: ${round(planned.kcal)} kcal${target ? ` (Soll ${round(target.kcal)})` : ""} · ${macroText(planned)}`;
   const consume = state.date <= today()
     ? el("button", { type: "button", onclick: () => consumePlanned() }, "Alle geplanten übernehmen")
     : null;
@@ -448,6 +473,7 @@ function renderMeals() {
     const sumOf = (field) => eaten.reduce((sum, e) => sum + (e[field] || 0), 0);
     const goal = targets[meal];
     const plannedKcal = planned.reduce((sum, e) => sum + e.kcal, 0);
+    const plannedSum = (field) => planned.reduce((sum, e) => sum + (e[field] || 0), 0);
     const items = entries.map((entry) =>
       el("li", { class: entry.status === "planned" ? "planned-entry" : "", onclick: () => openEntry(entry) },
         el("span", { class: "name" }, entry.label, el("span", { class: "sub" },
@@ -467,6 +493,8 @@ function renderMeals() {
       ),
       goal ? el("p", { class: "hint" }, [["Protein", "protein_g"], ["KH", "carbs_g"], ["Fett", "fat_g"]]
         .map(([label, field]) => `${label} ${round(sumOf(field))} / ${round(goal[field])} g`).join(" · ")) : null,
+      planned.length ? el("p", { class: "hint" }, `Geplant: ${macroText({
+        protein_g: plannedSum("protein_g"), carbs_g: plannedSum("carbs_g"), fat_g: plannedSum("fat_g") })}`) : null,
       items.length ? el("ul", { class: "list" }, ...items) : null,
       el("div", { class: "meal-actions" }, ...buttons));
   });

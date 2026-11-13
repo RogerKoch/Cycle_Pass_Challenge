@@ -32,6 +32,7 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("checkins", "weight_only", "BOOLEAN NOT NULL DEFAULT 0"),
     ("ftp_tests", "source", "VARCHAR(12) NOT NULL DEFAULT 'manual'"),
     ("icu_activities", "ignored", "BOOLEAN NOT NULL DEFAULT 0"),
+    ("training_days", "training_block", "VARCHAR(8)"),
     ("food_log_entries", "status", "VARCHAR(10) NOT NULL DEFAULT 'eaten'"),
 ]
 
