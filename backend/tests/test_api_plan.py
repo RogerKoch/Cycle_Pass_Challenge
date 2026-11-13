@@ -322,6 +322,34 @@ def test_evening_training_days_default_update_and_validation(client):
     assert client.put("/api/profile", json={"evening_training_days": "1,2"}).status_code == 400
 
 
+def test_training_block_defaults_to_profile_and_can_be_overridden_per_day(client):
+    from datetime import date
+
+    _setup_profile_and_checkin(client)
+    today = date.today()
+    client.put("/api/profile", json={"evening_training_days": [today.weekday()]})
+    body = client.get("/api/plan/today").get_json()
+    assert (body["training_block"], body["training_block_default"]) == ("evening", "evening")
+
+    body = client.put(f"/api/plan/{today.isoformat()}/training-block", json={"block": "midday"}).get_json()
+    assert (body["training_block"], body["training_block_default"]) == ("midday", "evening")
+    assert client.get("/api/plan/today").get_json()["training_block"] == "midday"
+
+    body = client.put(f"/api/plan/{today.isoformat()}/training-block", json={"block": None}).get_json()
+    assert body["training_block"] == "evening"
+
+
+def test_training_block_rejects_invalid_block_and_past_days(client):
+    from datetime import date, timedelta
+
+    _setup_profile_and_checkin(client)
+    today = date.today().isoformat()
+    assert client.put(f"/api/plan/{today}/training-block", json={"block": "night"}).status_code == 400
+    assert client.put(f"/api/plan/{today}/training-block", json={}).status_code == 400
+    past = (date.today() - timedelta(days=1)).isoformat()
+    assert client.put(f"/api/plan/{past}/training-block", json={"block": "evening"}).status_code == 400
+
+
 BASE_VALUES = {"base_kcal": 2050, "base_protein_g": 107, "base_carbs_g": 198, "base_fat_g": 83, "base_fiber_g": 43}
 
 

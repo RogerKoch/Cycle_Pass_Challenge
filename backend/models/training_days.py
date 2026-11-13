@@ -24,6 +24,7 @@ class TrainingDay(db.Model):
     actual_intensity: str | None = db.Column(db.String(32), nullable=True)
     actual_strength_done: bool | None = db.Column(db.Boolean, nullable=True)
     note: str | None = db.Column(db.String(200), nullable=True)
+    training_block: str | None = db.Column(db.String(8), nullable=True)  # Override: "midday" | "evening"; None = Profil
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,
