@@ -17,6 +17,7 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "strength_focus", "VARCHAR(20) NOT NULL DEFAULT 'none'"),
     ("user_profile", "benchmark_interval_weeks", "INTEGER NOT NULL DEFAULT 4"),
     ("user_profile", "equipment_missing", "VARCHAR(100) NOT NULL DEFAULT ''"),
+    ("user_profile", "equipment_profile", "VARCHAR(20) NOT NULL DEFAULT 'bodyweight'"),
     ("user_profile", "evening_training_days", "VARCHAR(20) NOT NULL DEFAULT '1,2,3,4'"),
     ("user_profile", "target_weight_kg", "FLOAT"),
     ("user_profile", "rest_weekday", "INTEGER NOT NULL DEFAULT 4"),  # bestehende Wochen haben Freitag als Ruhetag

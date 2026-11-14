@@ -197,11 +197,10 @@ function mountBenchmark(box, { readOnly = false, history = false, onSaved = asyn
         option.value = v.id;
         return option;
       }));
-      // Ohne Tisch (Profil „Material fehlt“) wie im Training: Band, sonst Handtuch an der Tür
+      // Je nach Material-Profil: Band (Bänder/NEOLYMP), sonst Handtuch an der Tür
       const profile = await api("GET", "/api/profile");
-      const missing = profile.ok ? profile.data.equipment_missing : [];
-      form.elements.row_variant.value = !missing.includes("table") ? "table"
-        : !missing.includes("bands") ? "band" : "towel";
+      const equipment = profile.ok ? profile.data.equipment_profile : "bodyweight";
+      form.elements.row_variant.value = equipment === "bodyweight" ? "towel" : "band";
     }
     const variants = Object.fromEntries(data.pushup_variants.map((v) => [v.id, v.label]));
     const stages = [];

@@ -16,10 +16,26 @@ function setGoalMode(mode) {
 
 const BASE_FIELDS = ["base_kcal", "base_protein_g", "base_carbs_g", "base_fat_g", "base_fiber_g", "base_deficit_kcal"];
 
-const NEW_PROFILE_DEFAULTS = { evening_training_days: [1, 2, 3, 4], equipment_missing: [] };
+const NEW_PROFILE_DEFAULTS = { evening_training_days: [1, 2, 3, 4], equipment_profile: "bodyweight" };
 
 // Rendert die Auswahllisten; die Backend-404-Antwort liefert sie auch ohne bestehendes Profil mit,
 // damit alles vor dem ersten Speichern ausfuellbar ist.
+// Genau eine Auswahl (Material-Profil); der Hinweis steht als Tooltip am Chip
+function radioLabels(options, selected) {
+  return options.map((o) => {
+    const radio = el("input");
+    radio.type = "radio";
+    radio.name = "equipment_profile";
+    radio.value = o.id;
+    radio.checked = o.id === selected;
+    const label = el("label");
+    label.className = "chip";
+    label.title = o.hint;
+    label.append(radio, ` ${o.label}`);
+    return label;
+  });
+}
+
 function checkboxLabels(options, checked) {
   return options.map((o) => {
     const box = el("input");
@@ -60,9 +76,9 @@ async function loadProfile() {
   }));
   form.elements.rest_weekday.value = ok ? data.rest_weekday : 1; // Standard: Dienstag
   const current = ok ? data : NEW_PROFILE_DEFAULTS;
-  $("equipment-missing").replaceChildren(
-    $("equipment-missing").querySelector("legend"),
-    ...checkboxLabels(data.equipment_options, current.equipment_missing));
+  $("equipment-profile").replaceChildren(
+    $("equipment-profile").querySelector("legend"),
+    ...radioLabels(data.equipment_options, current.equipment_profile));
   $("evening-days").replaceChildren(
     $("evening-days").querySelector("legend"),
     ...checkboxLabels(data.weekday_options, current.evening_training_days));
@@ -97,7 +113,7 @@ async function saveProfile(event) {
   body.rest_weekday = Number(body.rest_weekday);
   for (const key of BASE_FIELDS) body[key] = form.elements[key].value === "" ? null : Number(form.elements[key].value);
   if (goalValue !== undefined) body[GOAL_MODES[goalMode].field] = Number(goalValue);
-  body.equipment_missing = [...form.querySelectorAll("#equipment-missing input:checked")].map((box) => box.value);
+  body.equipment_profile = form.querySelector("#equipment-profile input:checked").value;
   body.evening_training_days = [...form.querySelectorAll("#evening-days input:checked")].map((box) => Number(box.value));
   const { ok, data } = await api(method, "/api/profile", body);
   setMsg("profile-msg", ok ? "" : data.error);

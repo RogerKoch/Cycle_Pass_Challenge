@@ -1,10 +1,13 @@
 """API-Endpunkte fuer den dauerhaften Tausch von Kraftuebungen und das Abhaken von Saetzen."""
 
+import json
 import logging
 from datetime import date
+from pathlib import Path
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 
+from backend.config import REPO_ROOT
 from backend.engine.strength_alternatives import alternatives_for
 from backend.extensions import db
 from backend.models.exercise_swaps import ExerciseSwap, exercise_swaps
@@ -13,6 +16,23 @@ from backend.models.set_logs import SetLog, sets_done
 logger = logging.getLogger(__name__)
 
 exercises_bp = Blueprint("exercises", __name__, url_prefix="/api/exercises")
+
+REPO_ILLUSTRATIONS = REPO_ROOT / "frontend" / "training" / "img" / "exercises" / "index.json"
+NEOLYMP_MANIFEST = REPO_ROOT / "backend" / "data" / "neolymp_exercises.json"
+NEOLYMP_IMAGE_ROUTE = "../api/exercises/neolymp-image/"  # relativ zu <praefix>/training/
+
+
+def _neolymp_dir() -> Path:
+    """Ordner mit den NEOLYMP-Bildern; liegt nur auf dem Server (instance/), nicht im Git (© NEOLYMP)."""
+    return Path(current_app.instance_path) / "neolymp"
+
+
+def _read_json(path: Path) -> dict:
+    """Liest eine JSON-Datei; fehlende oder defekte Datei = leeres Dict."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
 
 
 @exercises_bp.get("/swaps")
@@ -39,13 +59,32 @@ def set_swap():
 
 @exercises_bp.delete("/swap")
 def clear_swap():
-    """Hebt den Tausch einer Uebung auf (zurueck zum Original bzw. zur Material-Automatik)."""
+    """Hebt den Tausch einer Uebung auf (zurueck zum Original)."""
     original = (request.get_json(force=True, silent=True) or {}).get("original")
     swap = ExerciseSwap.query.filter_by(original_name=original).first()
     if swap is not None:
         db.session.delete(swap)
         db.session.commit()
     return jsonify(exercise_swaps()), 200
+
+
+@exercises_bp.get("/illustrations")
+def list_illustrations():
+    """Skizzen/Videos je Uebung: Repo-Index plus NEOLYMP-Uebungen (Bilder nur, wenn auf dem Server vorhanden)."""
+    illustrations = _read_json(REPO_ILLUSTRATIONS)
+    images = _read_json(_neolymp_dir() / "index.json")
+    for name, entry in _read_json(NEOLYMP_MANIFEST).items():
+        files = images.get(name, [])
+        illustrations[name] = {"video": entry["video"]}
+        if files:
+            illustrations[name]["srcs"] = [NEOLYMP_IMAGE_ROUTE + file for file in files]
+    return jsonify(illustrations), 200
+
+
+@exercises_bp.get("/neolymp-image/<path:filename>")
+def neolymp_image(filename: str):
+    """Liefert ein NEOLYMP-Bild aus instance/neolymp/images (nur nach Login, 404 wenn nicht vorhanden)."""
+    return send_from_directory(_neolymp_dir() / "images", filename)
 
 
 @exercises_bp.get("/sets/<day>")

@@ -20,7 +20,9 @@ class UserProfile(db.Model):
     strength_focus: str = db.Column(db.String(20), nullable=False, default="none", server_default="none")
     # Kraft-Benchmark alle N Wochen (engine.strength_benchmarks, Standard 4)
     benchmark_interval_weeks: int = db.Column(db.Integer, nullable=False, default=4, server_default="4")
-    # Fehlendes Material, kommagetrennt, Schluessel aus engine.strength_alternatives.EQUIPMENT_OPTIONS
+    # Material-Profil, Schluessel aus engine.strength_sessions.EQUIPMENT_PROFILES (bodyweight | bands | neolymp)
+    equipment_profile: str = db.Column(db.String(20), nullable=False, default="bodyweight", server_default="bodyweight")
+    # veraltet (ersetzt durch equipment_profile), bleibt als ungenutzte Spalte bestehen
     equipment_missing: str = db.Column(db.String(100), nullable=False, default="", server_default="")
     # Wochentage (0 = Mo ... 6 = So), an denen nach der Arbeit trainiert wird; Standard Di–Fr
     evening_training_days: str = db.Column(db.String(20), nullable=False, default="1,2,3,4", server_default="1,2,3,4")

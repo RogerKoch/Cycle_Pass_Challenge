@@ -304,11 +304,10 @@ Im Profil wählbar. Der Fokus kommt **obendrauf** (ca. +10 min pro Einheit), der
 <a id="uebungen-tauschen"></a>
 
 ### Übungen tauschen
-Fehlt Material (stabiler Tisch, Widerstandsbänder), lassen sich Kraftübungen durch Alternativen ersetzen. Sätze, Pause und Phasenfenster bleiben wie beim Original.
+Im Profil unter „Kraft-Material“ wählst du, was du hast: **Nur Körpergewicht**, **Einfache Bänder** oder **NEOLYMP-Set**. Jedes Profil hat seine eigenen Übungen (z. B. Brustpresse und Rudern mit Bänderstange statt Liegestütz und Tischrudern, mit Fotos aus dem NEOLYMP-Plan). Core-Übungen bleiben immer Körpergewicht. Danach lassen sich einzelne Übungen durch Alternativen ersetzen. Sätze, Pause und Phasenfenster bleiben wie beim Original.
 
-- **Im Profil** unter „Material fehlt“ ankreuzen: Betroffene Übungen werden automatisch durch die erste passende Alternative ersetzt.
 - **Pro Übung** im Training („Übung tauschen“): Alternative wählen oder zurück zum Original.
-- Ein Tausch gilt **dauerhaft**, bis du ihn wieder änderst – nicht nur für einen Tag. Ein manueller Tausch hat Vorrang vor der Material-Automatik.
+- Ein Tausch gilt **dauerhaft**, bis du ihn wieder änderst – nicht nur für einen Tag. Beim Wechsel des Material-Profils werden alle Tausche zurückgesetzt.
 - Die Stufe aus dem Kraft-Benchmark (z. B. „Füsse erhöht“) gilt nur für die Originalübung.
 
 <a id="kraft-benchmark"></a>
@@ -320,7 +319,7 @@ Ist er fällig, erinnert das Check-in-Review. Teiltests sind erlaubt; es zählt 
 | Test | So testen | Was die App daraus macht |
 |---|---|---|
 | Liegestütze am Stück | saubere Wdh. in deiner Variante | ab 12 Wdh. → nächste Variante, ab 20 Wdh. zwei Stufen (Wand → Inkline → Knie → Standard → Füsse erhöht → Deficit); auf der letzten Stufe: Tempo 3 s runter |
-| Rudern am Stück | saubere Wdh., Ausführung wählen: Tisch (Inverted Rows), Handtuch an der Tür, Band oder Rucksack | Tisch/Handtuch: ab 12 → Füsse erhöht; Band/Rucksack: ab 12 → Band stärker bzw. Rucksack schwerer. Wechselst du die Ausführung, gilt der neue Test als neuer Ausgangswert (Diagramm nur je Ausführung). Ohne Tisch (Profil „Material fehlt“) ist Band bzw. Handtuch vorbelegt. |
+| Rudern am Stück | saubere Wdh., Ausführung wählen: Tisch (Inverted Rows), Handtuch an der Tür, Band oder Rucksack | Tisch/Handtuch: ab 12 → Füsse erhöht; Band/Rucksack: ab 12 → Band stärker bzw. Rucksack schwerer. Wechselst du die Ausführung, gilt der neue Test als neuer Ausgangswert (Diagramm nur je Ausführung). Vorbelegt ist bei „Einfache Bänder“ und „NEOLYMP-Set“ Band, bei „Nur Körpergewicht“ Handtuch. |
 | Side Plank | Sekunden, schwächere Seite, Knie/gestreckt | Knie ab 20 s → gestreckt |
 | Single-Leg Glute Bridge | Halten in s, schwächere Seite | ab 60 s → einbeinig, sonst beidbeinig |
 | Plank | Halten in s | Plank ≥ 2 min **und** Side Plank gestreckt ≥ 30 s → Hollow Body/Pallof schon vor ihrer Phase |

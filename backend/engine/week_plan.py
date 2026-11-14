@@ -25,6 +25,7 @@ from backend.engine.cycling_sessions import (
 from backend.engine.strength_alternatives import apply_swaps
 from backend.engine.strength_benchmarks import ExerciseStages
 from backend.engine.strength_sessions import (
+    DEFAULT_PROFILE,
     FOCUS_EXTRA_MINUTES,
     FOCUS_NONE,
     GROUP_LEGS,
@@ -179,7 +180,7 @@ def resolve_strength(
     focus: str = FOCUS_NONE,
     stages: ExerciseStages | None = None,
     swaps: dict[str, str] | None = None,
-    missing_equipment: frozenset[str] = frozenset(),
+    profile: str = DEFAULT_PROFILE,
     sport: str = SPORT_CYCLING,
 ) -> StrengthSession:
     """Krafteinheit fuer Phase und Woche, im Taper mit Reduktionshinweis.
@@ -195,7 +196,7 @@ def resolve_strength(
         focus: Kraft-Fokus aus dem Profil.
         stages: Stufen aus dem Kraft-Benchmark.
         swaps: dauerhaft getauschte Uebungen (Originalname -> Alternative).
-        missing_equipment: fehlendes Material aus dem Profil (automatischer Tausch).
+        profile: Material-Profil (bodyweight | bands | neolymp), bestimmt die Uebungen.
         sport: nur SPORT_CYCLING kennt Peak/Taper und pausiert den Bein-Fokus; sonst laeuft die Kraft unveraendert.
 
     Returns:
@@ -210,10 +211,10 @@ def resolve_strength(
         notes.append("Bein-Fokus pausiert (Beine schonen fürs Radtraining).")
         focus = FOCUS_NONE
     session = build_strength_session(
-        session_id, strength_phase_for(phase_id), " ".join(notes) or None, reduced, focus, stages
+        session_id, strength_phase_for(phase_id), " ".join(notes) or None, reduced, focus, stages, profile
     )
     session = replace(
-        session, exercises=[apply_swaps(e, swaps or {}, missing_equipment) for e in session.exercises]
+        session, exercises=[apply_swaps(e, swaps or {}) for e in session.exercises]
     )
     if not taper:
         return session

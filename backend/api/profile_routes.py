@@ -6,12 +6,12 @@ from datetime import date
 from flask import Blueprint, jsonify, request
 
 from backend.engine.nutrition_calc import ACTIVITY_LEVELS, DEFAULT_ACTIVITY_LEVEL, SEX_BMR_CONSTANT, SEX_MALE
-from backend.engine.strength_alternatives import EQUIPMENT_OPTIONS
 from backend.engine.strength_benchmarks import DEFAULT_INTERVAL_WEEKS, MAX_INTERVAL_WEEKS, MIN_INTERVAL_WEEKS
-from backend.engine.strength_sessions import FOCUS_NONE, FOCUS_OPTIONS
+from backend.engine.strength_sessions import DEFAULT_PROFILE, EQUIPMENT_PROFILES, FOCUS_NONE, FOCUS_OPTIONS
 from backend.engine.week_plan import SPORT_CYCLING, SPORTS, STANDARD_WEEK, STATUS_PLANNED, default_day_plan
 from backend.extensions import db
 from backend.models.baseline_measurements import BaselineMeasurement
+from backend.models.exercise_swaps import ExerciseSwap
 from backend.models.training_days import TrainingDay
 from backend.models.user_profile import UserProfile
 
@@ -50,11 +50,11 @@ def _strength_focus(value: object) -> str:
     return value
 
 
-def _equipment_missing(value: object) -> str:
-    """Prueft die Liste fehlenden Materials gegen EQUIPMENT_OPTIONS; liefert die kommagetrennte Form."""
-    if not isinstance(value, list) or any(item not in EQUIPMENT_OPTIONS for item in value):
-        raise ValueError(f"equipment_missing muss eine Liste aus {sorted(EQUIPMENT_OPTIONS)} sein")
-    return ",".join(sorted(set(value)))
+def _equipment_profile(value: object) -> str:
+    """Prueft das Material-Profil gegen EQUIPMENT_PROFILES."""
+    if value not in EQUIPMENT_PROFILES:
+        raise ValueError(f"equipment_profile muss einer von {', '.join(EQUIPMENT_PROFILES)} sein")
+    return value
 
 
 WEEKDAYS: list[str] = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
@@ -113,7 +113,7 @@ def _options() -> dict:
         "sex_options": [{"id": "m", "label": "Mann"}, {"id": "f", "label": "Frau"}],
         "sport_options": [{"id": "cycling", "label": "Rad"}, {"id": "running", "label": "Laufen"}],
         "weekday_options": [{"id": i, "label": label} for i, label in enumerate(WEEKDAYS)],
-        "equipment_options": [{"id": key, "label": label} for key, label in EQUIPMENT_OPTIONS.items()],
+        "equipment_options": [{"id": key, **texts} for key, texts in EQUIPMENT_PROFILES.items()],
         "focus_options": [{"id": key, "label": label} for key, label in FOCUS_OPTIONS.items()],
     }
 
@@ -203,7 +203,7 @@ def _serialize(profile: UserProfile) -> dict:
         "strength_focus": profile.strength_focus,
         "benchmark_interval_weeks": profile.benchmark_interval_weeks,
         "rest_weekday": profile.rest_weekday,
-        "equipment_missing": [item for item in profile.equipment_missing.split(",") if item],
+        "equipment_profile": profile.equipment_profile,
         "evening_training_days": [int(d) for d in profile.evening_training_days.split(",") if d],
         **{field: getattr(profile, field) for field in _BASE_FIELDS},
         "created_at": profile.created_at.isoformat(),
@@ -238,7 +238,7 @@ def create_profile():
             strength_focus=_strength_focus(body.get("strength_focus", FOCUS_NONE)),
             benchmark_interval_weeks=_interval_weeks(body.get("benchmark_interval_weeks", DEFAULT_INTERVAL_WEEKS)),
             rest_weekday=_rest_weekday(body.get("rest_weekday", DEFAULT_REST_WEEKDAY)),
-            equipment_missing=_equipment_missing(body.get("equipment_missing", [])),
+            equipment_profile=_equipment_profile(body.get("equipment_profile", DEFAULT_PROFILE)),
             evening_training_days=_evening_training_days(body.get("evening_training_days", [1, 2, 3, 4])),
         )
         _apply_goal(profile, body)
@@ -279,8 +279,11 @@ def update_profile():
             profile.strength_focus = _strength_focus(body["strength_focus"])
         if "benchmark_interval_weeks" in body:
             profile.benchmark_interval_weeks = _interval_weeks(body["benchmark_interval_weeks"])
-        if "equipment_missing" in body:
-            profile.equipment_missing = _equipment_missing(body["equipment_missing"])
+        equipment_changed = False
+        if "equipment_profile" in body:
+            new_equipment = _equipment_profile(body["equipment_profile"])
+            equipment_changed = new_equipment != profile.equipment_profile
+            profile.equipment_profile = new_equipment
         if "evening_training_days" in body:
             profile.evening_training_days = _evening_training_days(body["evening_training_days"])
         rest_changed = False
@@ -293,6 +296,8 @@ def update_profile():
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"ungueltige Profildaten: {exc}"}), 400
 
+    if equipment_changed:
+        ExerciseSwap.query.delete()  # Tausche gehoeren zu den Uebungen des alten Profils
     if rest_changed or sport_changed:
         _replan_future_days(profile)
     db.session.commit()

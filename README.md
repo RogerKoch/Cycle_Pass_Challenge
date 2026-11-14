@@ -34,6 +34,19 @@ Nährwerte: Schweizer Nährwertdatenbank, Bundesamt für Lebensmittelsicherheit 
 C:\dev\virtualenvs\cycle_pass_challenge\Scripts\python -m pytest backend/tests
 ```
 
+## NEOLYMP-Bilder (nur Server, nicht im Git)
+
+Die Übungsfotos des NEOLYMP-Sets sind © NEOLYMP GmbH, das Repo ist öffentlich. Sie liegen deshalb nur in
+`instance/neolymp/` (per `.gitignore` ausgeschlossen) und werden nach dem Login ausgeliefert. Import aus den
+Trainingsplan-PDFs (PyMuPDF nur dafür nötig), lokal und auf dem Server je einmal:
+
+```bash
+pip install pymupdf
+python scripts/import_neolymp_pdf.py "Trainingsplan W 1-3.pdf" "Trainingsplan W 4-5.pdf"
+```
+
+Die Bilder sind nicht im DB-Backup; bei Verlust den Import wiederholen. Ohne Bilder zeigt die App Text und Video-Link.
+
 ## Betrieb auf dem Server
 
 Läuft unter `https://161.97.157.97/cpc/` hinter Caddy. Setup und Runbook liegen im Repo `server-infra`.

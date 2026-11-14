@@ -121,8 +121,10 @@ def test_session_shows_stage_instead_of_progression_list():
 
 def test_core_benchmark_unlocks_hollow_body_and_pallof_in_phase_1():
     advanced = ExerciseStages(core_advanced=True)
-    names = [e.name for e in build_strength_session("A", STRENGTH_PHASES[1], stages=advanced).exercises]
+    names = [e.name for e in build_strength_session("A", STRENGTH_PHASES[1], stages=advanced, profile="bands").exercises]
     assert "Hollow Body Hold" in names and "Anti-rotatorischer Band-Hold (Pallof)" in names
+    bodyweight = [e.name for e in build_strength_session("A", STRENGTH_PHASES[1], stages=advanced).exercises]
+    assert "Plank Shoulder Taps" in bodyweight
     plain = [e.name for e in build_strength_session("A", STRENGTH_PHASES[1]).exercises]
     assert "Hollow Body Hold" not in plain
 

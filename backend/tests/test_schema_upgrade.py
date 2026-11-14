@@ -24,6 +24,7 @@ def test_adds_missing_activity_level_column_to_existing_db(app):
     assert db.session.execute(text("SELECT strength_focus FROM user_profile")).scalar() == "none"
     assert db.session.execute(text("SELECT benchmark_interval_weeks FROM user_profile")).scalar() == 4
     assert db.session.execute(text("SELECT equipment_missing FROM user_profile")).scalar() == ""
+    assert db.session.execute(text("SELECT equipment_profile FROM user_profile")).scalar() == "bodyweight"
 
 
 def test_adds_status_column_and_old_log_entries_count_as_eaten(app):

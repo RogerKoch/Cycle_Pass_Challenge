@@ -1,0 +1,22 @@
+{
+  "Brustpresse mit Bänderstange": { "video": "resistance band chest press lying" },
+  "Brustpresse mit Griffen": { "video": "resistance band chest press lying handles" },
+  "Schulterdrücken mit Bänderstange (Kniestand)": { "video": "resistance band shoulder press kneeling", "pdf_title": "Schulterdrücken mit Bänderstange" },
+  "Einarmiges Schulterdrücken mit Griff": { "video": "single arm resistance band shoulder press kneeling" },
+  "Butterfly einarmig mit Griff": { "video": "single arm resistance band chest fly" },
+  "Schulterrotation außen mit Griff": { "video": "resistance band external rotation" },
+  "Rudern zur Brust mit Bänderstange": { "video": "seated resistance band row" },
+  "Rudern vorgebeugt mit Bänderstange": { "video": "bent over resistance band row" },
+  "Rudern zur Brust einarmig mit Griff": { "video": "single arm seated resistance band row" },
+  "Latzug zur Brust mit Bänderstange": { "video": "resistance band lat pulldown standing" },
+  "Butterfly reverse einarmig mit Griff": { "video": "single arm resistance band reverse fly" },
+  "Seitenheben vorgebeugt mit Griff": { "video": "bent over lateral raise resistance band" },
+  "Seitenheben mit Griff": { "video": "resistance band lateral raise" },
+  "Einarmiges Trizepstrecken über Kopf mit Griff": { "video": "single arm overhead triceps extension resistance band" },
+  "Einarmige Curls mit Griff": { "video": "single arm resistance band bicep curl" },
+  "Seitliches Beinstrecken mit Fußschlaufe": { "video": "resistance band standing hip abduction ankle strap" },
+  "Seitlicher Ausfallschritt mit kurzem Fitnessband": { "video": "lateral band squat walk" },
+  "Kickbacks mit Fußschlaufe": { "video": "resistance band glute kickback quadruped" },
+  "Beinheben liegend mit Fußschlaufe": { "video": "lying leg raise resistance band" },
+  "Kreuzheben mit gestreckten Beinen mit Bänderstange": { "video": "romanian deadlift resistance band" }
+}
