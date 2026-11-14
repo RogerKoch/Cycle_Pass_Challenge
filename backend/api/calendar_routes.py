@@ -327,7 +327,7 @@ def serialize_day(
             profile.strength_focus,
             stages,
             exercise_swaps(),
-            frozenset(item for item in profile.equipment_missing.split(",") if item),
+            profile.equipment_profile,
             profile.sport,
         )
         if row.strength_session and not strength_blocked(event_ctx)

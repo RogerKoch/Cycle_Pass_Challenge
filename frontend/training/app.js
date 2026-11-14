@@ -25,8 +25,10 @@ const state = {
   swapFirst: null, // im Tauschmodus der zuerst angetippte Tag
 };
 
-// Uebungsname -> {img, video}; fehlt die Datei, gibt es einfach keine Skizzen
-const ILLUSTRATIONS = fetch("img/exercises/index.json")
+// Uebungsname -> {img | srcs, video}; die API ergaenzt die NEOLYMP-Bilder (nur auf dem Server), faellt die
+// API aus, gibt es die Skizzen aus dem Repo, fehlt auch die Datei, gibt es einfach keine Skizzen
+const ILLUSTRATIONS = fetch("../api/exercises/illustrations")
+  .then((response) => (response.ok ? response : fetch("img/exercises/index.json")))
   .then((response) => (response.ok ? response.json() : {}))
   .catch(() => ({}));
 
@@ -643,8 +645,9 @@ function illustration(name, sessionId) {
 
 function illustrationContent(name, entry) {
   const video = `https://www.youtube.com/results?search_query=${encodeURIComponent(entry.video)}`;
+  const sources = entry.srcs || (entry.img ? [`img/exercises/${entry.img}`] : []);
   return [
-    el("img", { src: `img/exercises/${entry.img}`, alt: name, loading: "lazy" }),
+    ...sources.map((src) => el("img", { src, alt: name, loading: "lazy" })),
     el("a", { href: video, target: "_blank", rel: "noopener" }, "▶ Video-Suche auf YouTube"),
   ];
 }

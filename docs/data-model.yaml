@@ -128,11 +128,19 @@ strength_focus:
   core_focus_daily_mcgill: true   # Kraft-Recherche: Core profitiert von hoher Frequenz
   legs_paused_in: [peak_taper, passsaison, strength_reduced]   # "Beine schonen"
 
-# Todo #18 (2026-10-11): Uebungen tauschen, wenn Material fehlt. Bibliothek: backend/engine/strength_alternatives.py
+# Material-Profil (2026-11-14, ersetzt "Material fehlt"): Profilfeld equipment_profile, genau eine Auswahl.
+# Jedes Profil hat seine eigene Uebungsliste (backend/engine/strength_sessions.py, _LIBRARY/_FOCUS_EXTRAS), keine Hierarchie.
+equipment_profiles:
+  bodyweight: "nur Koerper (kein Tisch, Rucksack, Band)"
+  bands: "einfache Baender (Tuerklinke/Pfosten), Core mit Koerpergewicht"
+  neolymp: "NEOLYMP-Set (Baenderstange, Griffe, Fussschlaufen) + Koerper fuer Core"
+  default: bodyweight
+  neolymp_images: "nur auf dem Server in instance/neolymp (© NEOLYMP, nicht im Git), Import: scripts/import_neolymp_pdf.py; Namen/Video-Suchen: backend/data/neolymp_exercises.json"
+
+# Todo #18 (2026-10-11): Uebungen manuell tauschen. Bibliothek: backend/engine/strength_alternatives.py
 exercise_swaps:
-  equipment_options: [table, bands]          # Profilfeld equipment_missing (Liste)
-  persistence: "Tabelle exercise_swaps (Original -> Alternative), gilt dauerhaft bis zum naechsten Tausch"
-  resolution_order: [manual_swap, equipment_automation, original]
+  persistence: "Tabelle exercise_swaps (Original -> Alternative), gilt dauerhaft bis zum naechsten Tausch; Profilwechsel loescht alle Tausche"
+  resolution_order: [manual_swap, original]
   inherits_from_original: [sets, rest, group, leg, phase_window]
   stage_note: "Stufen aus dem Kraft-Benchmark gelten nur fuer die Originaluebung"
 

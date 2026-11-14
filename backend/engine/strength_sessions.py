@@ -37,6 +37,17 @@ FOCUS_OPTIONS: dict[str, str] = {
 }
 FOCUS_EXTRA_MINUTES = 10  # Fokus kommt obendrauf (User-Entscheid 2026-10-06)
 
+# Material-Profil (Profilfeld equipment_profile): jedes Profil hat seine eigenen Uebungen
+PROFILE_BODYWEIGHT = "bodyweight"
+PROFILE_BANDS = "bands"
+PROFILE_NEOLYMP = "neolymp"
+DEFAULT_PROFILE = PROFILE_BODYWEIGHT
+EQUIPMENT_PROFILES: dict[str, dict[str, str]] = {
+    PROFILE_BODYWEIGHT: {"label": "Nur Körpergewicht", "hint": "Kein Tisch, Rucksack oder Band"},
+    PROFILE_BANDS: {"label": "Einfache Bänder", "hint": "Bänder an Türklinke/Pfosten, Core mit Körpergewicht"},
+    PROFILE_NEOLYMP: {"label": "NEOLYMP-Set", "hint": "Bänderstange, Griffe, Fussschlaufen, kurzes Band"},
+}
+
 
 @dataclass
 class Exercise:
@@ -113,72 +124,145 @@ _STRENGTH_PHASE_BY_CYCLING_PHASE: dict[str, int] = {
     "passsaison": 3,
 }
 
-_SESSION_A: list[Exercise] = [
-    Exercise("Aufwärmen/Mobility", "1", "8 min", note="Hüftbeuger, Open Book, Cat-Cow, Wall Angels"),
-    Exercise("Glute Bridge (Progression → Single-Leg)", "3", "12–15", scaled=True, group=GROUP_LEGS,
-             note="Im Gesäss spüren, nicht im Hamstring/unteren Rücken"),
-    Exercise("Liegestütz-Progression", "3", "8–15", scaled=True, group=GROUP_UPPER,
-             note="Wand → Inkline → Knie → Standard → Füsse erhöht; 2 s runter / 1 s hoch"),
-    Exercise("Pike Push-ups", "3", "6–10", min_phase=2, group=GROUP_UPPER),
-    Exercise("Hollow Body Hold", "3", "20–40 s", min_phase=2, group=GROUP_CORE),
-    Exercise("Dead Bug", "3", "8–10 je Seite", note="Lendenwirbel flach am Boden, langsam", group=GROUP_CORE),
-    Exercise("Side Plank", "3", "15–30 s je Seite", note="Phase 1 Knie gebeugt, ab Phase 2 gestreckt",
-             group=GROUP_CORE),
-    Exercise("Anti-rotatorischer Band-Hold (Pallof)", "3", "20–30 s je Seite", min_phase=3, group=GROUP_CORE),
-    Exercise("Band External Rotation", "2", "12–15 je Seite", note="Handtuch zwischen Ellbogen und Rippen",
-             group=GROUP_UPPER),
-]
+# --- Uebungslisten je Material-Profil ---------------------------------------------------------------
+# Jedes Profil ist eigenstaendig (keine Hierarchie). Gemeinsame Uebungen sind geteilte Objekte.
 
-_SESSION_B: list[Exercise] = [
-    Exercise("Aufwärmen/Mobility", "1", "8 min", note="90/90, BWS-Extension, Clamshells als Aktivierung"),
-    Exercise("Inverted Rows (Tischkanten-Rudern)", "3–4", "8–15", scaled=True, group=GROUP_UPPER,
-             note="Körper gerade, Schulterblätter zusammen; Progression Füsse erhöht"),
-    Exercise("Band Pull-Aparts + Face Pulls", "2–3", "15–20", min_phase=2, group=GROUP_UPPER),
-    Exercise("Bulgarian Split Squat", "3", "6–10 je Bein", min_phase=2, scaled=True, leg=True, group=GROUP_LEGS,
-             note="Wdh. je Bein, 2–3 Wdh. in Reserve"),
-    Exercise("Single-Leg Deadlift", "2–3", "8 je Bein", min_phase=2, leg=True, note="Hüfthinge, Balance",
-             group=GROUP_LEGS),
-    Exercise("Lateral Band Walks", "2", "10 Schritte je Richtung", leg=True, group=GROUP_LEGS,
-             note="Leichte Kniebeuge, Knie nicht einknicken"),
-    Exercise("Copenhagen Plank", "2", "10–20 s je Seite", min_phase=3, group=GROUP_LEGS),
-    Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Kein Nacken-Crunch", group=GROUP_CORE,
-             hold=hold_cycle(8, 3, [5, 3, 1])),
-    Exercise("Bird Dog", "3", "6–8 je Seite, 3–5 s halten", note="Neutrale Wirbelsäule", group=GROUP_CORE,
-             hold=hold_cycle(5, 3, 6, per_side=True)),
-    Exercise("YTW-Raises", "2–3", "8–12 pro Buchstabe", group=GROUP_UPPER),
-]
+_WARMUP_A = Exercise("Aufwärmen/Mobility", "1", "8 min", note="Hüftbeuger, Open Book, Cat-Cow, Wall Angels")
+_WARMUP_B = Exercise("Aufwärmen/Mobility", "1", "8 min", note="90/90, BWS-Extension, Clamshells als Aktivierung")
+_GLUTE_BRIDGE = Exercise("Glute Bridge (Progression → Single-Leg)", "3", "12–15", scaled=True, group=GROUP_LEGS,
+                         note="Im Gesäss spüren, nicht im Hamstring/unteren Rücken")
+_HOLLOW = Exercise("Hollow Body Hold", "3", "20–40 s", min_phase=2, group=GROUP_CORE)
+_DEAD_BUG = Exercise("Dead Bug", "3", "8–10 je Seite", note="Lendenwirbel flach am Boden, langsam", group=GROUP_CORE)
+_SIDE_PLANK = Exercise("Side Plank", "3", "15–30 s je Seite", note="Phase 1 Knie gebeugt, ab Phase 2 gestreckt",
+                       group=GROUP_CORE)
+_PALLOF = Exercise("Anti-rotatorischer Band-Hold (Pallof)", "3", "20–30 s je Seite", min_phase=3, group=GROUP_CORE)
+_BULGARIAN = Exercise("Bulgarian Split Squat", "3", "6–10 je Bein", min_phase=2, scaled=True, leg=True,
+                      group=GROUP_LEGS, note="Wdh. je Bein, 2–3 Wdh. in Reserve")
+_SINGLE_LEG_DL = Exercise("Single-Leg Deadlift", "2–3", "8 je Bein", min_phase=2, leg=True,
+                          note="Hüfthinge, Balance", group=GROUP_LEGS)
+_COPENHAGEN = Exercise("Copenhagen Plank", "2", "10–20 s je Seite", min_phase=3, group=GROUP_LEGS)
+_MCGILL = Exercise("McGill Curl-Up", "1", "Pyramide 5-3-1, je 8–10 s halten", note="Kein Nacken-Crunch",
+                   group=GROUP_CORE, hold=hold_cycle(8, 3, [5, 3, 1]))
+_BIRD_DOG = Exercise("Bird Dog", "3", "6–8 je Seite, 3–5 s halten", note="Neutrale Wirbelsäule", group=GROUP_CORE,
+                     hold=hold_cycle(5, 3, 6, per_side=True))
+_YTW = Exercise("YTW-Raises", "2–3", "8–12 pro Buchstabe", group=GROUP_UPPER)
+_STEP_UPS = Exercise("Step-ups", "3", "10 je Bein", leg=True, group=GROUP_LEGS,
+                     note="Niedrige Stufe, aus dem Gesäss drücken, 2–3 Wdh. in Reserve")
+_PLANK = Exercise("Plank (Unterarmstütz)", "3–4", "30–60 s", group=GROUP_CORE)
+_REVERSE_CRUNCH = Exercise("Reverse Crunch / Leg Raises", "3", "10–15", min_phase=2, group=GROUP_CORE,
+                           note="Langsam, Lendenwirbel am Boden")
+
+# Koerpergewicht und einfache Baender: Push/Pull-Uebungen aus der Kraft-Recherche
+_PUSHUP = Exercise("Liegestütz-Progression", "3", "8–15", scaled=True, group=GROUP_UPPER,
+                   note="Wand → Inkline → Knie → Standard → Füsse erhöht; 2 s runter / 1 s hoch")
+_PIKE = Exercise("Pike Push-ups", "3", "6–10", min_phase=2, group=GROUP_UPPER)
+_SCAPULAR_PUSHUPS = Exercise("Scapular Push-ups", "2", "10–12", group=GROUP_UPPER,
+                             note="Arme gestreckt, nur die Schulterblätter bewegen (Serratus)")
+
+# Koerpergewicht: nur der eigene Koerper (kein Tisch, Rucksack, Band)
+_BW_SHOULDER_TAPS = Exercise("Plank Shoulder Taps", "3", "10–16 Taps", min_phase=3, group=GROUP_CORE,
+                             note="Hüfte ruhig halten, keine Rotation; abwechselnd Schulter antippen")
+_BW_EXTERNAL_ROTATION = Exercise("Seitlage Aussenrotation (Wasserflasche)", "2", "12–15 je Seite", group=GROUP_UPPER,
+                                 note="Ellbogen am Körper, Handtuch zwischen Ellbogen und Rippen, Flasche nach oben")
+_BW_ROW = Exercise("Superman-Pull (Bauchlage-Rudern)", "3–4", "8–15", scaled=True, group=GROUP_UPPER,
+                   note="Bauchlage, Arme vorne gestreckt, Ellbogen zur Hüfte ziehen, Schulterblätter zusammen")
+_BW_T_RAISE = Exercise("Prone T-Raises (Bauchlage)", "2–3", "12–15", group=GROUP_UPPER,
+                       note="Arme seitlich anheben, Daumen nach oben, 1–2 s halten")
+_BW_SIDE_LEG_RAISE = Exercise("Seitliches Beinheben (Seitenlage)", "2", "12–15 je Seite", leg=True,
+                              group=GROUP_LEGS,
+                              note="Oberes Bein gestreckt heben, Becken stabil, langsam senken (Glute medius)")
+_BW_CLAMSHELLS = Exercise("Clamshells", "2", "15 je Seite", leg=True, group=GROUP_LEGS,
+                          note="Langsam, Becken stabil (Glute medius)")
+
+# Einfache Baender: Band an Tuerklinke/Pfosten
+_BAND_ER = Exercise("Band External Rotation", "2", "12–15 je Seite", note="Handtuch zwischen Ellbogen und Rippen",
+                    group=GROUP_UPPER)
+_BAND_ROW = Exercise("Band-Rudern", "3–4", "8–15", scaled=True, group=GROUP_UPPER,
+                     note="Band an Türklinke/Pfosten, Schulterblätter zusammen")
+_PULL_APART = Exercise("Band Pull-Aparts + Face Pulls", "2–3", "15–20", min_phase=2, group=GROUP_UPPER)
+_BAND_WALKS = Exercise("Lateral Band Walks", "2", "10 Schritte je Richtung", leg=True, group=GROUP_LEGS,
+                       note="Leichte Kniebeuge, Knie nicht einknicken")
+_BAND_CLAMSHELLS = replace(_BW_CLAMSHELLS, note="Mit Mini-Band, langsam (Glute medius)")
+
+# NEOLYMP-Set (Baenderstange, Griffe, Fussschlaufen); Namen = Titel aus dem NEOLYMP-Trainingsplan
+_NL_CHEST_PRESS = Exercise("Brustpresse mit Bänderstange", "3", "8–15", scaled=True, group=GROUP_UPPER,
+                           note="Rückenlage, Band hinter den Schulterblättern, Ellbogen am Boden; Handgelenke "
+                                "neutral. Steigern über Bandstärke statt Liegestütz")
+_NL_SHOULDER_PRESS = Exercise("Schulterdrücken mit Bänderstange (Kniestand)", "3", "8–15", scaled=True,
+                              group=GROUP_UPPER, note="Kniestand, Rücken gerade, Stange hinter dem Kopf nach oben")
+_NL_BUTTERFLY = Exercise("Butterfly einarmig mit Griff", "2", "12–15 je Seite", min_phase=2, group=GROUP_UPPER,
+                         note="Arm leicht angewinkelt, Griff zur Brustmitte, kurz halten")
+_NL_EXTERNAL_ROTATION = Exercise("Schulterrotation außen mit Griff", "2", "12–15 je Seite", group=GROUP_UPPER,
+                                 note="Ellbogen im 90°-Winkel eng am Körper, Unterarm nach aussen drehen")
+_NL_ROW = Exercise("Rudern zur Brust mit Bänderstange", "3–4", "8–15", scaled=True, group=GROUP_UPPER,
+                   note="Sitzend, Rücken gerade, Ellbogen nach aussen, Stange zur oberen Brust")
+_NL_LAT_PULL = Exercise("Latzug zur Brust mit Bänderstange", "3", "8–15", scaled=True, group=GROUP_UPPER,
+                        note="Stange zur Brust (nicht hinter den Nacken), Rücken gerade")
+_NL_REAR_FLY = Exercise("Butterfly reverse einarmig mit Griff", "2", "12–15 je Seite", min_phase=2, group=GROUP_UPPER,
+                        note="Arm leicht angewinkelt, Griff seitlich vom Körper wegziehen")
+_NL_LEG_EXTENSION = Exercise("Seitliches Beinstrecken mit Fußschlaufe", "2", "12 je Seite", leg=True,
+                             group=GROUP_LEGS, note="Mit einer Hand an Tür/Stuhl abstützen, Rücken gerade")
+_NL_KICKBACKS = Exercise("Kickbacks mit Fußschlaufe", "2", "12 je Seite", leg=True, group=GROUP_LEGS,
+                         note="Vierfüsserstand auf den Unterarmen (Handgelenke schonen), Rücken gerade")
+_NL_LEG_RAISE = Exercise("Beinheben liegend mit Fußschlaufe", "3", "10–15", min_phase=2, group=GROUP_CORE,
+                         note="Langsam, Lendenwirbel am Boden")
+_NL_LATERAL_RAISE = Exercise("Seitenheben mit Griff", "2", "12–15 je Seite", group=GROUP_UPPER,
+                             note="Fuss auf dem Band, Arm seitlich bis Schulterhöhe")
+_NL_TRICEPS = Exercise("Einarmiges Trizepstrecken über Kopf mit Griff", "2", "12–15 je Seite", group=GROUP_UPPER,
+                       note="Schrittstellung, Arm über dem Kopf nach vorne strecken")
+_NL_REAR_FLY_PHASE1 = replace(_NL_REAR_FLY, min_phase=1, max_phase=1)
+_NL_CURLS = Exercise("Einarmige Curls mit Griff", "2", "12–15 je Seite", group=GROUP_UPPER,
+                     note="Ellbogen eng am Körper, Fuss im Band")
+
+_LIBRARY: dict[str, dict[str, list[Exercise]]] = {
+    PROFILE_BODYWEIGHT: {
+        "A": [_WARMUP_A, _GLUTE_BRIDGE, _PUSHUP, _PIKE, _HOLLOW, _DEAD_BUG, _SIDE_PLANK, _BW_SHOULDER_TAPS,
+              _BW_EXTERNAL_ROTATION],
+        "B": [_WARMUP_B, _BW_ROW, _BULGARIAN, _SINGLE_LEG_DL, _BW_SIDE_LEG_RAISE, _COPENHAGEN, _MCGILL, _BIRD_DOG,
+              _YTW],
+    },
+    PROFILE_BANDS: {
+        "A": [_WARMUP_A, _GLUTE_BRIDGE, _PUSHUP, _PIKE, _HOLLOW, _DEAD_BUG, _SIDE_PLANK, _PALLOF, _BAND_ER],
+        "B": [_WARMUP_B, _BAND_ROW, _PULL_APART, _BULGARIAN, _SINGLE_LEG_DL, _BAND_WALKS, _COPENHAGEN, _MCGILL,
+              _BIRD_DOG, _YTW],
+    },
+    PROFILE_NEOLYMP: {
+        "A": [_WARMUP_A, _GLUTE_BRIDGE, _NL_CHEST_PRESS, _NL_SHOULDER_PRESS, _NL_BUTTERFLY, _HOLLOW, _DEAD_BUG,
+              _SIDE_PLANK, _PALLOF, _NL_EXTERNAL_ROTATION],
+        "B": [_WARMUP_B, _NL_ROW, _NL_LAT_PULL, _NL_REAR_FLY, _BULGARIAN, _SINGLE_LEG_DL, _NL_LEG_EXTENSION,
+              _COPENHAGEN, _MCGILL, _BIRD_DOG, _YTW],
+    },
+}
 
 # Zusatzuebungen je Fokus aus der Bibliothek (Kraft-Recherche B/C/D), die in A/B sonst fehlen
-_FOCUS_EXTRAS: dict[str, dict[str, list[Exercise]]] = {
-    GROUP_CORE: {
-        "A": [Exercise("Plank (Unterarmstütz)", "3–4", "30–60 s", group=GROUP_CORE,
-                       note="Progression: Plank mit lateralem Step oder Plank-to-Pushup")],
-        "B": [
-            Exercise("Plank (Unterarmstütz)", "3–4", "30–60 s", max_phase=1, group=GROUP_CORE),
-            Exercise("Reverse Crunch / Leg Raises", "3", "10–15", min_phase=2, group=GROUP_CORE,
-                     note="Langsam, Lendenwirbel am Boden"),
-        ],
+_PLANK_A = replace(_PLANK, note="Progression: Plank mit lateralem Step oder Plank-to-Pushup")
+_PLANK_B = replace(_PLANK, max_phase=1)
+
+_FOCUS_EXTRAS: dict[str, dict[str, dict[str, list[Exercise]]]] = {
+    PROFILE_BODYWEIGHT: {
+        GROUP_CORE: {"A": [_PLANK_A], "B": [_PLANK_B, _REVERSE_CRUNCH]},
+        GROUP_UPPER: {"A": [_SCAPULAR_PUSHUPS], "B": [_BW_T_RAISE]},
+        GROUP_LEGS: {"A": [_BW_CLAMSHELLS], "B": [_STEP_UPS]},
     },
-    GROUP_UPPER: {
-        "A": [Exercise("Scapular Push-ups", "2", "10–12", group=GROUP_UPPER,
-                       note="Arme gestreckt, nur die Schulterblätter bewegen (Serratus)")],
-        # ab Phase 2 ist die Uebung regulaer in B (dann reicht +1 Satz)
-        "B": [Exercise("Band Pull-Aparts + Face Pulls", "2–3", "15–20", max_phase=1, group=GROUP_UPPER)],
+    PROFILE_BANDS: {
+        GROUP_CORE: {"A": [_PLANK_A], "B": [_PLANK_B, _REVERSE_CRUNCH]},
+        # ab Phase 2 sind die Pull-Aparts regulaer in B (dann reicht +1 Satz)
+        GROUP_UPPER: {"A": [_SCAPULAR_PUSHUPS], "B": [replace(_PULL_APART, min_phase=1, max_phase=1)]},
+        GROUP_LEGS: {"A": [_BAND_CLAMSHELLS], "B": [_STEP_UPS]},
     },
-    GROUP_LEGS: {
-        "A": [Exercise("Clamshells", "2", "15 je Seite", leg=True, group=GROUP_LEGS,
-                       note="Mit Mini-Band, langsam (Glute medius)")],
-        "B": [Exercise("Step-ups", "3", "10 je Bein", leg=True, group=GROUP_LEGS,
-                       note="Niedrige Stufe, aus dem Gesäss drücken, 2–3 Wdh. in Reserve")],
+    PROFILE_NEOLYMP: {
+        GROUP_CORE: {"A": [_PLANK_A], "B": [_PLANK_B, _NL_LEG_RAISE]},
+        GROUP_UPPER: {"A": [_NL_LATERAL_RAISE, _NL_TRICEPS], "B": [_NL_REAR_FLY_PHASE1, _NL_CURLS]},
+        GROUP_LEGS: {"A": [_NL_KICKBACKS], "B": [_STEP_UPS]},
     },
 }
 
 # Fokus-Themen, die die Krafteinheit veraendern (Mobility wirkt nur auf die Routine)
-STRENGTH_FOCUSES: frozenset[str] = frozenset(_FOCUS_EXTRAS)
+STRENGTH_FOCUSES: frozenset[str] = frozenset(_FOCUS_EXTRAS[DEFAULT_PROFILE])
 
-_SESSIONS: dict[str, tuple[str, list[Exercise]]] = {
-    "A": ("Krafteinheit A (Push/Core/Glute)", _SESSION_A),
-    "B": ("Krafteinheit B (Pull/Core/Bein-Stabilität)", _SESSION_B),
+_SESSION_TITLES: dict[str, str] = {
+    "A": "Krafteinheit A (Push/Core/Glute)",
+    "B": "Krafteinheit B (Pull/Core/Bein-Stabilität)",
 }
 
 MOBILITY_ROUTINE: list[Exercise] = [
@@ -203,12 +287,12 @@ MCGILL_BIG_3: list[Exercise] = [
 ]
 
 # Core-Benchmarks uebertroffen -> diese Uebungen vor ihrer Phase (Kraft-Recherche, Recommendations 5)
-CORE_ADVANCED_UNLOCKS: frozenset[str] = frozenset({"Hollow Body Hold", "Anti-rotatorischer Band-Hold (Pallof)"})
+CORE_ADVANCED_UNLOCKS: frozenset[str] = frozenset({
+    "Hollow Body Hold", "Anti-rotatorischer Band-Hold (Pallof)", "Plank Shoulder Taps",  # Taps = Pallof ohne Band
+})
 
 # Uebungen mit Benchmark-Stufe: Wdh.-Bereich der Bibliothek (8–15), die Phase bestimmt nur Saetze und Pause
-STAGED_EXERCISES: frozenset[str] = frozenset({
-    "Liegestütz-Progression", "Inverted Rows (Tischkanten-Rudern)", "Glute Bridge (Progression → Single-Leg)",
-})
+STAGED_EXERCISES: frozenset[str] = frozenset({"Liegestütz-Progression", "Glute Bridge (Progression → Single-Leg)"})
 RIR_NOTE = "2–3 Wdh. in Reserve"
 
 REDUCED_NOTE = "Reduziert (Beine platt): Beinübungen entfallen, Volumen ~20 % runter (je Übung 1 Satz weniger)."
@@ -256,8 +340,6 @@ def _stage_note(exercise: Exercise, stages: ExerciseStages) -> str | None:
     if exercise.name == "Liegestütz-Progression" and stages.pushup_variant:
         tempo = "3 s runter / 1 s Pause unten / 1 s hoch" if stages.pushup_slow_tempo else "2 s runter / 1 s hoch"
         return f"Deine Stufe: {PUSHUP_VARIANTS[stages.pushup_variant]} · {tempo}"
-    if exercise.name == "Inverted Rows (Tischkanten-Rudern)" and stages.rows_feet_elevated is not None:
-        return "Deine Stufe: Füsse erhöht" if stages.rows_feet_elevated else "Deine Stufe: Füsse am Boden"
     if exercise.name == "Side Plank" and stages.side_plank_straight is not None:
         return "Deine Stufe: Beine gestreckt" if stages.side_plank_straight else "Deine Stufe: Knie gebeugt"
     if exercise.name == "Glute Bridge (Progression → Single-Leg)" and stages.glute_bridge_single_leg is not None:
@@ -291,6 +373,7 @@ def build_strength_session(
     reduced: bool = False,
     focus: str = FOCUS_NONE,
     stages: ExerciseStages | None = None,
+    profile: str = DEFAULT_PROFILE,
 ) -> StrengthSession:
     """Stellt Einheit A oder B fuer eine Kraftphase zusammen.
 
@@ -306,21 +389,24 @@ def build_strength_session(
         focus: Kraft-Fokus (siehe FOCUS_OPTIONS). Core/Oberkoerper/Beine: +1 Satz auf die Gruppe,
             Zusatzuebung, Dauer +FOCUS_EXTRA_MINUTES. Mobility wirkt nur auf mobility_routine.
         stages: Stufen aus dem Kraft-Benchmark (Hinweis „Deine Stufe“, Core-Freischaltung).
+        profile: Material-Profil (siehe EQUIPMENT_PROFILES); bestimmt die Uebungen.
 
     Returns:
         StrengthSession mit den Uebungen der Phase.
 
     Raises:
-        ValueError: bei unbekannter session_id oder unbekanntem Fokus.
+        ValueError: bei unbekannter session_id, unbekanntem Fokus oder unbekanntem Profil.
     """
-    if session_id not in _SESSIONS:
+    if profile not in _LIBRARY:
+        raise ValueError(f"unbekanntes Material-Profil: {profile}")
+    if session_id not in _SESSION_TITLES:
         raise ValueError(f"unbekannte Krafteinheit: {session_id}")
     if focus not in FOCUS_OPTIONS:
         raise ValueError(f"unbekannter Kraft-Fokus: {focus}")
-    title, library = _SESSIONS[session_id]
+    title, library = _SESSION_TITLES[session_id], _LIBRARY[profile][session_id]
     strength_focus = focus in STRENGTH_FOCUSES
     if strength_focus:
-        library = library + _FOCUS_EXTRAS[focus][session_id]
+        library = library + _FOCUS_EXTRAS[profile][focus][session_id]
     exercises = []
     stages = stages or ExerciseStages()
     for exercise in library:

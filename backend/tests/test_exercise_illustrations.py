@@ -3,12 +3,15 @@ from pathlib import Path
 
 from backend.engine.strength_alternatives import ALTERNATIVES
 from backend.engine.strength_sessions import (
+    EQUIPMENT_PROFILES,
     FOCUS_OPTIONS,
     MOBILITY_ROUTINE,
     SESSION_IDS,
     STRENGTH_PHASES,
     build_strength_session,
 )
+
+from backend.api.exercise_routes import NEOLYMP_MANIFEST
 
 EXERCISE_DIR = Path(__file__).resolve().parents[2] / "frontend" / "training" / "img" / "exercises"
 
@@ -20,15 +23,27 @@ def _index() -> dict:
 def _all_exercise_names() -> set[str]:
     names = {e.name for e in MOBILITY_ROUTINE}
     names.update(a.name for options in ALTERNATIVES.values() for a in options)
-    for phase in STRENGTH_PHASES.values():
-        for session_id in SESSION_IDS:
-            for focus in FOCUS_OPTIONS:
-                names.update(e.name for e in build_strength_session(session_id, phase, focus=focus).exercises)
+    for profile in EQUIPMENT_PROFILES:
+        for phase in STRENGTH_PHASES.values():
+            for session_id in SESSION_IDS:
+                for focus in FOCUS_OPTIONS:
+                    names.update(
+                        e.name for e in build_strength_session(session_id, phase, focus=focus, profile=profile).exercises
+                    )
     return names
 
 
+def _neolymp_manifest() -> dict:
+    return json.loads(NEOLYMP_MANIFEST.read_text(encoding="utf-8"))
+
+
 def test_every_exercise_has_an_illustration_entry():
-    assert _all_exercise_names() - _index().keys() == set()
+    # NEOLYMP-Uebungen stehen im Manifest (Bilder liegen nur auf dem Server, nicht im Repo)
+    assert _all_exercise_names() - _index().keys() - _neolymp_manifest().keys() == set()
+
+
+def test_neolymp_exercises_are_not_listed_twice():
+    assert _neolymp_manifest().keys() & _index().keys() == set()
 
 
 def _single_entries() -> dict:
@@ -37,12 +52,12 @@ def _single_entries() -> dict:
 
 def test_every_illustration_file_exists_and_has_a_video_query():
     for name, entry in _single_entries().items():
-        assert (EXERCISE_DIR / entry["img"]).is_file(), name
+        assert "img" not in entry or (EXERCISE_DIR / entry["img"]).is_file(), name  # ohne img: nur Video-Link
         assert entry["video"].strip(), name
 
 
 def test_every_svg_is_referenced():
-    referenced = {entry["img"] for entry in _single_entries().values()}
+    referenced = {entry["img"] for entry in _single_entries().values() if "img" in entry}
     assert {p.name for p in EXERCISE_DIR.glob("*.svg")} == referenced
 
 

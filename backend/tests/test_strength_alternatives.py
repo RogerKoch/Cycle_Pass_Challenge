@@ -1,39 +1,40 @@
 import pytest
 
-from backend.engine.strength_alternatives import (
-    ALTERNATIVES,
-    EQUIPMENT_BANDS,
-    EQUIPMENT_TABLE,
-    REQUIRES,
-    apply_swaps,
+from backend.engine.strength_alternatives import ALTERNATIVES, apply_swaps
+from backend.engine.strength_sessions import (
+    EQUIPMENT_PROFILES,
+    PROFILE_BANDS,
+    PROFILE_NEOLYMP,
+    SESSION_IDS,
+    STRENGTH_PHASES,
+    build_strength_session,
 )
-from backend.engine.strength_sessions import SESSION_IDS, STRENGTH_PHASES, build_strength_session
 
-ROWS = "Inverted Rows (Tischkanten-Rudern)"
-
-
-def _session_b(phase: int = 1):
-    return build_strength_session("B", STRENGTH_PHASES[phase])
+ROWS = "Band-Rudern"
 
 
-def _exercise(name: str):
-    return next(e for e in _session_b().exercises if e.name == name)
+def _session_b(phase: int = 1, profile: str = PROFILE_BANDS):
+    return build_strength_session("B", STRENGTH_PHASES[phase], profile=profile)
+
+
+def _exercise(name: str, profile: str = PROFILE_BANDS):
+    return next(e for e in _session_b(profile=profile).exercises if e.name == name)
 
 
 def test_exercise_without_alternatives_stays_unchanged():
     original = _exercise("Bird Dog")
-    assert apply_swaps(original, {}, frozenset({EQUIPMENT_BANDS})) == original
+    assert apply_swaps(original, {}) == original
 
 
 def test_original_lists_its_alternatives_when_nothing_is_swapped():
-    result = apply_swaps(_exercise(ROWS), {}, frozenset())
+    result = apply_swaps(_exercise(ROWS), {})
     assert result.name == ROWS and result.original is None
     assert result.alternatives == [a.name for a in ALTERNATIVES[ROWS]]
 
 
 def test_manual_swap_replaces_name_but_keeps_sets_and_group():
     original = _exercise(ROWS)
-    result = apply_swaps(original, {ROWS: "Handtuch-Rudern an Türklinke"}, frozenset())
+    result = apply_swaps(original, {ROWS: "Handtuch-Rudern an Türklinke"})
     assert result.name == "Handtuch-Rudern an Türklinke"
     assert result.original == ROWS
     assert (result.sets, result.reps, result.rest, result.group) == (
@@ -41,50 +42,40 @@ def test_manual_swap_replaces_name_but_keeps_sets_and_group():
     )
 
 
-def test_missing_table_swaps_to_first_alternative_that_needs_no_missing_material():
-    result = apply_swaps(_exercise(ROWS), {}, frozenset({EQUIPMENT_TABLE}))
-    assert result.name == "Band-Rudern"  # braucht Band, aber das ist vorhanden
-
-
-def test_missing_table_and_bands_skips_band_alternative():
-    result = apply_swaps(_exercise(ROWS), {}, frozenset({EQUIPMENT_TABLE, EQUIPMENT_BANDS}))
-    assert result.name == "Handtuch-Rudern an Türklinke"
-
-
-def test_manual_swap_wins_over_equipment_automation():
-    result = apply_swaps(
-        _exercise(ROWS), {ROWS: "Rucksack-Rudern vorgebeugt"}, frozenset({EQUIPMENT_TABLE})
-    )
-    assert result.name == "Rucksack-Rudern vorgebeugt"
-
-
 def test_unknown_manual_alternative_is_ignored():
-    assert apply_swaps(_exercise(ROWS), {ROWS: "Kreuzheben"}, frozenset()).name == ROWS
-
-
-def test_present_material_does_not_trigger_automatic_swap():
-    assert apply_swaps(_exercise("Lateral Band Walks"), {}, frozenset({EQUIPMENT_TABLE})).name == "Lateral Band Walks"
+    assert apply_swaps(_exercise(ROWS), {ROWS: "Kreuzheben"}).name == ROWS
 
 
 def test_override_reps_only_when_alternative_defines_them():
-    session_a = build_strength_session("A", STRENGTH_PHASES[3])
+    session_a = build_strength_session("A", STRENGTH_PHASES[3], profile=PROFILE_BANDS)
     pallof = next(e for e in session_a.exercises if e.name.startswith("Anti-rotatorischer"))
-    result = apply_swaps(pallof, {}, frozenset({EQUIPMENT_BANDS}))
+    result = apply_swaps(pallof, {pallof.name: "Plank Shoulder Taps"})
     assert (result.name, result.reps) == ("Plank Shoulder Taps", "10–16 Taps")
 
 
-def test_every_original_with_required_material_has_an_alternative_without_it():
-    for name, needed in REQUIRES.items():
-        assert any(not a.requires & needed for a in ALTERNATIVES[name]), name
+def test_neolymp_exercise_offers_neolymp_alternatives():
+    result = apply_swaps(_exercise("Rudern zur Brust mit Bänderstange", PROFILE_NEOLYMP), {})
+    assert "Rudern vorgebeugt mit Bänderstange" in result.alternatives
 
 
-def test_all_requiring_originals_exist_in_the_library():
+def _all_names(profile: str) -> set[str]:
     names = set()
     for phase in STRENGTH_PHASES.values():
         for session_id in SESSION_IDS:
             for focus in ("none", "core", "upper", "legs"):
-                names.update(e.name for e in build_strength_session(session_id, phase, focus=focus).exercises)
-    assert set(REQUIRES) <= names
+                names.update(e.name for e in build_strength_session(session_id, phase, focus=focus, profile=profile).exercises)
+    return names
+
+
+def test_all_swappable_originals_exist_in_some_profile():
+    names = set().union(*(_all_names(profile) for profile in EQUIPMENT_PROFILES))
+    assert set(ALTERNATIVES) <= names
+
+
+def test_bodyweight_profile_offers_no_equipment_exercise_or_swap():
+    names = _all_names("bodyweight")
+    forbidden = ("Band", "Rucksack", "Tisch", "Handtuch-Rudern", "Griff", "Fußschlaufe", "Bänderstange")
+    assert not [n for n in names if any(word in n for word in forbidden)]
 
 
 @pytest.mark.parametrize("name", sorted(ALTERNATIVES))

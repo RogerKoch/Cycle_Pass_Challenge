@@ -1,6 +1,7 @@
 import pytest
 
 from backend.engine.strength_sessions import (
+    EQUIPMENT_PROFILES,
     MCGILL_BIG_3,
     MOBILITY_ROUTINE,
     STRENGTH_PHASES,
@@ -121,8 +122,8 @@ def test_upper_focus_scales_phase_sets_and_adds_scapular_pushups():
 
 
 def test_upper_focus_adds_pull_aparts_to_b_only_before_they_are_regular():
-    phase1 = [e.name for e in build_strength_session("B", STRENGTH_PHASES[1], focus="upper").exercises]
-    phase2 = [e.name for e in build_strength_session("B", STRENGTH_PHASES[2], focus="upper").exercises]
+    phase1 = [e.name for e in build_strength_session("B", STRENGTH_PHASES[1], focus="upper", profile="bands").exercises]
+    phase2 = [e.name for e in build_strength_session("B", STRENGTH_PHASES[2], focus="upper", profile="bands").exercises]
     assert phase1.count("Band Pull-Aparts + Face Pulls") == 1
     assert phase2.count("Band Pull-Aparts + Face Pulls") == 1
 
@@ -148,6 +149,49 @@ def test_mobility_routine_by_focus():
 
 def test_shift_numbers():
     assert (shift_numbers("2–3", 1), shift_numbers("50–55", 10), shift_numbers("3", 1)) == ("3–4", "60–65", "4")
+
+
+# --- Material-Profile --------------------------------------------------------------------------------
+
+
+def test_default_profile_is_bodyweight():
+    assert build_strength_session("A", STRENGTH_PHASES[2]) == build_strength_session(
+        "A", STRENGTH_PHASES[2], profile="bodyweight"
+    )
+
+
+def test_every_profile_builds_all_sessions_phases_and_focuses():
+    for profile in EQUIPMENT_PROFILES:
+        for session_id in ("A", "B"):
+            for phase in STRENGTH_PHASES.values():
+                for focus in ("none", "core", "upper", "legs", "mobility"):
+                    assert build_strength_session(session_id, phase, focus=focus, profile=profile).exercises
+
+
+def test_bands_profile_rows_with_band_instead_of_table():
+    names = _names(build_strength_session("B", STRENGTH_PHASES[2], profile="bands"))
+    assert "Band-Rudern" in names and "Band Pull-Aparts + Face Pulls" in names
+    assert not any("Inverted Rows" in n for n in names)
+
+
+def test_neolymp_profile_replaces_pushups_with_band_presses_and_keeps_core_bodyweight():
+    session_a = _names(build_strength_session("A", STRENGTH_PHASES[2], profile="neolymp"))
+    assert "Brustpresse mit Bänderstange" in session_a and "Schulterdrücken mit Bänderstange (Kniestand)" in session_a
+    assert "Liegestütz-Progression" not in session_a and "Pike Push-ups" not in session_a
+    assert {"Dead Bug", "Hollow Body Hold", "Side Plank"} <= set(session_a)
+
+
+def test_neolymp_upper_focus_adds_arm_and_shoulder_extras():
+    a = _names(build_strength_session("A", STRENGTH_PHASES[1], focus="upper", profile="neolymp"))
+    b = _names(build_strength_session("B", STRENGTH_PHASES[1], focus="upper", profile="neolymp"))
+    assert {"Seitenheben mit Griff", "Einarmiges Trizepstrecken über Kopf mit Griff"} <= set(a)
+    assert {"Butterfly reverse einarmig mit Griff", "Einarmige Curls mit Griff"} <= set(b)
+    assert "Scapular Push-ups" not in a  # Stuetz belastet die Handgelenke
+
+
+def test_rejects_unknown_profile():
+    with pytest.raises(ValueError):
+        build_strength_session("A", STRENGTH_PHASES[1], profile="hantel")
 
 
 def test_rejects_unknown_focus():
