@@ -146,6 +146,7 @@ _BASE_FIELDS: dict[str, tuple[float, float]] = {
     "base_fat_g": (10, 400),
     "base_fiber_g": (0, 150),
     "base_deficit_kcal": (0, 1000),
+    "max_meal_kcal": (300, 3000),
 }
 
 

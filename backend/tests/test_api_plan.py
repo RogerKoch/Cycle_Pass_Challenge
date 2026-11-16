@@ -393,6 +393,28 @@ def test_profile_base_values_are_validated_and_clearable(client):
     assert client.put("/api/profile", json={"base_kcal": None}).get_json()["base_kcal"] is None
 
 
+def test_max_meal_kcal_defaults_to_800_is_validated_and_clearable(client):
+    _setup_profile_and_checkin(client)
+    assert client.get("/api/profile").get_json()["max_meal_kcal"] == 800
+    assert client.put("/api/profile", json={"max_meal_kcal": 100}).status_code == 400
+    assert client.put("/api/profile", json={"max_meal_kcal": True}).status_code == 400
+    assert client.put("/api/profile", json={"max_meal_kcal": 700}).get_json()["max_meal_kcal"] == 700
+    assert client.put("/api/profile", json={"max_meal_kcal": None}).get_json()["max_meal_kcal"] is None
+
+
+def test_plan_limits_meals_to_profile_max_and_keeps_day_target(client):
+    _setup_profile_and_checkin(client)
+    client.put("/api/profile", json={**BASE_VALUES, "evening_training_days": [], "max_meal_kcal": None})
+    query = "cycling_hours=3&cycling_intensity=moderat_base&strength_sessions=0&day_type=moderater_tag"
+    unlimited = client.get(f"/api/plan/today?{query}").get_json()
+    client.put("/api/profile", json={"max_meal_kcal": 800})
+    limited = client.get(f"/api/plan/today?{query}").get_json()
+    assert max(m["kcal"] for m in unlimited["meals"]) > 800
+    assert max(m["kcal"] for m in limited["meals"]) <= 800 + 1e-6
+    assert limited["nutrition"]["target_kcal"] == pytest.approx(unlimited["nutrition"]["target_kcal"])
+    assert any(s["slot"] == "post" for s in limited["timeline"])
+
+
 def test_base_value_mode_applies_profile_deficit_to_target(client):
     _setup_profile_and_checkin(client)
     client.put("/api/profile", json={**BASE_VALUES, "base_deficit_kcal": 250})

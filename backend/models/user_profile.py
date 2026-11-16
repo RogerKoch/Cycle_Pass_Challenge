@@ -43,6 +43,8 @@ class UserProfile(db.Model):
     base_fiber_g: float | None = db.Column(db.Float, nullable=True)
     # Defizit in kcal/Tag im Basiswerte-Modus (0/None = Erhaltung), mindert KH und Fett der Hauptmahlzeiten
     base_deficit_kcal: float | None = db.Column(db.Float, nullable=True)
+    # Obergrenze kcal je Hauptmahlzeit im Basiswerte-Modus; Ueberschuss wird auf andere Mahlzeiten verteilt (None = kein Limit)
+    max_meal_kcal: float | None = db.Column(db.Float, nullable=True, default=800.0, server_default="800")
     created_at: datetime = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: datetime = db.Column(
         db.DateTime,

@@ -402,8 +402,9 @@ Sind im Profil die **Basis-Tageswerte** (kcal, Eiweiss, KH, Fett) eingetragen, z
 | nach dem Training | Post | ca. 220 kcal (nach langen oder harten Einheiten ca. 370), mit 28–30 g Eiweiss |
 | Abend | Abendessen | 420 kcal |
 
-- **Mo–Fr (Training nach der Arbeit, 18:00):** Post-Workout und Abendessen fallen zusammen (Abendessen direkt nach dem Training). Das ist spät, die Menge darf bei wenig Hunger sinken.
-- **Sa/So (Training nach dem Frühstück, 10:00):** Der Vormittags-Snack entfällt. Endet das Training ab 11:00, ersetzt die Post-Mahlzeit das Mittagessen.
+- **Training nach der Arbeit (18:00, Tage aus dem Profil bzw. Tages-Umstellung):** Post-Workout und Abendessen fallen zusammen (Abendessen direkt nach dem Training). Ein Teil des Abendessens kann der Post-Shake sein. Das ist spät, die Menge darf bei wenig Hunger sinken.
+- **Training am Vormittag (10:00):** Der Vormittags-Snack entfällt, seine kcal gehen ins Mittagessen. Der Post-Shake ist eine eigene Mahlzeit direkt nach dem Training, das Mittagessen folgt frühestens 45 min später.
+- **Max. kcal pro Mahlzeit (Profil, Standard 800):** Ist eine Mahlzeit grösser, wird der Rest anteilig auf andere Mahlzeiten verteilt (zuerst die späteren). Tagesziel und Makros bleiben gleich. Leer lassen = kein Limit.
 - Rad und Kraft laufen im selben Block (Rad, dann Kraft); Pre/Post gibt es einmal pro Tag.
 - Die Wochenübersicht im Ernährungs-Tagebuch bewertet jeden Slot gegen diese Mengen. Toleranz: bis +10 % bei kcal, KH und Fett.
 

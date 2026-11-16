@@ -106,8 +106,13 @@ alpenpaesse-app/
    und Intra-Workout-Fueling.
    **Tagesablauf-Modus:** Sind im Profil Basis-Tageswerte gesetzt (`base_kcal/protein/carbs/fat`), gelten Regeln 3 und 4
    nicht; `engine/day_timeline.py` baut stattdessen eine Uhrzeit-Timeline (5 Mahlzeiten + Pre/Intra/Post) und das Tagesziel
-   = Basis + Sport-Verpflegung, ohne Defizit (Mo–Fr 18:00 Training mit Post = Abendessen, Sa/So 10:00). `GET /api/nutrition/review`
+   = Basis + Sport-Verpflegung, ohne Defizit (Abendblock 18:00 mit Post im Abendessen, sonst 10:00; der Block kommt aus
+   `evening_training_days` bzw. dem Tages-Override). `GET /api/nutrition/review`
    (`engine/nutrition_review.py`) vergleicht den Log je Slot. Siehe `docs/research/tagesablauf-sportverpflegung.md`.
+   **Abweichung vom Massnahmenplan (bewusst, Research-Datei unverändert):** Die Regel «Morgentraining ab 11:00: Post ersetzt
+   das Mittagessen» entfällt. Der Post-Shake ist immer ein eigener Slot, und das Profilfeld `max_meal_kcal` (Standard 800)
+   deckelt jede Hauptmahlzeit; der Überschuss wandert anteilig (kcal + Makros) auf spätere, sonst frühere Mahlzeiten.
+   Tagessumme und Makros bleiben gleich. Grund: sonst ~1200 kcal in einem Mittagessen nach langem Training.
 
 ## Trainingskalender
 

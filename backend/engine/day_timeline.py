@@ -17,7 +17,8 @@ EVENING_START = 18 * 60  # Training nach der Arbeit
 MORNING_START = 10 * 60  # Training nach dem Fruehstueck (Wochenende)
 PRE_LEAD_MINUTES = 45  # Pre-Snack 30-60 min vor dem Start
 POST_DINNER_DELAY = 15  # Abendessen nach dem Training (Post-Workout-Mahlzeit)
-LUNCH_MERGE_FROM = 11 * 60  # Morgentraining, das spaeter endet, ersetzt das Mittagessen durch die Post-Mahlzeit
+POST_LUNCH_DELAY = 45  # Mittagessen frühestens so lange nach dem Training (Post-Shake kommt direkt danach)
+MEAL_GAP = 90  # Mindestabstand zwischen zwei Hauptmahlzeiten
 LONG_RIDE_MINUTES = 120
 
 SLOT_MEAL = "meal"
@@ -38,6 +39,7 @@ class BaseTargets:
     fat_g: float
     fiber_g: float | None = None
     deficit_kcal: float = 0.0  # 0 = Erhaltung (Massnahmenplan); mindert KH und Fett der Hauptmahlzeiten, Eiweiss bleibt
+    max_meal_kcal: float | None = None  # Obergrenze je Hauptmahlzeit; Überschuss geht auf andere Mahlzeiten, None = kein Limit
 
     @classmethod
     def from_profile(cls, profile: object) -> "BaseTargets | None":
@@ -46,7 +48,8 @@ class BaseTargets:
         if any(v is None for v in values):
             return None
         return cls(*values, fiber_g=getattr(profile, "base_fiber_g", None),
-                   deficit_kcal=getattr(profile, "base_deficit_kcal", None) or 0.0)
+                   deficit_kcal=getattr(profile, "base_deficit_kcal", None) or 0.0,
+                   max_meal_kcal=getattr(profile, "max_meal_kcal", None))
 
 
 @dataclass
@@ -190,6 +193,27 @@ def _absorb(target: TimelineSlot, protein_g: float, carbs_g: float, fat_g: float
                    carbs_g=target.carbs_g + carbs_g, fat_g=target.fat_g + fat_g)
 
 
+def _spread_overflow(meals: dict[str, TimelineSlot], times: dict[str, int], cap: float) -> None:
+    """Verschiebt kcal über `cap` anteilig (inkl. Makros) auf Mahlzeiten mit Luft: erst spätere, dann frühere.
+
+    Gibt es nirgends Luft, bleibt der Wert stehen (Richtwert). Tagessumme und Makros bleiben unverändert.
+    """
+    order = sorted(meals, key=times.__getitem__)
+    for index, slot in enumerate(order):
+        for target in order[index + 1:] + order[:index][::-1]:
+            source = meals[slot]
+            if source.kcal <= cap:
+                break
+            moved = min(source.kcal - cap, cap - meals[target].kcal)
+            if moved <= 0:
+                continue
+            share = moved / source.kcal
+            meals[target] = _absorb(meals[target], source.protein_g * share, source.carbs_g * share,
+                                    source.fat_g * share, moved)
+            meals[slot] = replace(source, kcal=source.kcal - moved, protein_g=source.protein_g * (1 - share),
+                                  carbs_g=source.carbs_g * (1 - share), fat_g=source.fat_g * (1 - share))
+
+
 def build_timeline(
     base: BaseTargets,
     cycling_minutes: float,
@@ -200,8 +224,9 @@ def build_timeline(
 ) -> list[TimelineSlot]:
     """Baut den Tagesablauf mit Uhrzeiten, Mengen und Beispielen.
 
-    Mo–Fr (`evening`): Training 18:00, Post-Workout und Abendessen fallen zusammen. Sonst Training 10:00 nach dem
-    Fruehstueck; endet es ab 11:00, ersetzt die Post-Mahlzeit das Mittagessen, der Vormittags-Snack entfaellt.
+    Abendblock (`evening`): Training 18:00, Post-Workout steckt im Abendessen. Sonst Training 10:00 nach dem
+    Fruehstueck: Post-Shake als eigener Slot, der Vormittags-Snack entfaellt (kcal gehen ins Mittagessen).
+    Ueberschreitet eine Mahlzeit `base.max_meal_kcal`, wird der Rest auf andere Mahlzeiten verteilt.
 
     Args:
         base: Basis-Tageswerte ohne Sport.
@@ -239,24 +264,24 @@ def build_timeline(
             meals["abend"] = replace(
                 _absorb(meals["abend"], post_p, post_c, post_f, post_kcal),
                 label="Abendessen (Post-Workout)",
-                hint=("Direkt nach dem Training: ≥ 30 g Eiweiss + Kohlenhydrate, Recovery. Unter der Woche zu spät für "
-                      "«4 h vor dem Schlafen», die Menge darf bei wenig Hunger sinken."),
+                hint=("Direkt nach dem Training: ≥ 30 g Eiweiss + Kohlenhydrate, Recovery. Ein Teil des Abendessens kann der "
+                      f"Post-Shake sein (ca. {post_kcal:.0f} kcal). Unter der Woche zu spät für «4 h vor dem Schlafen», "
+                      "die Menge darf bei wenig Hunger sinken."),
+                options=[*meals["abend"].options, *(f"Als Post-Shake: {option}" for option in post_options)],
             )
             times["abend"] = end + POST_DINNER_DELAY
         else:
-            post = TimelineSlot("post", _clock(end), SLOT_SPORT, "Post-Training", post_kcal, post_p, post_c, post_f,
-                                "Innerhalb 30–60 min nach dem Training; nach Kraft immer 25–30 g Eiweiss.", post_options)
+            sport.append(TimelineSlot("post", _clock(end), SLOT_SPORT, "Post-Training", post_kcal, post_p, post_c, post_f,
+                                      "Innerhalb 30–60 min nach dem Training; nach Kraft immer 25–30 g Eiweiss.", post_options))
             snack = meals.pop("snack")  # morgens trainiert: Vormittags-Snack entfaellt, kcal gehen ins Mittagessen
-            lunch = _absorb(meals["mittag"], snack.protein_g, snack.carbs_g, snack.fat_g, snack.kcal)
-            if end >= LUNCH_MERGE_FROM:
-                meals["mittag"] = replace(
-                    _absorb(lunch, post.protein_g, post.carbs_g, post.fat_g, post.kcal),
-                    label="Mittagessen (Post-Training)", hint="Direkt nach dem Training, ersetzt Post-Shake und Mittagessen.",
-                )
-                times["mittag"] = end
-            else:
-                meals["mittag"] = lunch
-                sport.append(post)
+            meals["mittag"] = _absorb(meals["mittag"], snack.protein_g, snack.carbs_g, snack.fat_g, snack.kcal)
+            times["mittag"] = max(times["mittag"], end + POST_LUNCH_DELAY)
+
+    order = list(meals)
+    for previous, current in zip(order, order[1:]):  # nach langem Training rutschen die Folgemahlzeiten nach hinten
+        times[current] = max(times[current], times[previous] + MEAL_GAP)
+    if base.max_meal_kcal:
+        _spread_overflow(meals, times, base.max_meal_kcal)
 
     slots = [replace(slot, time=_clock(times[slot.slot])) for slot in meals.values()] + sport
     return sorted(slots, key=lambda s: s.time)

@@ -45,13 +45,57 @@ def test_weekday_evening_places_pre_before_and_dinner_after_training():
     assert slots["abend"].kcal == pytest.approx(420 + 217)
 
 
-def test_weekend_morning_ride_replaces_lunch_with_post_meal():
+def test_long_morning_ride_gets_separate_post_and_later_lunch():
     slots = _by_slot(build_timeline(BASE, 180, CyclingIntensity.MODERAT_BASE, 0, evening=False, weekend=True))
-    assert "snack" not in slots and "post" not in slots
+    assert "snack" not in slots
     assert slots["fruehstueck"].time == "08:00"
     assert slots["pre"].time == "09:15"
-    assert slots["mittag"].time == "13:00"
-    assert slots["mittag"].label == "Mittagessen (Post-Training)"
+    assert slots["post"].time == "13:00"
+    assert slots["mittag"].time == "13:45"
+    assert slots["mittag"].label == "Mittagessen"
+    assert slots["mittag"].kcal == pytest.approx(555 + 275)
+
+
+def test_meals_stay_in_order_after_a_very_long_morning_ride():
+    slots = _by_slot(build_timeline(BASE, 300, CyclingIntensity.MODERAT_BASE, 0, evening=False, weekend=False))
+    meal_times = [slots[k].time for k in ("fruehstueck", "mittag", "snack_nachmittag", "abend")]
+    assert meal_times == sorted(meal_times) and len(set(meal_times)) == 4
+    assert slots["post"].time < slots["mittag"].time
+
+
+CAPPED = BaseTargets(kcal=2050, protein_g=107, carbs_g=198, fat_g=83, max_meal_kcal=800)
+
+
+def test_meal_limit_moves_overflow_to_next_meal_and_keeps_totals():
+    plain = build_timeline(BASE, 180, CyclingIntensity.MODERAT_BASE, 0, evening=False, weekend=True)
+    capped = build_timeline(CAPPED, 180, CyclingIntensity.MODERAT_BASE, 0, evening=False, weekend=True)
+    slots = _by_slot(capped)
+    assert slots["mittag"].kcal == pytest.approx(800)
+    assert slots["snack_nachmittag"].kcal == pytest.approx(250 + 30)
+    assert slots["abend"].kcal == pytest.approx(420)
+    assert timeline_totals(capped) == pytest.approx(timeline_totals(plain))
+
+
+def test_meal_limit_leaves_meals_below_it_untouched():
+    plain = _by_slot(build_timeline(BASE, 60, CyclingIntensity.MODERAT_BASE, 0, evening=True, weekend=False))
+    capped = _by_slot(build_timeline(CAPPED, 60, CyclingIntensity.MODERAT_BASE, 0, evening=True, weekend=False))
+    assert {k: s.kcal for k, s in capped.items()} == pytest.approx({k: s.kcal for k, s in plain.items()})
+
+
+def test_meal_limit_falls_back_to_earlier_meal_when_no_later_one_has_room():
+    base = BaseTargets(kcal=2050, protein_g=107, carbs_g=198, fat_g=83, max_meal_kcal=600)
+    plain = build_timeline(BASE, 180, CyclingIntensity.MODERAT_BASE, 0, evening=True, weekend=False)
+    capped = build_timeline(base, 180, CyclingIntensity.MODERAT_BASE, 0, evening=True, weekend=False)
+    slots = _by_slot(capped)
+    assert slots["abend"].kcal == pytest.approx(600)  # 420 + Post 371, Rest geht in den Nachmittags-Snack
+    assert slots["snack_nachmittag"].kcal == pytest.approx(250 + 191)
+    assert timeline_totals(capped) == pytest.approx(timeline_totals(plain))
+
+
+def test_evening_dinner_names_the_post_shake_as_part_of_the_meal():
+    slots = _by_slot(build_timeline(BASE, 60, CyclingIntensity.MODERAT_BASE, 0, evening=True, weekend=False))
+    assert "Post-Shake" in slots["abend"].hint
+    assert any("Proteinpulver" in option for option in slots["abend"].options)
 
 
 def test_short_morning_session_keeps_lunch_and_gets_separate_post():

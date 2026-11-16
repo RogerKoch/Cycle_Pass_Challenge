@@ -29,6 +29,7 @@ _ADDED_COLUMNS: list[tuple[str, str, str]] = [
     ("user_profile", "base_fat_g", "FLOAT"),
     ("user_profile", "base_fiber_g", "FLOAT"),
     ("user_profile", "base_deficit_kcal", "FLOAT"),
+    ("user_profile", "max_meal_kcal", "FLOAT DEFAULT 800"),
     ("strength_benchmarks", "row_variant", "VARCHAR(12)"),
     ("checkins", "weight_only", "BOOLEAN NOT NULL DEFAULT 0"),
     ("ftp_tests", "source", "VARCHAR(12) NOT NULL DEFAULT 'manual'"),
