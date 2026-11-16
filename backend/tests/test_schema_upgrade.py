@@ -76,6 +76,19 @@ def test_adds_evening_training_days_with_workday_default(app):
     assert db.session.execute(text("SELECT evening_training_days FROM user_profile")).scalar() == "1,2,3,4"
 
 
+def test_adds_max_meal_kcal_with_default_800(app):
+    db.session.execute(text("ALTER TABLE user_profile DROP COLUMN max_meal_kcal"))
+    db.session.execute(text(
+        "INSERT INTO user_profile (id, age, height_cm, program_start_date, created_at, updated_at) "
+        "VALUES (1, 49, 173, '2026-10-01', '2026-10-01 00:00:00', '2026-10-01 00:00:00')"
+    ))
+    db.session.commit()
+
+    add_missing_columns()
+
+    assert db.session.execute(text("SELECT max_meal_kcal FROM user_profile")).scalar() == 800
+
+
 def test_adds_ftp_source_column_and_old_tests_count_as_manual(app):
     db.session.execute(text("DROP TABLE ftp_tests"))
     db.session.execute(text(

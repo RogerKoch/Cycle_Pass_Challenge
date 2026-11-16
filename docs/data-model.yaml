@@ -110,7 +110,11 @@ evening_training_days:
 
 # Tagesablauf-Modus (Basis-Tageswerte im Profil), Quelle docs/research/tagesablauf-sportverpflegung.md
 base_values:
-  profile_fields: [base_kcal, base_protein_g, base_carbs_g, base_fat_g, base_fiber_g, base_deficit_kcal]   # alle vier ersten gesetzt = aktiv
+  profile_fields: [base_kcal, base_protein_g, base_carbs_g, base_fat_g, base_fiber_g, base_deficit_kcal, max_meal_kcal]   # alle vier ersten gesetzt = aktiv
+  # max_meal_kcal (Standard 800, 300-3000, null = kein Limit): Ueberschuss einer Hauptmahlzeit geht anteilig (kcal + Makros)
+  # auf spaetere, sonst fruehere Mahlzeiten mit Luft; Tagessumme unveraendert. Post-Shake morgens immer eigener Slot,
+  # abends Teil des Abendessens. Abweichung vom Massnahmenplan (Post ersetzt Mittag), siehe docs/architecture.md.
+  meal_timing: {post_lunch_delay_min: 45, min_gap_between_meals_min: 90}
   target: "Tagesziel = Basis + Summe Pre/Intra/Post, kein Defizit; nicht an Event-Tagen (Formelmodus)"
   meals_kcal_at_2050: {fruehstueck: 550, snack: 275, mittag: 555, snack_nachmittag: 250, abend: 420}
   tolerance: {kcal_carbs_fat_up: 1.10, protein_down: 0.90, protein_max_g_per_kg: 2.0}
