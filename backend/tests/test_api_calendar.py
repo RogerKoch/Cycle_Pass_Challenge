@@ -247,3 +247,14 @@ def test_mobility_routine_drops_on_days_with_ride_and_strength(profile):
     assert double_day["mobility"] == []
     ride_only = profile.get(f"/api/calendar/day/{_day(1)}").get_json()
     assert ride_only["strength"] is None and len(ride_only["mobility"]) > 0
+
+
+def test_week_reports_next_ftp_test_and_benchmark_due(profile, app):
+    ftp_day = date.today() + timedelta(days=10)
+    db.session.add(TrainingDay(day_date=ftp_day, cycling_slot="ftp_test"))
+    db.session.commit()
+    tests = profile.get(f"/api/calendar/week/{_day(0)}").get_json()["next_tests"]
+    assert tests["ftp"]["date"] == ftp_day.isoformat()
+    assert tests["benchmark"]["due"] == date.today().isoformat()  # noch nie getestet: sofort faellig
+    assert tests["benchmark"]["date"] is not None
+    assert tests["benchmark"]["last_test"] is None

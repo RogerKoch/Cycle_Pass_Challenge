@@ -59,6 +59,7 @@ function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
     if (key === "onclick") node.addEventListener("click", value);
+    else if (key === "oninput") node.addEventListener("input", value);
     else if (key === "class") node.className = value;
     else node.setAttribute(key, value);
   }
@@ -515,12 +516,15 @@ async function consumePlanned(meal = null) {
 
 let searchTimer = null;
 let searchSeq = 0;
+let mineOnly = false; // "Meine": nur eigene Lebensmittel (editier-/loeschbar)
 
 function openSearch(meal, planned = false) {
   state.meal = meal;
   state.planned = planned;
   $("search-title").textContent = `${mealName(meal)} – ${planned ? "planen" : "hinzufügen"}`;
   $("search-input").value = "";
+  mineOnly = false;
+  $("open-mine").classList.remove("primary");
   openDialog("search-dialog");
   $("search-input").focus();
   runSearch("");
@@ -528,15 +532,26 @@ function openSearch(meal, planned = false) {
 
 async function runSearch(query) {
   const seq = ++searchSeq;
-  const { ok, data } = await api("GET", `/api/foods?q=${encodeURIComponent(query)}&limit=30`);
+  const { ok, data } = await api("GET", `/api/foods?q=${encodeURIComponent(query)}&limit=30${mineOnly ? "&custom=1" : ""}`);
   if (seq !== searchSeq || !ok) return;
-  $("search-hint").textContent = query ? "" : data.length ? "Zuletzt verwendet" : "Tippe, um zu suchen";
+  $("search-hint").textContent = mineOnly ? "Meine Lebensmittel" : query ? "" : data.length ? "Zuletzt verwendet" : "Tippe, um zu suchen";
   const items = data.map((food) =>
     el("li", { onclick: () => openAmount(food) },
       el("span", { class: "name" }, food.name,
         el("span", { class: "sub" }, food.portion_label ? `1 ${food.portion_label} = ${round(food.portion_g)} g` : "")),
-      el("span", { class: "kcal" }, `${round(food.kcal_100g)} kcal/100 g`)));
+      el("span", { class: "kcal" }, `${round(food.kcal_100g)} kcal/100 g`),
+      ...(food.source === "custom" ? [
+        el("button", {
+          class: "icon-btn", "aria-label": "Lebensmittel bearbeiten",
+          onclick: (event) => { event.stopPropagation(); openCustom({ food }); },
+        }, "✎"),
+        el("button", {
+          class: "icon-btn", "aria-label": "Lebensmittel löschen",
+          onclick: (event) => { event.stopPropagation(); deleteFood(food); },
+        }, "🗑"),
+      ] : [])));
   if (query && !items.length) items.push(el("li", { class: "empty" }, "Nichts gefunden – „Eigenes“ anlegen?"));
+  if (mineOnly && !items.length) items.push(el("li", { class: "empty" }, "Noch keine eigenen Lebensmittel"));
   $("search-results").replaceChildren(...items);
 }
 
@@ -674,13 +689,33 @@ async function submitQuick(event) {
   await loadDay();
 }
 
+let editingFood = null; // gesetzt: Dialog bearbeitet dieses eigene Lebensmittel statt ein neues anzulegen
+
 function openCustom(prefill = {}) {
   const form = $("custom-form");
   form.reset();
-  form.elements.name.value = prefill.name || $("search-input").value;
+  editingFood = prefill.food || null;
+  $("custom-title").textContent = editingFood ? "Lebensmittel bearbeiten" : "Eigenes Lebensmittel";
+  form.elements.name.value = editingFood ? editingFood.name : prefill.name || $("search-input").value;
   form.elements.barcode.value = prefill.barcode || "";
+  if (editingFood) {
+    for (const key of ["kcal_100g", "protein_100g", "carbs_100g", "fat_100g", "portion_label", "portion_g"]) {
+      form.elements[key].value = editingFood[key] ?? "";
+    }
+  }
   $("custom-msg").textContent = prefill.message || "";
   openDialog("custom-dialog");
+}
+
+async function deleteFood(food) {
+  if (!confirm(`„${food.name}“ löschen? Erfasste Einträge bleiben, das Lebensmittel verschwindet aus Vorlagen.`)) return;
+  const { ok, data } = await api("DELETE", `/api/foods/${food.id}`);
+  if (!ok) {
+    $("search-hint").textContent = data.error;
+    return;
+  }
+  await runSearch($("search-input").value.trim());
+  await loadDay();
 }
 
 async function submitCustom(event) {
@@ -693,12 +728,24 @@ async function submitCustom(event) {
     body.portion_g = Number(form.portion_g) || null;
   }
   if (form.barcode) body.barcode = form.barcode;
-  const { ok, data } = await api("POST", "/api/foods", body);
+  if (editingFood) {
+    body.portion_label = form.portion_label || null;
+    body.portion_g = Number(form.portion_g) || null;
+  }
+  const { ok, data } = editingFood
+    ? await api("PATCH", `/api/foods/${editingFood.id}`, body)
+    : await api("POST", "/api/foods", body);
   if (!ok) {
     $("custom-msg").textContent = data.error;
     return;
   }
   closeDialog("custom-dialog");
+  if (editingFood) {
+    editingFood = null;
+    await runSearch($("search-input").value.trim());
+    await loadDay();
+    return;
+  }
   openAmount(data);
 }
 
@@ -726,6 +773,10 @@ async function renderTemplates() {
         el("span", { class: "sub" }, template.items.map((i) => i.name).join(", "))),
       el("span", { class: "kcal" }, `${round(template.kcal)} kcal`),
       el("button", {
+        class: "icon-btn", "aria-label": "Vorlage bearbeiten",
+        onclick: (event) => { event.stopPropagation(); openTemplateEdit(template); },
+      }, "✎"),
+      el("button", {
         class: "icon-btn", "aria-label": "Vorlage löschen",
         onclick: (event) => { event.stopPropagation(); deleteTemplate(template); },
       }, "🗑")));
@@ -748,6 +799,47 @@ async function applyTemplate(template) {
 async function deleteTemplate(template) {
   if (!confirm(`Vorlage „${template.name}“ löschen?`)) return;
   await api("DELETE", `/api/meal-templates/${template.id}`);
+  await renderTemplates();
+}
+
+let editingTemplate = null;
+
+function openTemplateEdit(template) {
+  editingTemplate = { id: template.id, items: template.items.map((i) => ({ ...i })) };
+  $("template-edit-form").elements.name.value = template.name;
+  $("template-edit-msg").textContent = "";
+  renderTemplateEditItems();
+  openDialog("template-edit-dialog");
+}
+
+function renderTemplateEditItems() {
+  const rows = editingTemplate.items.map((item, index) =>
+    el("li", {},
+      el("span", { class: "name" }, item.name),
+      el("input", {
+        type: "number", min: "1", step: "any", inputmode: "decimal", value: item.grams, "aria-label": `Gramm ${item.name}`,
+        style: "width:5.5rem", oninput: (event) => { item.grams = Number(event.target.value); },
+      }),
+      el("span", { class: "sub" }, "g"),
+      el("button", {
+        type: "button", class: "icon-btn", "aria-label": "Lebensmittel entfernen",
+        onclick: () => { editingTemplate.items.splice(index, 1); renderTemplateEditItems(); },
+      }, "🗑")));
+  $("template-edit-items").replaceChildren(...rows);
+}
+
+async function submitTemplateEdit(event) {
+  event.preventDefault();
+  const body = {
+    name: new FormData(event.target).get("name"),
+    items: editingTemplate.items.map((i) => ({ food_id: i.food_id, grams: i.grams })),
+  };
+  const { ok, data } = await api("PUT", `/api/meal-templates/${editingTemplate.id}`, body);
+  if (!ok) {
+    $("template-edit-msg").textContent = data.error;
+    return;
+  }
+  closeDialog("template-edit-dialog");
   await renderTemplates();
 }
 
@@ -915,6 +1007,11 @@ function bindEvents() {
   $("open-scan").addEventListener("click", openScan);
   $("open-quick").addEventListener("click", openQuick);
   $("open-custom").addEventListener("click", () => openCustom());
+  $("open-mine").addEventListener("click", () => {
+    mineOnly = !mineOnly;
+    $("open-mine").classList.toggle("primary", mineOnly);
+    runSearch($("search-input").value.trim());
+  });
 
   $("amount-count").addEventListener("input", (event) => {
     const { food } = state.amount;
@@ -945,6 +1042,7 @@ function bindEvents() {
   $("quick-form").addEventListener("submit", submitQuick);
   $("custom-form").addEventListener("submit", submitCustom);
   $("template-form").addEventListener("submit", submitTemplate);
+  $("template-edit-form").addEventListener("submit", submitTemplateEdit);
   $("ean-form").addEventListener("submit", (event) => {
     event.preventDefault();
     stopScan();

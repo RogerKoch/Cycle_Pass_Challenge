@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from backend.engine.cycling_sessions import (
     ALL_SLOTS,
     ENDURANCE_SLOTS,
+    SLOT_FTP_TEST,
     CyclingSession,
     adjust_duration,
     build_cycling_session,
@@ -35,7 +36,7 @@ from backend.engine.plan_adjustments import (
     apply_deload,
     is_forced_deload,
 )
-from backend.engine.strength_benchmarks import ExerciseStages, exercise_stages
+from backend.engine.strength_benchmarks import ExerciseStages, exercise_stages, next_due
 from backend.engine.strength_sessions import mobility_routine
 from backend.engine.week_plan import (
     STATUS_DONE,
@@ -61,7 +62,7 @@ from backend.models.exercise_swaps import exercise_swaps
 from backend.models.ftp_tests import FtpTest
 from backend.models.intervals import imported_records
 from backend.models.plan_adjustments import adjustment_spans
-from backend.models.strength_benchmarks import current_benchmark
+from backend.models.strength_benchmarks import StrengthBenchmark, current_benchmark
 from backend.models.training_days import TrainingDay
 from backend.models.user_profile import UserProfile
 
@@ -369,11 +370,52 @@ def serialize_day(
     return result
 
 
+TESTS_LOOKAHEAD_DAYS = 400
+
+
+def next_tests(profile: UserProfile, today: date) -> dict:
+    """Naechste Test-Termine fuer die Wochenansicht.
+
+    ftp: naechster geplanter FTP-Test-Slot ab heute (gespeicherte Tage vor Standardplan; abgesagte zaehlen nicht).
+    benchmark: Faelligkeit des Kraft-Benchmarks und der erste Radtag ab dann (das Review meldet ihn an Radtagen).
+
+    Returns:
+        {"ftp": {"date", "last_test"}, "benchmark": {"due", "date", "last_test"}}; Daten als ISO oder None.
+    """
+    stored = {r.day_date: r for r in TrainingDay.query.filter(TrainingDay.day_date >= today).all()}
+
+    def slot_on(day: date) -> str | None:
+        row = stored.get(day)
+        if row is not None:
+            return None if row.status == STATUS_SKIPPED else row.cycling_slot
+        return default_day_plan(profile.program_start_date, day, profile.rest_weekday, profile.sport)[0]
+
+    last_ftp = db.session.query(db.func.max(FtpTest.test_date)).scalar()
+    last_benchmark = db.session.query(db.func.max(StrengthBenchmark.test_date)).scalar()
+    due = next_due(last_benchmark, profile.benchmark_interval_weeks, today)
+    ftp_day = benchmark_day = None
+    for offset in range(TESTS_LOOKAHEAD_DAYS):
+        day = today + timedelta(days=offset)
+        slot = slot_on(day)
+        if ftp_day is None and slot == SLOT_FTP_TEST:
+            ftp_day = day
+        if benchmark_day is None and slot and day >= due and day >= profile.program_start_date:
+            benchmark_day = day
+        if ftp_day and benchmark_day:
+            break
+    iso = lambda value: value.isoformat() if value else None  # noqa: E731
+    return {
+        "ftp": {"date": iso(ftp_day), "last_test": iso(last_ftp)},
+        "benchmark": {"due": iso(due), "date": iso(benchmark_day), "last_test": iso(last_benchmark)},
+    }
+
+
 def _serialize_week(profile: UserProfile, rows: list[TrainingDay]) -> dict:
     ftp_watts, spans, stages = _latest_ftp(), adjustment_spans(), exercise_stages(current_benchmark())
     events = event_spans()
     return {
         "week_start": rows[0].day_date.isoformat(),
+        "next_tests": next_tests(profile, date.today()),
         "days": [
             serialize_day(r, profile, rows, ftp_watts, full=False, spans=spans, stages=stages, events=events)
             for r in rows

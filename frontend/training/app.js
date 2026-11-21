@@ -107,6 +107,7 @@ async function load() {
   state.sets = sets.ok ? sets.data : {};
   state.day = day.data;
   state.week = week.data;
+  state.tests = week.data.next_tests;
   state.month = month && month.ok ? month.data : null;
   loadReviewBanner();
   const events = await api("GET", "/api/events");
@@ -187,12 +188,45 @@ function dayState(d) {
   return d.date < today() ? { cls: "open", icon: "…" } : { cls: "planned", icon: "" };
 }
 
+// Test-Termine (FTP-Retest-Slot, Kraft-Benchmark) eines Tages: [kurz, lang]
+function testMarks(iso) {
+  const tests = state.tests;
+  const marks = [];
+  if (tests && tests.ftp.date === iso) marks.push(["🧪 FTP", "🧪 FTP-Test"]);
+  if (tests && tests.benchmark.date === iso) marks.push(["📋 BM", "📋 Kraft-Benchmark"]);
+  return marks;
+}
+
 function cellText(d) {
   const parts = [];
   if (d.event) parts.push(`🏁 ${d.event.label}`);
   if (d.cycling) parts.push(`🚴 ${round(d.cycling.minutes)}'`);
   if (d.strength) parts.push(`💪 ${d.strength.session_id}`);
+  for (const [short] of testMarks(d.date)) parts.push(short);
   return parts;
+}
+
+// "Nächste Tests" über der Wochenliste: Termin, Abstand in Tagen und letzter Test
+function renderTests() {
+  const tests = state.tests;
+  const dayLabel = (iso) => fmtDate(iso, { weekday: "short", day: "numeric", month: "numeric" });
+  const inDays = (iso) => {
+    const n = Math.round((new Date(iso) - new Date(today())) / 86400000);
+    return n === 0 ? "heute" : n === 1 ? "morgen" : n > 0 ? `in ${n} Tagen` : `seit ${-n} Tagen`;
+  };
+  const lines = [];
+  if (tests) {
+    const last = (v) => (v ? ` · letzter Test ${fmtDate(v, { day: "numeric", month: "numeric", year: "numeric" })}` : " · noch kein Test");
+    lines.push(tests.ftp.date
+      ? `🧪 Nächster FTP-Test: ${dayLabel(tests.ftp.date)} (${inDays(tests.ftp.date)})${last(tests.ftp.last_test)}`
+      : "🧪 Kein FTP-Test in der Planung");
+    if (tests.benchmark.date) {
+      const overdue = tests.benchmark.due <= today();
+      lines.push(`📋 Kraft-Benchmark ${overdue ? "fällig" : "ab " + dayLabel(tests.benchmark.due)}: ${dayLabel(tests.benchmark.date)} (${inDays(tests.benchmark.date)})${last(tests.benchmark.last_test)}`);
+    }
+  }
+  $("tests-hint").replaceChildren(...lines.flatMap((text) => [text, el("br")]).slice(0, -1));
+  $("tests-hint").hidden = !lines.length;
 }
 
 function renderMonth() {
@@ -798,6 +832,7 @@ function renderWeek() {
     if (d.event) parts.push(`🏁 ${d.event.label}`);
     if (d.cycling) parts.push(`🚴 ${d.cycling.title} · ${fmtMinutes(d.cycling.minutes)}`);
     if (d.strength) parts.push(`💪 Kraft ${d.strength.session_id}`);
+    for (const [, long] of testMarks(d.date)) if (!(d.cycling && /FTP|Ramp/i.test(d.cycling.title) && long.includes("FTP"))) parts.push(long);
     const ds = dayState(d);
     const classes = [
       d.date === today() ? "today" : "",
@@ -816,6 +851,7 @@ function renderWeek() {
           d.warnings.length ? el("span", { class: "line" }, "⚠") : null)),
       el("span", { class: "kcal" }, ds.icon));
   });
+  renderTests();
   $("week-list").replaceChildren(...items);
 }
 
@@ -948,12 +984,6 @@ function bindEvents() {
   }
 }
 
-async function syncIntervals() {
-  // Auto-Sync beim Oeffnen (Server synchronisiert hoechstens alle 30 min); Fehler zeigt das Profil
-  const status = await api("GET", "/api/intervals/status");
-  if (status.ok && status.data.configured) await api("POST", "/api/intervals/sync?if_stale=1");
-}
-
 // Manueller Abgleich: Aktivitaeten/Wellness holen, geplante Workouts an intervals.icu schicken, Ansicht neu laden
 async function syncNow() {
   const button = $("sync-icu");
@@ -984,4 +1014,4 @@ function syncSummary(data) {
 $("sync-icu").addEventListener("click", syncNow);
 state.view = viewFromHash();
 bindEvents();
-syncIntervals().finally(load);
+load();

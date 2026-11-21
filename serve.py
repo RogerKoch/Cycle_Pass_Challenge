@@ -11,6 +11,7 @@ from waitress import serve
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from backend.app import create_app
+from backend.integrations.scheduler import start_hourly_sync
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ def main() -> None:
         sys.exit(1)
     # Caddy setzt X-Forwarded-For/-Proto/-Host und X-Forwarded-Prefix (z.B. /cpc)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    start_hourly_sync(app)
     port = int(os.environ.get("CPC_PORT", DEFAULT_PORT))
     logger.info("Cycle Pass laeuft auf 127.0.0.1:%d", port)
     serve(app, host="127.0.0.1", port=port)

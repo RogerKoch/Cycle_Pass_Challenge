@@ -337,4 +337,4 @@ $("reset-form").addEventListener("submit", async (event) => {
 });
 
 loadAll();
-syncIntervals(true);
+loadIntervalsStatus();
