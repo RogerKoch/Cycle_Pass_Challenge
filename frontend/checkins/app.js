@@ -213,14 +213,5 @@ function loadAll() {
   mountBenchmark($("benchmark-box"), testOptions);
 }
 
-// Neue Garmin-Waagen-Daten kommen per Sync; der Server synchronisiert hoechstens alle 30 min
-async function syncIfStale() {
-  const status = await api("GET", "/api/intervals/status");
-  if (!status.ok || !status.data.configured) return;
-  const { data } = await api("POST", "/api/intervals/sync?if_stale=1");
-  if (data.synced) loadAll();
-}
-
 showTab();
 loadAll();
-syncIfStale();

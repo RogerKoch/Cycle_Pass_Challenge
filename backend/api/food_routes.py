@@ -10,7 +10,7 @@ from sqlalchemy import case, func
 from backend.engine.food_calc import normalize_search
 from backend.extensions import db
 from backend.integrations.open_food_facts import OffUnavailableError, lookup_product
-from backend.models.food import Food, FoodLogEntry
+from backend.models.food import Food, FoodLogEntry, MealTemplate, MealTemplateItem
 
 logger = logging.getLogger(__name__)
 
@@ -79,16 +79,20 @@ def _recent_foods(limit: int) -> list[Food]:
 def search_foods():
     """Sucht Lebensmittel (?q=...&limit=20). Alle Woerter muessen vorkommen. Rangfolge: erstes Wort
     als ganzes Wort am Anfang ("Ei, ..."), dann Praefix, dann Wortanfang, dann Teiltreffer; innerhalb
-    gleicher Stufe haeufig genutzte zuerst. Ohne q: zuletzt verwendete Lebensmittel."""
+    gleicher Stufe haeufig genutzte zuerst. Ohne q: zuletzt verwendete Lebensmittel;
+    `custom=1` beschraenkt auf eigene Lebensmittel (ohne q: alle alphabetisch)."""
     try:
         limit = min(max(int(request.args.get("limit", DEFAULT_LIMIT)), 1), MAX_LIMIT)
     except ValueError:
         return jsonify({"error": "limit muss eine Zahl sein"}), 400
     words = normalize_search(request.args.get("q", "")).split()
-    if not words:
+    custom_only = bool(request.args.get("custom"))
+    if not words and not custom_only:
         return jsonify([serialize_food(f) for f in _recent_foods(limit)]), 200
 
-    query = Food.query
+    query = Food.query.filter_by(source="custom") if custom_only else Food.query
+    if not words:
+        return jsonify([serialize_food(f) for f in query.order_by(Food.name).limit(limit).all()]), 200
     for word in words:
         query = query.filter(Food.search_name.contains(word, autoescape=True))
     first = words[0]
@@ -175,6 +179,28 @@ def update_food(food_id: int):
         return jsonify({"error": f"ungueltige Daten: {exc}"}), 400
     db.session.commit()
     return jsonify(serialize_food(food)), 200
+
+
+@foods_bp.delete("/<int:food_id>")
+def delete_food(food_id: int):
+    """Loescht ein eigenes Lebensmittel. Tagebuch-Eintraege bleiben als Snapshot (ohne Verknuepfung) bestehen,
+    das Lebensmittel verschwindet aus Vorlagen (leer gewordene Vorlagen werden mitgeloescht)."""
+    food = db.session.get(Food, food_id)
+    if food is None:
+        return jsonify({"error": "Lebensmittel nicht gefunden"}), 404
+    if food.source != "custom":
+        return jsonify({"error": "Nur eigene Lebensmittel loeschbar"}), 400
+    FoodLogEntry.query.filter_by(food_id=food_id).update({"food_id": None, "grams": None})
+    template_ids = {i.template_id for i in MealTemplateItem.query.filter_by(food_id=food_id)}
+    MealTemplateItem.query.filter_by(food_id=food_id).delete()
+    db.session.flush()
+    for template_id in template_ids:
+        template = db.session.get(MealTemplate, template_id)
+        if template is not None and not MealTemplateItem.query.filter_by(template_id=template_id).count():
+            db.session.delete(template)
+    db.session.delete(food)
+    db.session.commit()
+    return "", 204
 
 
 @foods_bp.get("/barcode/<ean>")

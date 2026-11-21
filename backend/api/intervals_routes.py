@@ -55,6 +55,37 @@ def remove_activity(icu_id: str):
     return jsonify({"removed": icu_id}), 200
 
 
+def sync_and_push(client) -> tuple[dict, int]:
+    """Import der letzten 14 Tage und Push der Workouts der naechsten 7 Tage (Route und Stunden-Job).
+
+    Returns:
+        (Antwort-Payload, HTTP-Status). Muss im App-Kontext laufen.
+    """
+    if not _sync_lock.acquire(blocking=False):
+        return {"synced": False, "error": None, "busy": True}, 200
+    try:
+        try:
+            result = sync(client, date.today())
+        except IcuError as exc:
+            return {"synced": False, "error": str(exc)}, 502
+        pushed, push_error = None, None
+        profile = UserProfile.query.first()
+        if profile is not None:
+            try:
+                pushed = push_planned_workouts(profile)
+            except IcuError as exc:
+                push_error = str(exc)
+        return {
+            "synced": True,
+            "error": None,
+            **asdict(result),
+            "workouts_pushed": pushed.upserted if pushed else 0,
+            "push_error": push_error,
+        }, 200
+    finally:
+        _sync_lock.release()
+
+
 @intervals_bp.post("/sync")
 def run_sync():
     """Synchronisiert die letzten 14 Tage und schickt die Workouts der naechsten 7 Tage an intervals.icu.
@@ -66,26 +97,5 @@ def run_sync():
         return jsonify({"synced": False, "error": "intervals.icu nicht konfiguriert (INTERVALS_ICU_API_KEY)"}), 409
     if request.args.get("if_stale") and not is_stale(datetime.now(timezone.utc)):
         return jsonify({"synced": False, "error": None}), 200
-    if not _sync_lock.acquire(blocking=False):
-        return jsonify({"synced": False, "error": None, "busy": True}), 200
-    try:
-        try:
-            result = sync(client, date.today())
-        except IcuError as exc:
-            return jsonify({"synced": False, "error": str(exc)}), 502
-        pushed, push_error = None, None
-        profile = UserProfile.query.first()
-        if profile is not None:
-            try:
-                pushed = push_planned_workouts(profile)
-            except IcuError as exc:
-                push_error = str(exc)
-        return jsonify({
-            "synced": True,
-            "error": None,
-            **asdict(result),
-            "workouts_pushed": pushed.upserted if pushed else 0,
-            "push_error": push_error,
-        }), 200
-    finally:
-        _sync_lock.release()
+    payload, status = sync_and_push(client)
+    return jsonify(payload), status

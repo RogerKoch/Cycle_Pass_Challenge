@@ -68,6 +68,7 @@
       <button id="open-scan">Barcode</button>
       <button id="open-quick">Schnelleintrag</button>
       <button id="open-custom">Eigenes</button>
+      <button id="open-mine">Meine</button>
     </div>
     <p class="hint" id="search-hint"></p>
     <ul id="search-results" class="list"></ul>
@@ -123,7 +124,7 @@
   <dialog id="custom-dialog" class="sheet">
     <div class="sheet-head">
       <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
-      <h2>Eigenes Lebensmittel</h2>
+      <h2 id="custom-title">Eigenes Lebensmittel</h2>
     </div>
     <form id="custom-form" class="grid">
       <label class="full">Name<input name="name" required></label>
@@ -153,6 +154,20 @@
       <button type="submit">Speichern</button>
     </form>
     <p class="msg" id="template-msg"></p>
+  </dialog>
+
+  <!-- Vorlage bearbeiten -->
+  <dialog id="template-edit-dialog" class="sheet">
+    <div class="sheet-head">
+      <button class="icon-btn" data-close aria-label="Schliessen">✕</button>
+      <h2>Vorlage bearbeiten</h2>
+    </div>
+    <form id="template-edit-form" class="grid">
+      <label class="full">Name<input name="name" required></label>
+      <ul id="template-edit-items" class="list full"></ul>
+      <button type="submit" class="primary full">Speichern</button>
+    </form>
+    <p class="msg" id="template-edit-msg"></p>
   </dialog>
 
   <!-- Barcode -->

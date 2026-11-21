@@ -65,6 +65,36 @@ def create_template():
     return jsonify(_serialize(template)), 201
 
 
+@meal_templates_bp.put("/<int:template_id>")
+def update_template(template_id: int):
+    """Aendert Name und/oder Lebensmittel: {name?, items?: [{food_id, grams}]} (items ersetzt die Liste)."""
+    template = db.session.get(MealTemplate, template_id)
+    if template is None:
+        return jsonify({"error": "Vorlage nicht gefunden"}), 404
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        name = template.name
+        if "name" in body:
+            name = (body["name"] or "").strip()
+            if not name:
+                raise ValueError("name fehlt")
+        items = None
+        if "items" in body:
+            items = [(int(i["food_id"]), parse_grams(i.get("grams"))) for i in body["items"] or []]
+            if not items:
+                raise ValueError("Vorlage braucht mindestens ein Lebensmittel")
+            unknown = {food_id for food_id, _ in items if db.session.get(Food, food_id) is None}
+            if unknown:
+                raise ValueError(f"unbekannte food_id: {sorted(unknown)}")
+    except (KeyError, TypeError, ValueError) as exc:
+        return jsonify({"error": f"ungueltige Vorlage: {exc}"}), 400
+    template.name = name
+    if items is not None:
+        template.items = [MealTemplateItem(food_id=food_id, grams=grams) for food_id, grams in items]
+    db.session.commit()
+    return jsonify(_serialize(template)), 200
+
+
 @meal_templates_bp.delete("/<int:template_id>")
 def delete_template(template_id: int):
     """Loescht eine Vorlage (erfasste Eintraege bleiben bestehen)."""

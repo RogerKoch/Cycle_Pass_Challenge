@@ -52,4 +52,19 @@
   nav.append(logout);
 
   document.body.prepend(nav);
+
+  // Offene Review-Hinweise (Check-in faellig, FTP-Test, Benchmark ...) als Zaehler am Check-ins-Eintrag,
+  // damit sie auch auf dem Handy (Tab-Leiste) auffallen
+  const checkinsLink = nav.querySelector('a[href$="checkins/"]');
+  fetch(new URL("api/review", base), { headers: { Accept: "application/json" } })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((review) => {
+      const count = review ? review.findings.length : 0;
+      if (!count || !checkinsLink) return;
+      const urgent = review.findings.some((f) => f.severity === "alert");
+      const badge = Object.assign(document.createElement("span"), { className: `nav-badge${urgent ? " alert" : ""}`, textContent: String(count) });
+      badge.setAttribute("aria-label", `${count} offene Hinweise`);
+      checkinsLink.append(badge);
+    })
+    .catch(() => {}); // Badge ist nur ein Hinweis
 })();

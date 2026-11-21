@@ -150,6 +150,18 @@ dialog.sheet::backdrop { background: rgb(0 0 0 / 0.45); }
 .nav-item:hover { background: var(--accent-soft); color: var(--text); }
 .nav-item[aria-current="page"] { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
 .nav-logout button { width: 100%; }
+.nav-item { position: relative; }
+.nav-badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
+  background: var(--warn); color: var(--card); font-size: 0.7rem; font-weight: 700; line-height: 18px; text-align: center;
+}
+.nav-badge.alert { background: var(--danger); }
+@media (max-width: 899px) { .nav-badge { position: absolute; top: 0; left: calc(50% + 6px); } }
+@media (min-width: 900px) { .nav-badge { margin-left: auto; } }
+
+/* Hinweis-Banner (offene Review-Hinweise) auf Heute und Training */
+.banner { display: block; text-decoration: none; color: var(--text); border-color: var(--warn); }
+.banner.alert { border-color: var(--danger); }
 
 @media (max-width: 899px) {
   body[data-nav] { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
